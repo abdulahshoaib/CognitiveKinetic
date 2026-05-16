@@ -1,0 +1,13 @@
+{
+  "id": "supply_chain_delay",
+  "title": "Supply Chain Delay",
+  "description": "Critical component supplier reporting 6-week delays, threatening Q4 production targets.",
+  "domain": "logistics",
+  "input": "Supply Chain Disruption Notice: Primary supplier (TechParts Inc.) has notified us of a 6-week delay on microcontroller units (MCU-7200) due to factory capacity constraints. Impact: (1) 45,000 units of our flagship product cannot be assembled until parts arrive. (2) Estimated revenue at risk: $6.75M in Q4. (3) Secondary supplier can provide 30% of needed volume at 18% higher cost. (4) Three major retail partners have firm delivery commitments for Black Friday inventory. (5) Current finished goods inventory covers only 2.5 weeks of demand at current sell-through rates.",
+  "expectedInsights": [
+    "6-week delay puts $6.75M Q4 revenue at risk",
+    "Secondary supplier can partially fill gap at 18% cost premium",
+    "Black Friday commitments at risk — penalty clauses may apply",
+    "2.5-week inventory buffer insufficient for 6-week gap"
+  ]
+}

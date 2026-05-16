@@ -1,0 +1,13 @@
+{
+  "id": "customer_complaints",
+  "title": "Customer Complaint Spike",
+  "description": "Customer complaints increased 45% month-over-month, with billing and service response time as top issues.",
+  "domain": "business",
+  "input": "Customer Experience Report — October: Total complaints rose from 1,200 to 1,740 (+45% MoM). Breakdown: (1) Billing errors: 520 complaints (+65%), traced to a system migration on Oct 3 that caused duplicate charges for 2,800 customers. (2) Service response time: 480 complaints (+38%), average response time increased from 2.4 hours to 6.1 hours due to understaffing. (3) Product quality: 310 complaints (+22%), specific to batch #B-2847 manufactured Sept 15-20. (4) NPS score dropped from 42 to 31. (5) Social media mentions with negative sentiment increased 89%. Churn prediction model shows 15% of affected customers at high risk of leaving within 30 days.",
+  "expectedInsights": [
+    "System migration caused 2,800 duplicate charges — immediate fix needed",
+    "Response time 2.5x worse due to understaffing",
+    "Batch #B-2847 quality defect affecting 310+ customers",
+    "15% churn risk among affected customers within 30 days"
+  ]
+}

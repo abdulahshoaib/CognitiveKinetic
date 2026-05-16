@@ -1,0 +1,13 @@
+{
+  "id": "fuel_price_increase",
+  "title": "Fuel Price Increase Affecting Delivery Cost",
+  "description": "Diesel prices surged 23% in the last quarter, significantly impacting logistics and last-mile delivery costs.",
+  "domain": "logistics",
+  "input": "Logistics Cost Alert: Diesel fuel prices have increased 23% over the past 90 days, from $3.45/gallon to $4.24/gallon. Impact assessment: (1) Average delivery cost per order increased from $8.50 to $10.20 (+20%). (2) Fleet operating costs rose by $340K/month across 120 vehicles. (3) Current delivery pricing absorbs only 60% of actual cost — margin erosion of $2.04 per delivery. (4) Competitors have already raised delivery fees by $1.50-$2.00. (5) Customer complaints about delivery times increased 15% as drivers optimize routes for fuel efficiency over speed.",
+  "expectedInsights": [
+    "23% fuel cost increase creating $2.04/delivery margin erosion",
+    "Competitors already adjusted pricing — window to act",
+    "Route optimization impacting delivery speed and satisfaction",
+    "$340K/month additional fleet cost unsustainable"
+  ]
+}

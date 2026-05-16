@@ -1,0 +1,13 @@
+{
+  "id": "sales_decline",
+  "title": "Regional Sales Decline",
+  "description": "Q3 sales in the Western region declined by 18% compared to Q2, primarily driven by increased competitor activity and delayed product launches.",
+  "domain": "business",
+  "input": "Q3 Sales Report Summary: Western region revenue dropped from $4.2M to $3.44M, an 18% decline quarter-over-quarter. Key factors include: (1) Competitor X launched a similar product at 15% lower price point in July, capturing an estimated 12% of our market share. (2) Our planned product refresh was delayed from August to October due to supply chain issues. (3) Customer satisfaction scores in the region dropped from 4.2 to 3.8 out of 5. (4) Sales team turnover reached 22%, with 3 senior account managers departing. Forecast: Without intervention, Q4 revenue projected to decline a further 8-10%.",
+  "expectedInsights": [
+    "18% revenue decline driven by competitive pressure and internal delays",
+    "Competitor pricing 15% below our offering",
+    "Product launch delay creating 2-month market gap",
+    "Customer satisfaction declining — churn risk"
+  ]
+}

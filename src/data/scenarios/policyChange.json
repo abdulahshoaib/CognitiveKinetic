@@ -1,0 +1,13 @@
+{
+  "id": "policy_change",
+  "title": "Policy Change Affecting Business Operations",
+  "description": "New data privacy regulation effective January 1st requires significant changes to data handling and customer consent flows.",
+  "domain": "public_policy",
+  "input": "Regulatory Update: The Digital Privacy Protection Act (DPPA) takes effect January 1. Key requirements: (1) Explicit opt-in consent required for all data collection — current opt-out model non-compliant. (2) Data retention limited to 24 months — we currently retain data for 5+ years. (3) Right to deletion must be fulfilled within 72 hours — current process takes 30 days. (4) Fines up to 4% of annual revenue for non-compliance ($12.8M exposure based on our revenue). (5) Cross-border data transfers require new contractual frameworks — affects 3 international data centers. Timeline: 67 days until enforcement. Current compliance assessment: 35% ready.",
+  "expectedInsights": [
+    "$12.8M fine exposure if non-compliant by Jan 1",
+    "Only 35% compliant with 67 days remaining",
+    "Consent model requires complete rebuild (opt-out → opt-in)",
+    "Data retention policy needs 3+ years of data purging"
+  ]
+}
