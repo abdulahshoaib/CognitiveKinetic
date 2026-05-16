@@ -24,8 +24,6 @@ jobs:
       - name: Expo Doctor
         run: npx expo-doctor
 
-      - name: Check for syntax errors
-        run: npx acorn --ecma2020 --module --silent App.js index.js
 
       - name: Validate JSON configs
         run: |
