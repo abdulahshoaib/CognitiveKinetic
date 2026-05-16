@@ -1,17 +1,91 @@
 name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
 jobs:
-  check:
+  lint-and-validate:
+    name: Lint & Validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-      - run: npm install
-      - run: npx expo-doctor
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Check for syntax errors
+        run: npx acorn --ecma2020 --module --silent App.js index.js
+
+      - name: Validate JSON configs
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('app.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
+
+      - name: Check imports resolve
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const errors = [];
+            function checkDir(dir) {
+              for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, f.name);
+                if (f.isDirectory() && f.name !== 'node_modules') checkDir(full);
+                if (f.isFile() && f.name.endsWith('.js')) {
+                  const content = fs.readFileSync(full, 'utf8');
+                  const imports = content.match(/from\s+['\"](\.[^'\"]+)['\"]/g) || [];
+                  for (const imp of imports) {
+                    const rel = imp.match(/from\s+['\"](\.[^'\"]+)['\"]/)[1];
+                    const resolved = path.resolve(path.dirname(full), rel);
+                    const exists = fs.existsSync(resolved) ||
+                                   fs.existsSync(resolved + '.js') ||
+                                   fs.existsSync(resolved + '.json') ||
+                                   fs.existsSync(resolved + '/index.js');
+                    if (!exists) errors.push(full + ' -> ' + rel);
+                  }
+                }
+              }
+            }
+            checkDir('src');
+            checkDir('.');
+            if (errors.length) { console.error('Broken imports:', errors); process.exit(1); }
+            console.log('All imports resolve OK');
+          "
+
+  structure-check:
+    name: Project Structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required directories
+        run: |
+          for dir in src/screens src/components src/services src/hooks src/utils src/constants src/navigation src/data; do
+            if [ ! -d "$dir" ]; then
+              echo "MISSING: $dir"
+              exit 1
+            fi
+          done
+          echo "All required directories present"
+
+      - name: Verify required files
+        run: |
+          for file in App.js index.js app.json package.json src/navigation/AppNavigator.js src/constants/colors.js; do
+            if [ ! -f "$file" ]; then
+              echo "MISSING: $file"
+              exit 1
+            fi
+          done
+          echo "All required files present"
+
