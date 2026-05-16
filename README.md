@@ -1,6 +1,6 @@
-# CognitiveKinetic
+# Cognitive Kinetic
 
-CognitiveKinetic is a premium React Native (Expo) mobile application designed to help users track, analyze, and improve their cognitive and physical progress.
+Cognitive Kinetic is a React Native (Expo) mobile application designed to help users track, analyze, and improve their cognitive and physical progress.
 
 ## How to Start the App
 
