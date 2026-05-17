@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FontSizes, FontWeights } from '../constants/typography';
 import { Spacing, BorderRadius } from '../constants/layout';
-import Colors from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
-import { saveProfile } from '../services/profileService';
-import Button from '../components/common/Button';
+import { saveProfile, getProfile } from '../services/profileService';
+import Colors from '../constants/colors';
 
-export default function OnboardingScreen({ navigation }) {
+export default function ProfileSettingsScreen({ navigation }) {
   const { user } = useAuth();
   
   // Profile Form State
@@ -20,9 +19,34 @@ export default function OnboardingScreen({ navigation }) {
   const [goals, setGoals] = useState('');
   const [concerns, setConcerns] = useState('');
   const [risks, setRisks] = useState('');
-  const [riskSensitivity, setRiskSensitivity] = useState('balanced'); // conservative, balanced, aggressive
+  const [riskSensitivity, setRiskSensitivity] = useState('balanced');
   
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      try {
+        const loadedProfile = await getProfile(user.uid);
+        if (loadedProfile) {
+          setBusinessName(loadedProfile.businessName || '');
+          setIndustry(loadedProfile.industry || '');
+          setLocations(loadedProfile.locations || '');
+          setCustomers(loadedProfile.customers || '');
+          setGoals(loadedProfile.goals || '');
+          setConcerns(loadedProfile.concerns || '');
+          setRisks(loadedProfile.risks || '');
+          setRiskSensitivity(loadedProfile.riskSensitivity || 'balanced');
+        }
+      } catch (error) {
+        console.error('Failed to fetch profile in settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -38,10 +62,9 @@ export default function OnboardingScreen({ navigation }) {
         risks,
         riskSensitivity,
       });
-      navigation.replace('Home'); // Replace so user can't go back to onboarding
+      navigation.goBack(); // Return to previous screen
     } catch (error) {
       console.error('Failed to save profile:', error);
-      // In a real app, handle error display here
     } finally {
       setIsSaving(false);
     }
@@ -88,27 +111,26 @@ export default function OnboardingScreen({ navigation }) {
     );
   };
 
+  if (isLoading) {
+    return (
+      <View style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Ionicons name="cube" size={24} color={Colors.accent} />
-            <Text style={styles.headerBrand}>Cognitive Kinetic</Text>
-          </View>
-          <Text style={styles.headerStep}>Step 1 of 1</Text>
-        </View>
-
         <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
           {/* Title Area */}
           <View style={styles.titleSection}>
-            <Text style={styles.title}>Context Initialization</Text>
+            <Text style={styles.title}>Update Profile Settings</Text>
             <Text style={styles.subtitle}>
-              Please provide the foundational parameters for your agent. This one-time setup establishes the operational context, risk thresholds, and strategic objectives required for autonomous execution.
+              Adjust the foundational parameters for your agent. These parameters are used automatically during content ingestion to evaluate operational impact.
             </Text>
           </View>
 
@@ -269,13 +291,20 @@ export default function OnboardingScreen({ navigation }) {
 
           {/* Action Area */}
           <View style={styles.footer}>
-            <Button
-              label="Initialize Context"
+            <TouchableOpacity 
+              style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} 
               onPress={handleSave}
-              variant="primary"
-              icon="save-outline"
-              style={isSaving ? { opacity: 0.7 } : {}}
-            />
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator color={Colors.textPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="save-outline" size={20} color={Colors.textPrimary} style={{ marginRight: 8 }} />
+                  <Text style={styles.saveBtnText}>Update Settings</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
 
         </ScrollView>
@@ -289,41 +318,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 64,
-    paddingHorizontal: Spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.surfaceBorder,
-    backgroundColor: Colors.surfaceContainerLow,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerBrand: {
-    color: Colors.accent,
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    marginLeft: Spacing.sm,
-    letterSpacing: -0.5,
-  },
-  headerStep: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
-  },
   scrollContent: {
     padding: Spacing.xl,
-    paddingBottom: 100, // extra padding for scrolling
+    paddingBottom: 100,
   },
   titleSection: {
     marginBottom: Spacing.xl,
   },
   title: {
     color: Colors.textPrimary,
-    fontSize: FontSizes['3xl'],
+    fontSize: FontSizes['2xl'],
     fontWeight: FontWeights.bold,
     marginBottom: Spacing.sm,
     letterSpacing: -1,
@@ -344,7 +348,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: Colors.accent,
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.lg,
     fontWeight: FontWeights.semibold,
   },
   row: {
@@ -423,4 +427,18 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.surfaceBorder,
     alignItems: 'flex-end',
   },
+  saveBtn: {
+    backgroundColor: Colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm + 4,
+    borderRadius: BorderRadius.md,
+    elevation: 3,
+  },
+  saveBtnText: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+  }
 });
