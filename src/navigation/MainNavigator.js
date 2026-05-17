@@ -3,7 +3,7 @@
  * Streamlined to core pipeline: Dashboard -> New Content -> Actions -> Company Context
  */
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
@@ -63,6 +63,9 @@ function IngestionStackScreen() {
     <IngestionStack.Navigator screenOptions={subStackScreenOptions(c)}>
       <IngestionStack.Screen name="IngestionMain" component={NewContentScreen} options={{ headerShown: false }} />
       <IngestionStack.Screen name="AnalysisRun" component={AnalysisRunScreen} options={{ title: 'Analysis Progress' }} />
+      <IngestionStack.Screen name="ImpactReport" component={ImpactReportScreen} options={{ title: 'Impact Report' }} />
+      <IngestionStack.Screen name="SimulationResult" component={SimulationResultScreen} options={{ title: 'Simulation Result' }} />
+      <IngestionStack.Screen name="AgentTrace" component={AgentTraceScreen} options={{ title: 'Agent Trace' }} />
     </IngestionStack.Navigator>
   );
 }
