@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import Colors from '../../constants/colors';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -73,7 +73,7 @@ export default function LoginScreen({ navigation }) {
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.logoBox}>
-            <MaterialIcons name="memory" size={32} color={Colors.textPrimary} />
+            <MaterialIcons name="memory" size={32} color="#3B82F6" />
           </View>
           <Text style={styles.title}>Cognitive Kinetic</Text>
           <Text style={styles.subtitle}>Log in to your workspace</Text>
@@ -83,11 +83,11 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>WORKSPACE EMAIL</Text>
             <View style={styles.inputWrapper}>
-              <MaterialIcons name="mail" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+              <MaterialIcons name="mail" size={20} color="#94a3b8" style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
                 placeholder="name@company.com" 
-                placeholderTextColor="rgba(198, 198, 205, 0.4)"
+                placeholderTextColor="rgba(148, 163, 184, 0.4)"
                 value={email} 
                 onChangeText={setEmail} 
                 autoCapitalize="none"
@@ -104,23 +104,23 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <View style={styles.inputWrapper}>
-              <MaterialIcons name="lock" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+              <MaterialIcons name="lock" size={20} color="#94a3b8" style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
                 placeholder="••••••••••••" 
-                placeholderTextColor="rgba(198, 198, 205, 0.4)"
+                placeholderTextColor="rgba(148, 163, 184, 0.4)"
                 value={password} 
                 onChangeText={setPassword} 
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color={Colors.textSecondary} />
+                <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color="#94a3b8" />
               </TouchableOpacity>
             </View>
           </View>
           
           <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color={Colors.primaryText} /> : <Text style={styles.buttonText}>Log in</Text>}
+            {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Log in</Text>}
           </TouchableOpacity>
         </View>
 
@@ -152,32 +152,32 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, paddingHorizontal: 32, justifyContent: 'center', backgroundColor: Colors.background, alignItems: 'center' },
+  safeArea: { flex: 1, backgroundColor: '#020617' },
+  container: { flex: 1, paddingHorizontal: 32, justifyContent: 'center', backgroundColor: '#020617', alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
-  logoBox: { width: 56, height: 56, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.surfaceBorder, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '600', color: Colors.textPrimary, letterSpacing: -0.5, marginBottom: 4 },
-  subtitle: { fontSize: 14, color: Colors.textSecondary },
+  logoBox: { width: 56, height: 56, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B', borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: '#ffffff', letterSpacing: -0.5, marginBottom: 4 },
+  subtitle: { fontSize: 14, color: '#94a3b8' },
   form: { width: '100%', maxWidth: 420 },
   inputGroup: { marginBottom: 16 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, paddingHorizontal: 4 },
-  label: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary, letterSpacing: 0.5, marginBottom: 4, paddingHorizontal: 4 },
-  forgotText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary, letterSpacing: 0.5 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.surfaceBorder, borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: 16, height: 48 },
+  label: { fontSize: 11, fontWeight: '600', color: '#94a3b8', letterSpacing: 0.5, marginBottom: 4, paddingHorizontal: 4 },
+  forgotText: { fontSize: 11, fontWeight: '600', color: '#3B82F6' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#1E293B', borderRadius: 12, backgroundColor: '#0F172A', paddingHorizontal: 16, height: 48 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, color: Colors.textPrimary, fontSize: 16 },
+  input: { flex: 1, color: '#ffffff', fontSize: 16 },
   eyeIcon: { padding: 4 },
-  button: { backgroundColor: Colors.primary, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 24 },
-  buttonText: { color: Colors.primaryText, fontWeight: '700', fontSize: 16 },
+  button: { backgroundColor: '#3B82F6', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 24 },
+  buttonText: { color: '#ffffff', fontWeight: '700', fontSize: 16 },
   dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 32, width: '100%', maxWidth: 420 },
-  divider: { flex: 1, height: 1, backgroundColor: Colors.surfaceBorder },
-  dividerText: { marginHorizontal: 16, color: 'rgba(198, 198, 205, 0.5)', fontSize: 11, fontWeight: '500', letterSpacing: 1 },
+  divider: { flex: 1, height: 1, backgroundColor: '#1E293B' },
+  dividerText: { marginHorizontal: 16, color: '#94a3b8', fontSize: 11, fontWeight: '500', letterSpacing: 1 },
   socialButtons: { width: '100%', maxWidth: 420, gap: 16 },
-  googleButton: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.surfaceBorder, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  googleButtonText: { color: Colors.textPrimary, fontSize: 16 },
-  demoButton: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.surfaceBorder, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  demoButtonText: { color: Colors.textPrimary, fontSize: 16 },
+  googleButton: { backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  googleButtonText: { color: '#ffffff', fontSize: 16 },
+  demoButton: { backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  demoButtonText: { color: '#ffffff', fontSize: 16 },
   footer: { flexDirection: 'row', marginTop: 32, justifyContent: 'center' },
-  footerText: { color: Colors.textSecondary, fontSize: 14 },
-  signupText: { color: Colors.textPrimary, fontWeight: '500', fontSize: 14 }
+  footerText: { color: '#94a3b8', fontSize: 14 },
+  signupText: { color: '#3B82F6', fontWeight: '700', fontSize: 14 }
 });
