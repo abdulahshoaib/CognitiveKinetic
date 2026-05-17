@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalysis } from '../context/AnalysisContext';
 import { usePreferences } from '../context/PreferencesContext';
@@ -16,14 +16,14 @@ import StatusPill from '../components/common/StatusPill';
 export default function ImpactReportScreen() {
   const navigation = useNavigation();
   const { analysisResult } = useAnalysis();
-  const { activeTheme } = usePreferences();
+  const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
 
   if (!analysisResult) {
     return (
       <Screen>
         <EmptyState
-          icon="analytics-outline"
+          icon="bar-chart-2"
           title="No Report Available"
           description="Analyze new content to generate an insight and impact report."
           primaryAction={() => navigation.navigate('Home', { screen: 'IngestionTab' })}
@@ -64,7 +64,7 @@ export default function ImpactReportScreen() {
           signals.map(signal => (
             <View key={signal.id} style={[styles.signalRow, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
               <View style={[styles.signalIcon, { backgroundColor: c.accentSoft }]}>
-                <Ionicons name="pulse-outline" size={16} color={c.accent} />
+                <Feather name="activity" size={16} color={c.accent} />
               </View>
               <View style={styles.signalText}>
                 <Text style={[styles.signalTitle, { color: c.textPrimary }]}>{signal.label}</Text>
@@ -78,7 +78,25 @@ export default function ImpactReportScreen() {
       <SectionHeader title="Insights" />
       <View style={styles.sectionBody}>
         {insights.map(insight => (
-          <InsightCard key={insight.id} insight={insight} style={styles.cardSpacing} />
+          <View key={insight.id} style={styles.cardSpacing}>
+            <InsightCard insight={insight} />
+            {preferences.insightStyle !== 'simple' && (
+              <View style={[styles.insightMetaCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+                <Text style={[styles.explanationLabel, { color: c.textSecondary }]}>Insight Details</Text>
+                <Text style={[styles.explanationText, { color: c.textPrimary }]}>
+                  Affected area: {insight.affectedArea || 'General operations'}
+                </Text>
+                <Text style={[styles.explanationText, { color: c.textPrimary }]}>
+                  Priority: {insight.priority || 'normal'}
+                </Text>
+                {preferences.insightStyle === 'technical' && (
+                  <Text style={[styles.explanationText, { color: c.textSecondary }]}>
+                    Evidence: {insight.evidence || 'Dynamic term extraction and profile alignment.'}
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
         ))}
       </View>
 
@@ -110,15 +128,18 @@ export default function ImpactReportScreen() {
             if (actions.length === 0) {
               navigation.navigate('Home', { screen: 'Dashboard' });
             } else {
-              navigation.navigate('ReportActions');
+              try {
+                navigation.popToTop();
+              } catch (e) {}
+              navigation.navigate('ActionsTab');
             }
           }}
         >
           <Text style={[styles.actionButtonText, { color: c.white }]}>
             {actions.length === 0 ? 'Go to Dashboard' : 'View Actions'}
           </Text>
-          <Ionicons
-            name={actions.length === 0 ? 'grid-outline' : 'arrow-forward'}
+          <Feather
+            name={actions.length === 0 ? 'grid' : 'arrow-right'}
             size={16}
             color={c.white}
           />
@@ -227,6 +248,12 @@ const styles = StyleSheet.create({
   },
   cardSpacing: {
     marginBottom: 12,
+  },
+  insightMetaCard: {
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
   },
   explanationCard: {
     marginTop: 12,

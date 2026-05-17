@@ -65,6 +65,13 @@ export const AuthProvider = ({ children }) => {
     return sendPasswordResetEmail(auth, email);
   };
 
+  const updateDisplayName = async (displayName) => {
+    if (!auth.currentUser) return;
+    await updateProfile(auth.currentUser, { displayName });
+    await createOrUpdateUserProfile(auth.currentUser, { fullName: displayName });
+    setUser({ ...auth.currentUser });
+  };
+
   const logout = async () => {
     return signOut(auth);
   };
@@ -91,6 +98,7 @@ export const AuthProvider = ({ children }) => {
       loginAnonymously,
       loginWithGoogle,
       resetPassword,
+      updateDisplayName,
       logout,
       createOrUpdateUserProfile
     }}>

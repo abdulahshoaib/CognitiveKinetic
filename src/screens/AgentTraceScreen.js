@@ -1,65 +1,68 @@
 import React from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+import { Feather } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
+import { usePreferences } from '../context/PreferencesContext';
+import { FontSizes, FontWeights } from '../constants/typography';
 
 export default function AgentTraceScreen({ navigation }) {
   const { analysisResult, executionLogs } = useAnalysis();
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Stage Header */}
         <View style={styles.stageIndicatorRow}>
-          <Text style={styles.stageTitle}>Main Dashboard → News Report → </Text>
-          <Text style={styles.stageTitleActive}>AI Decision Process</Text>
+          <Text style={[styles.stageTitle, { color: c.textSecondary }]}>Dashboard → News Report → </Text>
+          <Text style={[styles.stageTitleActive, { color: c.accent }]}>AI Decision Process</Text>
         </View>
 
         {/* Cognitive Block Diagram */}
-        <View style={styles.traceHeaderCard}>
-          <Ionicons name="git-branch" size={24} color={Colors.primary} style={{ marginBottom: 8 }} />
-          <Text style={styles.traceHeaderTitle}>How the AI Reached This Decision</Text>
-          <Text style={styles.traceHeaderSubtitle}>
-            See the simple step-by-step reasoning the AI followed to analyze the news and recommend an action.
+        <View style={[styles.traceHeaderCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <Feather name="git-branch" size={24} color={c.accent} style={{ marginBottom: 8 }} />
+          <Text style={[styles.traceHeaderTitle, { color: c.textPrimary }]}>AI Reasoning Chain</Text>
+          <Text style={[styles.traceHeaderSubtitle, { color: c.textSecondary }]}>
+            Below is the structured step-by-step reasoning the agent followed to analyze the incoming signals and recommend business actions.
           </Text>
         </View>
 
         {/* Dynamic Chronological Timeline */}
-        <Text style={styles.sectionHeader}>Step-by-Step AI Journey</Text>
+        <Text style={[styles.sectionHeader, { color: c.textPrimary }]}>Structured Workflow Execution</Text>
 
         {/* Step 1 */}
         <View style={styles.timelineNode}>
-          <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.primaryContainer }]}>
-            <Ionicons name="business" size={14} color={Colors.primary} />
+          <View style={[styles.timelineLine, { backgroundColor: c.surfaceBorder }]} />
+          <View style={[styles.timelineIconContainer, { backgroundColor: c.primarySubtle, borderColor: c.primary }]}>
+            <Feather name="briefcase" size={14} color={c.primary} />
           </View>
-          <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>1. Loaded Your Profile Settings</Text>
-            <Text style={styles.nodeDesc}>
-              We read your business settings to understand what matters most to you.
+          <View style={[styles.timelineContent, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <Text style={[styles.nodeTitle, { color: c.textPrimary }]}>1. Loaded Profile Settings</Text>
+            <Text style={[styles.nodeDesc, { color: c.textSecondary }]}>
+              Retrieved active context configuration to calibrate the analysis filters.
             </Text>
-            <View style={styles.codeSnippet}>
-              <Text style={styles.codeText}>{"{\n  domain: \"delivery logistics\",\n  locations: [\"Lahore\", \"Karachi\"],\n  sensitivity: \"aggressive\"\n}"}</Text>
+            <View style={[styles.codeSnippet, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+              <Text style={[styles.codeText, { color: c.textSecondary }]}>{"{\n  domain: \"delivery logistics\",\n  locations: [\"Lahore\", \"Karachi\"],\n  sensitivity: \"aggressive\"\n}"}</Text>
             </View>
           </View>
         </View>
 
         {/* Step 2 */}
         <View style={styles.timelineNode}>
-          <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.warningMuted }]}>
-            <Ionicons name="document-text" size={14} color={Colors.tertiary} />
+          <View style={[styles.timelineLine, { backgroundColor: c.surfaceBorder }]} />
+          <View style={[styles.timelineIconContainer, { backgroundColor: c.accentSoft, borderColor: c.accent }]}>
+            <Feather name="file-text" size={14} color={c.accent} />
           </View>
-          <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>2. Extracted News Details</Text>
-            <Text style={styles.nodeDesc}>
-              We identified the most important details in the news text.
+          <View style={[styles.timelineContent, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <Text style={[styles.nodeTitle, { color: c.textPrimary }]}>2. Extracted Signal Facts</Text>
+            <Text style={[styles.nodeDesc, { color: c.textSecondary }]}>
+              Isolated relevant concrete items from ingested manual or feed source logs.
             </Text>
-            <View style={styles.codeSnippet}>
-              <Text style={styles.codeText}>
+            <View style={[styles.codeSnippet, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+              <Text style={[styles.codeText, { color: c.textSecondary }]}>
                 {analysisResult?.ingestionResult 
                   ? `Signals: ${analysisResult.ingestionResult.signals?.map(s => s.title).join(', ')}`
                   : "Signal detected: Fuel price escalation +12% effective immediately."}
@@ -70,17 +73,17 @@ export default function AgentTraceScreen({ navigation }) {
 
         {/* Step 3 */}
         <View style={styles.timelineNode}>
-          <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.successMedium }]}>
-            <Ionicons name="shield-checkmark" size={14} color={Colors.success} />
+          <View style={[styles.timelineLine, { backgroundColor: c.surfaceBorder }]} />
+          <View style={[styles.timelineIconContainer, { backgroundColor: c.successSoft, borderColor: c.success }]}>
+            <Feather name="shield" size={14} color={c.success} />
           </View>
-          <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>3. Checked Relevance to Your Business</Text>
-            <Text style={styles.nodeDesc}>
-              We checked if this news actually affects your day-to-day operations.
+          <View style={[styles.timelineContent, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <Text style={[styles.nodeTitle, { color: c.textPrimary }]}>3. Profile Relevance Check</Text>
+            <Text style={[styles.nodeDesc, { color: c.textSecondary }]}>
+              Determined semantic and contextual overlap relative to business priorities.
             </Text>
-            <View style={styles.codeSnippet}>
-              <Text style={styles.codeText}>
+            <View style={[styles.codeSnippet, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+              <Text style={[styles.codeText, { color: c.textSecondary }]}>
                 {`Relevance score: Very High\nMatch Index: 92.4%`}
               </Text>
             </View>
@@ -89,37 +92,37 @@ export default function AgentTraceScreen({ navigation }) {
 
         {/* Step 4 */}
         <View style={styles.timelineNode}>
-          <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.errorMedium }]}>
-            <Ionicons name="pulse" size={14} color={Colors.error} />
+          <View style={[styles.timelineLine, { backgroundColor: c.surfaceBorder }]} />
+          <View style={[styles.timelineIconContainer, { backgroundColor: c.errorSoft, borderColor: c.error }]}>
+            <Feather name="activity" size={14} color={c.error} />
           </View>
-          <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>4. Calculated the Business Impact</Text>
-            <Text style={styles.nodeDesc}>
-              We calculated how much your business profits would shrink if delivery pricing remained unchanged.
+          <View style={[styles.timelineContent, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <Text style={[styles.nodeTitle, { color: c.textPrimary }]}>4. Impact Assessment</Text>
+            <Text style={[styles.nodeDesc, { color: c.textSecondary }]}>
+              Calculated margins pressure and risk vectors if default operating parameters persist.
             </Text>
           </View>
         </View>
 
         {/* Step 5 */}
         <View style={styles.timelineNode}>
-          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.successMedium }]}>
-            <Ionicons name="checkmark-done-circle" size={14} color={Colors.success} />
+          <View style={[styles.timelineIconContainer, { backgroundColor: c.successSoft, borderColor: c.success }]}>
+            <Feather name="check-circle" size={14} color={c.success} />
           </View>
-          <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>5. Simulated Best Action</Text>
-            <Text style={styles.nodeDesc}>
-              We created a safe virtual playground to test pricing adjustments and generated step-by-step steps.
+          <View style={[styles.timelineContent, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <Text style={[styles.nodeTitle, { color: c.textPrimary }]}>5. Simulated Mitigation Strategy</Text>
+            <Text style={[styles.nodeDesc, { color: c.textSecondary }]}>
+              Generated isolated workspace variables to test pricing changes safely before deployment.
             </Text>
-            <View style={[styles.codeSnippet, { backgroundColor: Colors.modalSurface }]}>
+            <View style={[styles.codeSnippet, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
               {executionLogs && executionLogs.length > 0 ? (
                 executionLogs.slice(-3).map((log, i) => (
-                  <Text key={i} style={[styles.codeText, { color: Colors.codeGreen }]} numberOfLines={1}>
+                  <Text key={i} style={[styles.codeText, { color: c.success }]} numberOfLines={1}>
                     {log}
                   </Text>
                 ))
               ) : (
-                <Text style={[styles.codeText, { color: Colors.outline }]}>Sandbox playground ready...</Text>
+                <Text style={[styles.codeText, { color: c.textSecondary }]}>Sandbox execution traces ready...</Text>
               )}
             </View>
           </View>
@@ -127,19 +130,19 @@ export default function AgentTraceScreen({ navigation }) {
 
         {/* Navigation CTA */}
         <TouchableOpacity 
-          style={styles.primaryButton}
+          style={[styles.primaryButton, { backgroundColor: c.accent }]}
           onPress={() => navigation.navigate('Home')}
         >
-          <Ionicons name="home" size={20} color={Colors.onPrimary} style={{ marginRight: 8 }} />
-          <Text style={styles.primaryButtonText}>Return to Dashboard</Text>
+          <Feather name="home" size={20} color={c.white} style={{ marginRight: 8 }} />
+          <Text style={[styles.primaryButtonText, { color: c.white }]}>Return to Dashboard</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.secondaryButton}
+          style={[styles.secondaryButton, { backgroundColor: c.surfaceContainerHigh, borderColor: c.surfaceBorder }]}
           onPress={() => navigation.navigate('Export')}
         >
-          <Ionicons name="download-outline" size={18} color={Colors.onSurface} style={{ marginRight: 8 }} />
-          <Text style={styles.secondaryButtonText}>Export Summary PDF</Text>
+          <Feather name="download" size={18} color={c.textPrimary} style={{ marginRight: 8 }} />
+          <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>Export Summary PDF</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -150,7 +153,6 @@ export default function AgentTraceScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollContent: {
     padding: 16,
@@ -163,38 +165,31 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   stageTitle: {
-    color: Colors.outline,
     fontSize: 11,
     fontWeight: '500',
   },
   stageTitleActive: {
-    color: Colors.primary,
     fontSize: 11,
     fontWeight: '700',
   },
   traceHeaderCard: {
-    backgroundColor: Colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
   },
   traceHeaderTitle: {
-    color: Colors.onSurface,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
     marginBottom: 6,
   },
   traceHeaderSubtitle: {
-    color: Colors.onSurfaceVariant,
-    fontSize: 13,
+    fontSize: FontSizes.sm,
     lineHeight: 18,
   },
   sectionHeader: {
-    color: Colors.onSurface,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
     marginBottom: 16,
   },
   timelineNode: {
@@ -208,7 +203,6 @@ const styles = StyleSheet.create({
     top: 32,
     bottom: -20,
     width: 2,
-    backgroundColor: Colors.outlineVariant,
     zIndex: 1,
   },
   timelineIconContainer: {
@@ -216,7 +210,6 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
@@ -224,61 +217,45 @@ const styles = StyleSheet.create({
   },
   timelineContent: {
     flex: 1,
-    backgroundColor: Colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     borderRadius: 10,
     padding: 12,
   },
   nodeTitle: {
-    color: Colors.onSurface,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
     marginBottom: 4,
   },
   nodeDesc: {
-    color: Colors.onSurfaceVariant,
-    fontSize: 12,
+    fontSize: FontSizes.xs,
     lineHeight: 16,
     marginBottom: 8,
   },
   codeSnippet: {
-    backgroundColor: Colors.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     borderRadius: 6,
     padding: 8,
   },
   codeText: {
     fontFamily: 'monospace',
-    fontSize: 10,
-    color: Colors.outline,
+    fontSize: FontSizes.xs,
     lineHeight: 14,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
     paddingVertical: 14,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
     marginTop: 20,
     marginBottom: 12,
   },
   primaryButtonText: {
-    color: Colors.onPrimary,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
   },
   secondaryButton: {
-    backgroundColor: Colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     paddingVertical: 12,
     borderRadius: 8,
     flexDirection: 'row',
@@ -287,8 +264,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   secondaryButtonText: {
-    color: Colors.onSurface,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
   },
 });

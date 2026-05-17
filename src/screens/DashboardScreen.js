@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { getProfile } from '../services/profileService';
-import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
 import SectionHeader from '../components/common/SectionHeader';
@@ -17,9 +16,9 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { user } = useAuth();
-  const { activeTheme } = usePreferences();
+  const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
-  const { feedItems, analysisResult, simulationResult, analyzeContent } = useAnalysis();
+  const { feedItems, analysisResult, simulationResult, analyzeContent, executionLogs } = useAnalysis();
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
@@ -47,53 +46,63 @@ export default function DashboardScreen() {
   const latestInsight = analysisResult?.insights?.[0];
   const latestImpact = analysisResult?.impact;
   const pendingActions = analysisResult?.recommendedActions?.length || 0;
-  const locationsLabel = Array.isArray(profile.locations)
-    ? profile.locations.join(', ')
-    : profile.locations || 'No locations set';
+  
   const userLabel = user?.displayName || user?.email || 'Profile';
 
   const handleRecentItemPress = (item) => {
     if (!profile) return;
-
     const contentToAnalyze = `${item.title}\n\n${item.body}`;
     analyzeContent(contentToAnalyze, profile, item.id);
-    navigation.navigate('AnalysisRun');
+    navigation.navigate('IngestionTab', { screen: 'AnalysisRun' });
   };
 
-  return (
-    <Screen scroll={true}>
-      <View style={styles.header}>
-        <View>
-          <Text style={[styles.greeting, { color: c.textSecondary }]}>Welcome back</Text>
-          <Text style={[styles.appName, { color: c.textPrimary }]}>CognitiveKinetic</Text>
-        </View>
-        <TouchableOpacity style={styles.profileControl} onPress={() => navigation.navigate('UserPreferences')}>
-          <View style={styles.profileControlText}>
-            <Text style={[styles.profileControlLabel, { color: c.textPrimary }]} numberOfLines={1}>{userLabel}</Text>
-            <Text style={[styles.profileControlCompany, { color: c.textSecondary }]} numberOfLines={1}>
-              User preferences
-            </Text>
-          </View>
-          <View style={[styles.profileAvatar, { backgroundColor: c.accent }]}>
-            <Ionicons name="person" size={18} color={c.white} />
-          </View>
-        </TouchableOpacity>
-      </View>
+  const renderIngestionCTA = () => (
+    <View style={styles.ctaWrapper}>
+      <TouchableOpacity 
+        style={[styles.ingestCTA, { backgroundColor: c.accent }]}
+        onPress={() => navigation.navigate('IngestionTab')}
+      >
+        <Feather name="plus-circle" size={18} color={c.white} />
+        <Text style={[styles.ingestCTAText, { color: c.white }]}>
+          Ingest & Analyze Update
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 
-      <View style={[styles.profileSummary, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
-        <View style={styles.profileHeader}>
-          <Text style={[styles.profileName, { color: c.textPrimary }]}>{profile.businessName || 'Business Profile'}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')}>
-            <Text style={[styles.editLink, { color: c.accent }]}>Edit</Text>
-          </TouchableOpacity>
+  const renderRiskStatus = () => {
+    const riskLevel = latestImpact?.riskLevel || 'Nominal';
+    const riskColor = riskLevel === 'High' ? c.error || '#EF4444' : riskLevel === 'Medium' ? c.warning || '#F59E0B' : c.success || '#22C55E';
+    const riskBg = riskLevel === 'High' ? 'rgba(239, 68, 68, 0.08)' : riskLevel === 'Medium' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(34, 197, 94, 0.08)';
+    
+    return (
+      <View style={styles.sectionWrapper}>
+        <SectionHeader title="Operational Risk Status" />
+        <View style={[styles.riskCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <View style={styles.riskHeader}>
+            <View style={[styles.riskBadge, { backgroundColor: riskBg }]}>
+              <View style={[styles.riskDot, { backgroundColor: riskColor }]} />
+              <Text style={[styles.riskBadgeText, { color: riskColor }]}>{riskLevel} Threat Vector</Text>
+            </View>
+            <Text style={[styles.riskScore, { color: c.textPrimary }]}>Score: {analysisResult?.relevanceScore || 0}/100</Text>
+          </View>
+          <Text style={[styles.riskDescription, { color: c.textSecondary, fontSize: FontSizes.sm }]}>
+            {analysisResult 
+              ? `Relevance threats verified at ${analysisResult.relevanceScore}% based on active business parameters.`
+              : 'No active threat vectors parsed. System running at nominal baselines.'
+            }
+          </Text>
         </View>
-        <Text style={[styles.profileDetail, { color: c.textSecondary }]}>{profile.industry || 'Industry not set'} • {locationsLabel}</Text>
       </View>
+    );
+  };
 
+  const renderReportSection = () => (
+    <View style={styles.sectionWrapper}>
       <SectionHeader title="Latest Report" />
       {!analysisResult ? (
         <EmptyState 
-          icon="analytics-outline"
+          icon="bar-chart-2"
           title="No Active Report"
           description="Analyze new content to generate an insight and impact report for your business."
           primaryAction={() => navigation.navigate('IngestionTab')}
@@ -107,11 +116,11 @@ export default function DashboardScreen() {
           >
             <View style={styles.reportTopRow}>
               <View style={[styles.reportIcon, { backgroundColor: c.accentSoft }]}>
-                <Ionicons name="document-text-outline" size={20} color={c.accent} />
+                <Feather name="file-text" size={20} color={c.accent} />
               </View>
               <View style={styles.reportTextBlock}>
                 <Text style={[styles.reportTitle, { color: c.textPrimary }]}>{latestInsight?.title || 'Impact report ready'}</Text>
-                <Text style={[styles.reportSubtitle, { color: c.textSecondary }]} numberOfLines={2}>
+                <Text style={[styles.reportSubtitle, { color: c.textSecondary, fontSize: FontSizes.sm }]} numberOfLines={2}>
                   {latestImpact?.shortTerm || 'Review extracted signals, impact analysis, and recommended actions.'}
                 </Text>
               </View>
@@ -134,7 +143,7 @@ export default function DashboardScreen() {
 
             <View style={styles.reportLinkRow}>
               <Text style={[styles.reportLink, { color: c.accent }]}>Open full report</Text>
-              <Ionicons name="arrow-forward" size={16} color={c.accent} />
+              <Feather name="arrow-right" size={16} color={c.accent} />
             </View>
           </TouchableOpacity>
 
@@ -150,31 +159,65 @@ export default function DashboardScreen() {
               onPress={() => navigation.navigate('ActionsTab')}
             >
               <Text style={[styles.actionButtonText, { color: c.white }]}>Actions</Text>
-              <Ionicons name="arrow-forward" size={16} color={c.white} />
+              <Feather name="arrow-right" size={16} color={c.white} />
             </TouchableOpacity>
           </View>
         </View>
       )}
+    </View>
+  );
 
-      {simulationResult && (
-        <>
-          <SectionHeader title="Latest Simulation" />
-          <TouchableOpacity 
-            style={[styles.simCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.successBorder }]}
-            onPress={() => navigation.navigate('SimulationResult')}
-          >
-            <View style={styles.simHeader}>
-              <Ionicons name="play-circle" size={24} color={c.success} />
-              <Text style={[styles.simTitle, { color: c.textPrimary }]}>{simulationResult.actionTitle}</Text>
-            </View>
-            <Text style={[styles.simStatus, { color: c.textSecondary }]}>System state updated successfully.</Text>
-            <Text style={[styles.simLink, { color: c.accent }]}>View detailed result</Text>
-          </TouchableOpacity>
-        </>
-      )}
+  const renderSimulationSection = () => simulationResult ? (
+    <View style={styles.sectionWrapper}>
+      <SectionHeader title="Latest Simulation" />
+      <TouchableOpacity 
+        style={[styles.simCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.successBorder }]}
+        onPress={() => navigation.navigate('SimulationResult')}
+      >
+        <View style={styles.simHeader}>
+          <Feather name="play-circle" size={24} color={c.success || '#22C55E'} />
+          <Text style={[styles.simTitle, { color: c.textPrimary }]}>{simulationResult.actionTitle}</Text>
+        </View>
+        <Text style={[styles.simStatus, { color: c.textSecondary, fontSize: FontSizes.sm }]}>
+          System state updated successfully.
+        </Text>
+        <Text style={[styles.simLink, { color: c.accent }]}>View detailed result</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null;
 
+  const renderAgentTraceSection = () => {
+    if (preferences.agentTransparency === 'hidden') return null;
+    const logsToUse = executionLogs.length > 0 ? executionLogs : (simulationResult?.logs || []);
+    if (logsToUse.length === 0) return null;
+    
+    return (
+      <View style={styles.sectionWrapper}>
+        <SectionHeader title="Recent Agent Trace Logs" />
+        <View style={[styles.traceCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <View style={styles.traceHeader}>
+            <Feather name="activity" size={14} color={c.accent} />
+            <Text style={[styles.traceTitleText, { color: c.textPrimary }]}>Live Agent Pipeline Pipeline Logs</Text>
+          </View>
+          <View style={styles.traceList}>
+            {logsToUse.slice(-3).map((log, index) => (
+              <View key={index} style={styles.traceRow}>
+                <View style={[styles.traceDot, { backgroundColor: log.type === 'error' ? c.error : c.accent }]} />
+                <Text style={[styles.traceText, { color: c.textPrimary, fontSize: FontSizes.xs }]} numberOfLines={1}>
+                  {log.message}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderRecentContentSection = () => (
+    <View style={styles.sectionWrapper}>
       <SectionHeader 
-        title="Recent Content" 
+        title="Recent Analysis Runs" 
         rightElement={
           <TouchableOpacity onPress={() => navigation.navigate('IngestionTab')}>
             <Text style={[styles.seeAllLink, { color: c.accent }]}>See All</Text>
@@ -191,6 +234,44 @@ export default function DashboardScreen() {
           />
         ))}
       </View>
+    </View>
+  );
+
+  const focusSections = preferences.homeFocus === 'action-queue'
+    ? [renderReportSection, renderSimulationSection, renderRecentContentSection]
+    : preferences.homeFocus === 'progress-summary'
+      ? [renderSimulationSection, renderReportSection, renderRecentContentSection]
+      : [renderReportSection, renderRecentContentSection, renderSimulationSection];
+
+  return (
+    <Screen scroll={true}>
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.greeting, { color: c.textSecondary }]}>Welcome back</Text>
+          <Text style={[styles.appName, { color: c.textPrimary }]}>CognitiveKinetic</Text>
+        </View>
+        <TouchableOpacity style={styles.profileControl} onPress={() => navigation.navigate('ProfileTab', { screen: 'SettingsMain', params: { tab: 'account' } })}>
+          <View style={styles.profileControlText}>
+            <Text style={[styles.profileControlLabel, { color: c.textPrimary }]} numberOfLines={1}>{userLabel}</Text>
+            <Text style={[styles.profileControlCompany, { color: c.textSecondary }]} numberOfLines={1}>
+              Account settings
+            </Text>
+          </View>
+          <View style={[styles.profileAvatar, { backgroundColor: c.accent }]}>
+            <Feather name="user" size={18} color={c.white} />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {renderIngestionCTA()}
+      {renderRiskStatus()}
+
+      {focusSections.map((renderSection, index) => (
+        <React.Fragment key={index}>{renderSection()}</React.Fragment>
+      ))}
+
+      {renderAgentTraceSection()}
+      <View style={{ height: 120 }} />
     </Screen>
   );
 }
@@ -201,15 +282,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 28,
     paddingBottom: 16,
   },
   greeting: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
   },
   appName: {
-    color: Colors.textPrimary,
     fontSize: FontSizes['2xl'],
     fontWeight: FontWeights.bold,
   },
@@ -227,12 +306,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   profileControlLabel: {
-    color: Colors.textPrimary,
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.bold,
   },
   profileControlCompany: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.xs,
     marginTop: 2,
   },
@@ -240,48 +317,72 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileSummary: {
+  ctaWrapper: {
     marginHorizontal: 20,
-    backgroundColor: Colors.surfaceContainerLow,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  profileHeader: {
+  ingestCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    gap: 8,
+    paddingVertical: 14,
+  },
+  ingestCTAText: {
+    fontWeight: FontWeights.bold,
+    fontSize: FontSizes.sm + 1,
+  },
+  sectionWrapper: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+  },
+  riskCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  riskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 10,
   },
-  profileName: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
+  riskBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 6,
+  },
+  riskDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  riskBadgeText: {
+    fontSize: FontSizes.xs - 1,
     fontWeight: FontWeights.bold,
   },
-  editLink: {
-    color: Colors.accent,
+  riskScore: {
     fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
   },
-  profileDetail: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
+  riskDescription: {
+    lineHeight: 18,
   },
   reportContainer: {
-    marginHorizontal: 20,
+    width: '100%',
   },
   reportSummaryCard: {
-    backgroundColor: Colors.surfaceContainerLow,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
-    padding: 16,
     marginBottom: 12,
+    padding: 16,
   },
   reportTopRow: {
     flexDirection: 'row',
@@ -293,26 +394,21 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.accentSoft,
   },
   reportTextBlock: {
     flex: 1,
   },
   reportTitle: {
-    color: Colors.textPrimary,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
     lineHeight: 22,
   },
   reportSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
     lineHeight: 20,
     marginTop: 4,
   },
   reportMetaRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: 8,
     marginTop: 16,
     padding: 12,
@@ -322,12 +418,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metaLabel: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.xs,
     textTransform: 'uppercase',
   },
   metaValue: {
-    color: Colors.textPrimary,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
     marginTop: 4,
@@ -340,7 +434,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   reportLink: {
-    color: Colors.accent,
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
   },
@@ -350,20 +443,17 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: Colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
     borderRadius: 12,
   },
   secondaryButtonText: {
-    color: Colors.textPrimary,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
   },
   actionButton: {
     flex: 1,
-    backgroundColor: Colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -372,16 +462,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButtonText: {
-    color: Colors.white,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
   },
   simCard: {
-    marginHorizontal: 20,
-    backgroundColor: Colors.surfaceContainerLow,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.successBorder,
     padding: 16,
   },
   simHeader: {
@@ -391,26 +477,53 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   simTitle: {
-    color: Colors.textPrimary,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
     flex: 1,
   },
   simStatus: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
     marginBottom: 12,
   },
   simLink: {
-    color: Colors.accent,
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
   },
   seeAllLink: {
-    color: Colors.accent,
     fontSize: FontSizes.sm,
   },
   feedContainer: {
-    paddingHorizontal: 20,
+    width: '100%',
+    gap: 12,
+  },
+  traceCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  traceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  traceTitleText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+  },
+  traceList: {
+    gap: 8,
+  },
+  traceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  traceDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  traceText: {
+    flex: 1,
   },
 });

@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../constants/colors';
+import { Feather } from '@expo/vector-icons';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
 import { usePreferences } from '../../context/PreferencesContext';
@@ -15,7 +14,15 @@ export default function ActionCard({ action, onSimulate, style }) {
   const canSimulate = action.simulationSupported !== false;
 
   return (
-    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, style]}>
+    <View style={[
+      styles.container, 
+      { 
+        backgroundColor: c.surfaceContainerLow, 
+        borderColor: c.surfaceBorder, 
+      }, 
+      style
+    ]}>
+      {/* Top Header with title and urgency badge */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.textPrimary }]}>{action.title}</Text>
         <View style={styles.badges}>
@@ -26,20 +33,53 @@ export default function ActionCard({ action, onSimulate, style }) {
         </View>
       </View>
       
+      {/* Rationale / Explanation paragraph */}
       {action.rationale && (
-        <Text style={[styles.rationale, { color: c.textSecondary }]}>{action.rationale}</Text>
+        <Text style={[
+          styles.rationale, 
+          { 
+            color: c.textSecondary, 
+          }
+        ]}>
+          {action.rationale}
+        </Text>
       )}
+
+      {/* Structured system meta data tags */}
+      <View style={[styles.metaBlock, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+        <View style={styles.metaRow}>
+          <Text style={[styles.metaLabel, { color: c.textSecondary }]}>Target System</Text>
+          <Text style={[styles.metaValue, { color: c.textPrimary }]}>{action.targetSystem || 'Internal Policy'}</Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Text style={[styles.metaLabel, { color: c.textSecondary }]}>Action Type</Text>
+          <Text style={[styles.metaValue, { color: c.textPrimary }]}>{action.actionType || 'Manual Override'}</Text>
+        </View>
+      </View>
       
+      {/* Footer with confidence meter and call-to-action */}
       <View style={[styles.footer, { borderTopColor: c.surfaceBorderSubtle }]}>
-        <Text style={[styles.confidence, { color: c.textSecondary }]}>Confidence: {action.confidence || 'N/A'}</Text>
+        <View>
+          <Text style={[styles.confidenceLabel, { color: c.textSecondary }]}>AGENT CONFIDENCE</Text>
+          <Text style={[styles.confidenceValue, { color: c.accent }]}>
+            {action.confidence ? `${action.confidence}` : '92% Alignment'}
+          </Text>
+        </View>
         
         <TouchableOpacity 
-          style={[styles.button, { backgroundColor: canSimulate ? c.accent : c.surfaceVariant }]} 
+          style={[
+            styles.button, 
+            { 
+              backgroundColor: canSimulate ? c.accent : c.surfaceVariant,
+            }
+          ]} 
           onPress={() => canSimulate && onSimulate && onSimulate(action)}
           disabled={!canSimulate}
         >
-          <Ionicons name={canSimulate ? "play" : "build"} size={16} color={c.white} />
-          <Text style={[styles.buttonText, { color: c.white }]}>{canSimulate ? "Simulate" : "Manual Review"}</Text>
+          <Feather name={canSimulate ? "play" : "tool"} size={14} color={c.white} />
+          <Text style={[styles.buttonText, { color: c.white }]}>
+            {canSimulate ? "Simulate" : "Manual"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -48,10 +88,8 @@ export default function ActionCard({ action, onSimulate, style }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.surfaceContainerLow,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
     padding: 16,
     marginBottom: 12,
   },
@@ -63,11 +101,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    color: Colors.textPrimary,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    flex: 1,
     lineHeight: 22,
+    flex: 1,
   },
   badges: {
     flexDirection: 'row',
@@ -75,10 +112,29 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   rationale: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     lineHeight: 20,
+    marginBottom: 14,
+  },
+  metaBlock: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 6,
     marginBottom: 16,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metaLabel: {
+    fontSize: FontSizes.xs,
+  },
+  metaValue: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
   },
   footer: {
     flexDirection: 'row',
@@ -86,30 +142,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: Colors.surfaceBorderSubtle,
-    paddingTop: 12,
+    paddingTop: 16,
   },
-  confidence: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.xs,
-    flex: 1,
+  confidenceLabel: {
+    fontSize: FontSizes.xs - 2,
+    fontWeight: FontWeights.bold,
+    letterSpacing: 0.8,
+  },
+  confidenceValue: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    marginTop: 2,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.accent,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     gap: 8,
     flexShrink: 0,
   },
-  buttonDisabled: {
-    backgroundColor: Colors.surfaceVariant,
-  },
   buttonText: {
-    color: Colors.white,
-    fontWeight: FontWeights.bold,
     fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
   },
 });

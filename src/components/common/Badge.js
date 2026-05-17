@@ -1,52 +1,57 @@
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../constants/colors';
+import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../../constants/layout';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function Badge({ label, variant = 'neutral', style, icon }) {
-  let bgColor = Colors.accentSoft;
-  let borderColor = Colors.controlBorder;
-  let textColor = Colors.slateText;
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
+  let bgColor = c.surfaceContainerLow;
+  let borderColor = c.surfaceBorder;
+  let textColor = c.textSecondary;
   let iconName = icon || null;
 
   if (variant === 'success') {
-    bgColor = Colors.successSoft;
-    borderColor = Colors.successBorder;
-    textColor = Colors.success;
-    iconName = icon || 'checkmark-circle-outline';
+    bgColor = c.primaryContainerLight || 'rgba(156, 175, 136, 0.15)'; // Sage Green tint
+    borderColor = c.primaryBorderSubtle || 'rgba(156, 175, 136, 0.3)';
+    textColor = c.success || '#9CAF88';
+    iconName = icon || 'check-circle';
   } else if (variant === 'risk') {
-    bgColor = Colors.warningSoft;
-    borderColor = Colors.warningBorder;
-    textColor = Colors.warning;
-    iconName = icon || 'warning-outline';
+    bgColor = 'rgba(232, 93, 42, 0.1)'; // Accent Soft/Orange tint
+    borderColor = 'rgba(232, 93, 42, 0.25)';
+    textColor = c.accent || '#E85D2A';
+    iconName = icon || 'alert-triangle';
   } else if (variant === 'active') {
-    bgColor = Colors.accentSoft;
-    borderColor = Colors.accentBorder;
-    textColor = Colors.accent;
-    iconName = icon || 'pulse-outline';
+    bgColor = 'rgba(232, 93, 42, 0.1)';
+    borderColor = 'rgba(232, 93, 42, 0.25)';
+    textColor = c.accent || '#E85D2A';
+    iconName = icon || 'activity';
   } else if (variant === 'relevant') {
-    bgColor = Colors.secondaryContainer;
-    borderColor = Colors.secondaryBorderSubtle;
-    textColor = Colors.onSecondaryContainer;
+    bgColor = c.primaryContainerLight || 'rgba(156, 175, 136, 0.15)';
+    borderColor = c.primaryBorderSubtle || 'rgba(156, 175, 136, 0.3)';
+    textColor = c.primary || '#9CAF88';
+    iconName = icon || 'compass';
   } else if (variant === 'ignored') {
-    bgColor = Colors.surfaceDim;
-    borderColor = Colors.outlineVariantMedium;
-    textColor = Colors.onSurfaceVariant;
-    iconName = icon || 'eye-off-outline';
+    bgColor = c.surfaceContainerLowest;
+    borderColor = c.surfaceBorder;
+    textColor = c.textSecondary;
+    iconName = icon || 'eye-off';
   } else if (variant === 'high-impact') {
-    bgColor = Colors.primaryContainer;
-    borderColor = Colors.primaryBorderSubtle;
-    textColor = Colors.onPrimaryContainer;
-    iconName = icon || 'flash-outline';
+    bgColor = 'rgba(242, 193, 78, 0.1)'; // Muted Gold tint
+    borderColor = 'rgba(242, 193, 78, 0.3)';
+    textColor = '#F2C14E'; // Gold color from DESIGN.md
+    iconName = icon || 'zap';
   }
 
   return (
     <View style={[styles.badge, { backgroundColor: bgColor, borderColor }, style]}>
       {iconName && (
-        <Ionicons
+        <Feather
           name={iconName}
-          size={14}
+          size={12}
           color={textColor}
           style={styles.icon}
         />

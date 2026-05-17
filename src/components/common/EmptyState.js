@@ -1,18 +1,18 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import { usePreferences } from '../../context/PreferencesContext';
 
-export default function EmptyState({ icon = 'document-text-outline', title, description, primaryAction, primaryActionTitle }) {
+export default function EmptyState({ icon = 'file-text', title, description, primaryAction, primaryActionTitle }) {
   const { activeTheme } = usePreferences();
   const c = activeTheme.colors;
 
   return (
     <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
       <View style={[styles.iconContainer, { backgroundColor: c.primarySubtle }]}>
-        <Ionicons name={icon} size={48} color={c.primaryFixedDim || c.primary} />
+        <Feather name={icon} size={48} color={c.primaryFixedDim || c.primary} />
       </View>
       <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
       {description && <Text style={[styles.description, { color: c.textSecondary }]}>{description}</Text>}

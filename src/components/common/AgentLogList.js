@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes } from '../../constants/typography';
 import { usePreferences } from '../../context/PreferencesContext';

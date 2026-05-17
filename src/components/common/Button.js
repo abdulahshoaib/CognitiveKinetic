@@ -1,35 +1,49 @@
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../constants/colors';
+import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../../constants/layout';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function Button({ label, onPress, variant = 'primary', icon, style, labelStyle }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+  
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
 
+  const buttonStyle = [
+    styles.button,
+    isPrimary 
+      ? { backgroundColor: c.accent, borderColor: c.accent } 
+      : isSecondary 
+        ? { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder } 
+        : { backgroundColor: 'transparent', borderColor: c.surfaceBorder },
+    style
+  ];
+
+  const textColor = isPrimary 
+    ? c.white 
+    : c.textPrimary;
+
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        isPrimary ? styles.primary : isSecondary ? styles.secondary : styles.ghost,
-        style
-      ]}
+      style={buttonStyle}
       onPress={onPress}
       activeOpacity={0.8}
     >
       <View style={styles.contentRow}>
         {icon && (
-          <Ionicons
+          <Feather
             name={icon}
             size={18}
-            color={isPrimary ? Colors.white : Colors.onSurface}
+            color={textColor}
             style={styles.icon}
           />
         )}
         <Text style={[
           styles.text,
-          isPrimary ? styles.primaryText : styles.secondaryText,
+          { color: textColor },
           labelStyle
         ]}>
           {label}
@@ -47,7 +61,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   contentRow: {
     flexDirection: 'row',
@@ -57,28 +70,9 @@ const styles = StyleSheet.create({
   icon: {
     marginRight: Spacing.sm,
   },
-  primary: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  secondary: {
-    backgroundColor: Colors.l1Border,
-    borderColor: Colors.controlBorder,
-  },
-  ghost: {
-    backgroundColor: Colors.transparent,
-    borderColor: Colors.controlBorder,
-  },
   text: {
     fontSize: FontSizes.base - 1,
     fontWeight: FontWeights.semibold,
     letterSpacing: 0.5,
   },
-  primaryText: { color: Colors.white },
-  secondaryText: { color: Colors.onSurface },
 });

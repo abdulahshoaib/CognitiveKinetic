@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import { usePreferences } from '../../context/PreferencesContext';
 
-export default function ProfileForm({ initialData, onSave, isSaving }) {
-  const { activeTheme } = usePreferences();
+export default function ProfileForm({ initialData, onSave, isSaving, submitLabel = "Save Profile" }) {
+  const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
+  const spacing = 20;
 
   const [formData, setFormData] = useState({
     businessName: '',
     industry: '',
     locations: '',
+    keyConcerns: '',
+    targetAudience: '',
+    primaryGoal: '',
     riskSensitivity: 'Medium',
     enableAutoSim: true,
   });
@@ -23,6 +27,9 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
         businessName: initialData.businessName || '',
         industry: initialData.industry || '',
         locations: initialData.locations ? initialData.locations.join(', ') : '',
+        keyConcerns: initialData.keyConcerns || '',
+        targetAudience: initialData.targetAudience || '',
+        primaryGoal: initialData.primaryGoal || '',
         riskSensitivity: initialData.riskSensitivity || 'Medium',
         enableAutoSim: initialData.enableAutoSim ?? true,
       });
@@ -41,7 +48,7 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
   };
 
   const renderInput = (label, field, placeholder, multiline = false) => (
-    <View style={styles.inputGroup}>
+    <View style={[styles.inputGroup, { marginBottom: spacing }]}>
       <Text style={[styles.label, { color: c.textPrimary }]}>{label}</Text>
       <TextInput
         style={[
@@ -59,12 +66,15 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: 16 }]}>
       {renderInput('Business Name', 'businessName', 'e.g. Apex Delivery')}
       {renderInput('Industry / Domain', 'industry', 'e.g. Logistics')}
       {renderInput('Operating Locations', 'locations', 'e.g. Lahore, Karachi (comma separated)')}
+      {renderInput('Key Concerns', 'keyConcerns', 'e.g. High fuel costs, delivery margins', true)}
+      {renderInput('Target Audience', 'targetAudience', 'e.g. E-commerce platforms, individual senders')}
+      {renderInput('Primary Goal', 'primaryGoal', 'e.g. Reduce churn, improve delivery time')}
       
-      <View style={styles.inputGroup}>
+      <View style={[styles.inputGroup, { marginBottom: spacing }]}>
         <Text style={[styles.label, { color: c.textPrimary }]}>Risk Sensitivity</Text>
         <View style={styles.buttonGroup}>
           {['Low', 'Medium', 'High'].map(level => (
@@ -86,7 +96,7 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
         </View>
       </View>
 
-      <View style={[styles.inputGroup, styles.switchRow]}>
+      <View style={[styles.inputGroup, styles.switchRow, { marginBottom: spacing }]}>
         <View style={styles.switchTextContainer}>
           <Text style={[styles.label, { color: c.textPrimary }]}>Auto-Simulation</Text>
           <Text style={[styles.helpText, { color: c.textSecondary }]}>Allow agent to simulate actions automatically</Text>
@@ -108,8 +118,8 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
           <ActivityIndicator color={c.white} size="small" />
         ) : (
           <>
-            <Ionicons name="save-outline" size={20} color={c.white} />
-            <Text style={[styles.saveButtonText, { color: c.white }]}>Save Profile</Text>
+            <Feather name="save" size={20} color={c.white} />
+            <Text style={[styles.saveButtonText, { color: c.white }]}>{submitLabel}</Text>
           </>
         )}
       </TouchableOpacity>

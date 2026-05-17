@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
@@ -14,31 +14,31 @@ export default function ContentItemCard({ item, onPress, style }) {
 
   const getSourceIcon = (type) => {
     switch (type) {
-      case 'news': return 'newspaper-outline';
-      case 'alert': return 'warning-outline';
-      case 'sports': return 'football-outline';
-      case 'entertainment': return 'film-outline';
-      case 'manual': return 'create-outline';
-      default: return 'document-text-outline';
+      case 'news': return 'file-text';
+      case 'alert': return 'alert-triangle';
+      case 'sports': return 'award';
+      case 'entertainment': return 'film';
+      case 'manual': return 'edit-3';
+      default: return 'file';
     }
   };
 
   return (
     <TouchableOpacity 
-      style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, style]} 
+      style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: 16, marginBottom: 12 }, style]} 
       onPress={() => onPress && onPress(item)}
       activeOpacity={onPress ? 0.7 : 1}
     >
       <View style={styles.header}>
         <View style={styles.sourceInfo}>
-          <Ionicons name={getSourceIcon(item.sourceType)} size={16} color={c.textSecondary} />
+          <Feather name={getSourceIcon(item.sourceType)} size={14} color={c.textSecondary} />
           <Text style={[styles.sourceName, { color: c.textSecondary }]}>{item.sourceName}</Text>
         </View>
         <Text style={[styles.timestamp, { color: c.textSecondary }]}>{item.timestamp}</Text>
       </View>
       
       <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>{item.title}</Text>
-      <Text style={[styles.body, { color: c.textSecondary }]} numberOfLines={3}>{item.body}</Text>
+      <Text style={[styles.body, { color: c.textSecondary, lineHeight: 20 }]} numberOfLines={3}>{item.body}</Text>
       
       <View style={[styles.footer, { borderTopColor: c.surfaceBorderSubtle }]}>
         <View style={styles.topicsRow}>

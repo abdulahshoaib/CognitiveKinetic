@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { usePreferences } from '../../context/PreferencesContext';
 import { FontSizes } from '../../constants/typography';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 
 export default function ThemePreviewCard() {
   const { activeTheme } = usePreferences();
@@ -29,7 +29,7 @@ export default function ThemePreviewCard() {
             <Text style={[styles.buttonText, { color: c.textInverse || '#181C18' }]}>Run Simulation</Text>
           </View>
           <View style={[styles.secondaryButton, { borderColor: c.outlineVariantMedium }]}>
-            <Ionicons name="options-outline" size={16} color={c.textSecondary} />
+            <Feather name="sliders" size={16} color={c.textSecondary} />
           </View>
         </View>
       </View>

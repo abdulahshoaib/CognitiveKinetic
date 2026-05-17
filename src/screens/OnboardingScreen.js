@@ -7,18 +7,33 @@ import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
 import ProfileForm from '../components/common/ProfileForm';
+import SegmentedControl from '../components/preferences/SegmentedControl';
+import ThemeSelector from '../components/preferences/ThemeSelector';
+import ThemePreviewCard from '../components/preferences/ThemePreviewCard';
+import SettingRow from '../components/preferences/SettingRow';
+import { usePreferences } from '../context/PreferencesContext';
+import Button from '../components/common/Button';
 
 export default function OnboardingScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { preferences, updatePreference, activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const [isSaving, setIsSaving] = useState(false);
+  const [step, setStep] = useState(1);
+  const [profileDataTemp, setProfileDataTemp] = useState(null);
 
-  const handleSaveProfile = async (profileData) => {
-    if (!user?.uid) return;
+  const handleNext = (profileData) => {
+    setProfileDataTemp(profileData);
+    setStep(2);
+  };
+
+  const handleCompleteSetup = async () => {
+    if (!user?.uid || !profileDataTemp) return;
 
     setIsSaving(true);
     try {
-      await saveProfile(user.uid, profileData);
+      await saveProfile(user.uid, profileDataTemp);
       navigation.replace('Home'); // Home points to bottom tabs (Dashboard)
     } catch (e) {
       console.error(e);
@@ -29,19 +44,108 @@ export default function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.keyboardView} 
+      style={[styles.keyboardView, { backgroundColor: c.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen scroll={true}>
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to CognitiveKinetic</Text>
-          <Text style={styles.subtitle}>
-            Set up your business profile. The agent will use this context for all future content analysis. You only need to do this once.
+          <Text style={[styles.title, { color: c.textPrimary }]}>Welcome to CognitiveKinetic</Text>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+            {step === 1 
+              ? "Set up your business profile. The agent will use this context for all future content analysis. You only need to do this once."
+              : "Personalize your workspace. Tune your cognitive operating system's visuals and agent behavior."}
           </Text>
         </View>
 
         <View style={styles.formContainer}>
-          <ProfileForm onSave={handleSaveProfile} isSaving={isSaving} />
+          {step === 1 ? (
+            <ProfileForm 
+              onSave={handleNext} 
+              isSaving={isSaving} 
+              submitLabel="Next: Personalization"
+            />
+          ) : (
+            <View style={styles.personalizationContainer}>
+              <ThemePreviewCard />
+
+              <SettingRow 
+                title="Theme Mode" 
+                description="Choose the visual aesthetic of your workspace."
+              >
+                <ThemeSelector 
+                  selected={preferences.themeMode}
+                  onSelect={(val) => updatePreference('themeMode', val)}
+                />
+              </SettingRow>
+
+              <SettingRow 
+                title="Insight Style" 
+                description="How agent insights are presented to you."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Simple', value: 'simple' },
+                    { label: 'Detailed', value: 'detailed' },
+                    { label: 'Technical', value: 'technical' }
+                  ]}
+                  selected={preferences.insightStyle}
+                  onSelect={(val) => updatePreference('insightStyle', val)}
+                />
+              </SettingRow>
+
+              <SettingRow 
+                title="Motion & Feedback" 
+                description="Control the speed and presence of UI animations."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Full', value: 'full' },
+                    { label: 'Reduced', value: 'reduced' },
+                    { label: 'Minimal', value: 'minimal' }
+                  ]}
+                  selected={preferences.motion}
+                  onSelect={(val) => updatePreference('motion', val)}
+                />
+              </SettingRow>
+              
+              <SettingRow 
+                title="Home Screen Focus" 
+                description="What the dashboard prioritizes on load."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Latest Insight', value: 'latest-insight' },
+                    { label: 'Action Queue', value: 'action-queue' },
+                    { label: 'Progress', value: 'progress-summary' }
+                  ]}
+                  selected={preferences.homeFocus}
+                  onSelect={(val) => updatePreference('homeFocus', val)}
+                />
+              </SettingRow>
+              
+              <SettingRow 
+                title="Agent Transparency" 
+                description="How much background processing is visible."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Hidden', value: 'hidden' },
+                    { label: 'Summary Only', value: 'summary-only' },
+                    { label: 'Full Trace', value: 'full-trace' }
+                  ]}
+                  selected={preferences.agentTransparency}
+                  onSelect={(val) => updatePreference('agentTransparency', val)}
+                />
+              </SettingRow>
+
+              <Button 
+                label="Complete Setup" 
+                onPress={handleCompleteSetup} 
+                loading={isSaving}
+                style={{ marginTop: 24, marginBottom: 40 }}
+              />
+            </View>
+          )}
         </View>
       </Screen>
     </KeyboardAvoidingView>
@@ -71,5 +175,9 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
+  personalizationContainer: {
+    marginTop: 10,
+  }
 });
