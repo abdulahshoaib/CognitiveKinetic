@@ -5,26 +5,30 @@
 
 export const Colors = {
   // Backgrounds
-  background: '#0F172A',
-  surface: '#1E293B',
-  surfaceBorder: '#334155',
+  background: '#131315',
+  surface: '#1f1f21', // surface-container
+  surfaceBorder: '#45464d', // outline-variant
 
   // Text
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textPrimary: '#e4e2e4', // on-surface
+  textSecondary: '#c6c6cd', // on-surface-variant
+  textMuted: '#798098', // on-primary-container
 
   // Accent
-  accent: '#38BDF8',
-  accentGlow: 'rgba(56, 189, 248, 0.4)',
+  accent: '#bec6e0',
+  accentGlow: 'rgba(190, 198, 224, 0.4)',
+
+  // Brand / Primary
+  primary: '#bec6e0',
+  primaryText: '#283044', // on-primary
 
   // Status
   success: '#34D399',
   successBg: 'rgba(52, 211, 153, 0.1)',
   successBorder: 'rgba(52, 211, 153, 0.3)',
-  warning: '#F9A03F',
-  danger: '#FF6B6B',
-  info: '#45B7D1',
+  warning: '#dec29a', // tertiary
+  danger: '#ffb4ab', // error
+  info: '#d5e3fd', // secondary-fixed
   teal: '#4ECDC4',
 
   // Shadows
