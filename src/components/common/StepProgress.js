@@ -1,20 +1,20 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import { usePreferences } from '../../context/PreferencesContext';
 
 const STAGES = [
-  { id: 'idle', label: 'Ready', icon: 'play-outline' },
-  { id: 'loading_profile', label: 'Profile', icon: 'person-outline' },
-  { id: 'ingesting', label: 'Ingest', icon: 'download-outline' },
-  { id: 'signals', label: 'Signals', icon: 'git-network-outline' },
-  { id: 'relevance', label: 'Relevance', icon: 'filter-outline' },
-  { id: 'insights', label: 'Insights', icon: 'bulb-outline' },
-  { id: 'impact', label: 'Impact', icon: 'warning-outline' },
-  { id: 'actions', label: 'Actions', icon: 'flash-outline' },
-  { id: 'completed', label: 'Done', icon: 'checkmark-circle-outline' },
+  { id: 'idle', label: 'Ready', icon: 'play' },
+  { id: 'loading_profile', label: 'Profile', icon: 'user' },
+  { id: 'ingesting', label: 'Ingest', icon: 'download' },
+  { id: 'signals', label: 'Signals', icon: 'activity' },
+  { id: 'relevance', label: 'Relevance', icon: 'filter' },
+  { id: 'insights', label: 'Insights', icon: 'compass' },
+  { id: 'impact', label: 'Impact', icon: 'alert-triangle' },
+  { id: 'actions', label: 'Actions', icon: 'zap' },
+  { id: 'completed', label: 'Done', icon: 'check-circle' },
 ];
 
 export default function StepProgress({ currentStage, style }) {
@@ -41,7 +41,7 @@ export default function StepProgress({ currentStage, style }) {
                 { backgroundColor: color },
                 isCurrent && [styles.currentGlow, { shadowColor: c.accent, borderColor: c.white }]
               ]}>
-                <Ionicons name={stage.icon} size={14} color={c.white} />
+                <Feather name={stage.icon} size={14} color={c.white} />
               </View>
               {isCurrent && (
                 <Text style={[styles.label, { color: c.textPrimary }]}>{stage.label}</Text>

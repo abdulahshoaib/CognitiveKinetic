@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
@@ -15,7 +15,7 @@ export default function ActionCard({ action, onSimulate, style }) {
   const canSimulate = action.simulationSupported !== false;
 
   return (
-    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, style]}>
+    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: 16, marginBottom: 12 }, style]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.textPrimary }]}>{action.title}</Text>
         <View style={styles.badges}>
@@ -27,7 +27,7 @@ export default function ActionCard({ action, onSimulate, style }) {
       </View>
       
       {action.rationale && (
-        <Text style={[styles.rationale, { color: c.textSecondary }]}>{action.rationale}</Text>
+        <Text style={[styles.rationale, { color: c.textSecondary, lineHeight: 20 }]}>{action.rationale}</Text>
       )}
       
       <View style={[styles.footer, { borderTopColor: c.surfaceBorderSubtle }]}>
@@ -38,7 +38,7 @@ export default function ActionCard({ action, onSimulate, style }) {
           onPress={() => canSimulate && onSimulate && onSimulate(action)}
           disabled={!canSimulate}
         >
-          <Ionicons name={canSimulate ? "play" : "build"} size={16} color={c.white} />
+          <Feather name={canSimulate ? "play" : "tool"} size={16} color={c.white} />
           <Text style={[styles.buttonText, { color: c.white }]}>{canSimulate ? "Simulate" : "Manual Review"}</Text>
         </TouchableOpacity>
       </View>

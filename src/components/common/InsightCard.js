@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
@@ -16,7 +16,7 @@ export default function InsightCard({ insight, style }) {
     <View style={[styles.container, { backgroundColor: c.primaryContainerLight, borderColor: c.primaryBorderMedium }, style]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: c.accentSoft }]}>
-          <Ionicons name="bulb" size={20} color={c.accent} />
+          <Feather name="compass" size={20} color={c.accent} />
         </View>
         <StatusPill label={insight.category || 'Insight'} status="accent" />
       </View>
