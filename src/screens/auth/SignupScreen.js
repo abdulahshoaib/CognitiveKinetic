@@ -37,7 +37,7 @@ export default function SignupScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
             <View style={styles.header}>
               <View style={styles.logoBox}>
@@ -135,17 +135,17 @@ export default function SignupScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  container: { paddingHorizontal: 32, paddingVertical: 40, justifyContent: 'center', alignItems: 'center' },
+  container: { paddingHorizontal: 24, paddingVertical: 32, justifyContent: 'center', alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
   logoBox: { width: 56, height: 56, backgroundColor: Colors.l1Surface, borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: Colors.white, letterSpacing: -0.5, marginBottom: 4 },
+  title: { fontSize: 24, fontWeight: '700', color: Colors.white, marginBottom: 4, textAlign: 'center' },
   subtitle: { fontSize: 14, color: Colors.slateText },
   form: { width: '100%', maxWidth: 420 },
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 11, fontWeight: '600', color: Colors.slateText, letterSpacing: 0.5, marginBottom: 4, paddingHorizontal: 4 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, backgroundColor: Colors.l1Surface, paddingHorizontal: 16, height: 48 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, backgroundColor: Colors.l1Surface, paddingHorizontal: 16, minHeight: 48 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, color: Colors.white, fontSize: 16 },
+  input: { flex: 1, color: Colors.white, fontSize: 16, paddingVertical: 12 },
   eyeIcon: { padding: 4 },
   button: { backgroundColor: Colors.accent, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 16 },
   buttonText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
