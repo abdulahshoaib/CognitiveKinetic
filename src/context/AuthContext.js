@@ -1,10 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  sendPasswordResetEmail, 
-  signInAnonymously, 
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signInAnonymously,
   signOut,
   updateProfile,
   GoogleAuthProvider,
@@ -34,13 +34,13 @@ export const AuthProvider = ({ children }) => {
   const signup = async (fullName, email, password) => {
     const userCred = await createUserWithEmailAndPassword(auth, email, password);
     const currentUser = userCred.user;
-    
+
     // Update display name
     await updateProfile(currentUser, { displayName: fullName });
-    
+
     // Create DB profile
     await createOrUpdateUserProfile(currentUser, { fullName, provider: 'password' });
-    
+
     return userCred;
   };
 
@@ -54,9 +54,9 @@ export const AuthProvider = ({ children }) => {
     const credential = GoogleAuthProvider.credential(idToken);
     const userCred = await signInWithCredential(auth, credential);
     const currentUser = userCred.user;
-    await createOrUpdateUserProfile(currentUser, { 
-      fullName: currentUser.displayName, 
-      provider: 'google' 
+    await createOrUpdateUserProfile(currentUser, {
+      fullName: currentUser.displayName,
+      provider: 'google'
     });
     return userCred;
   };
