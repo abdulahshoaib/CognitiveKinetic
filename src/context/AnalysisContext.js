@@ -1,7 +1,23 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { runPipeline } from '../services/agent/orchestrator';
 
-const AnalysisContext = createContext({});
+const noop = () => {};
+
+const AnalysisContext = createContext({
+  feedItems: [],
+  selectedItem: null,
+  setSelectedItem: noop,
+  isAnalyzing: false,
+  currentStage: 'idle',
+  analysisResult: null,
+  simulationResult: null,
+  executionLogs: [],
+  systemState: null,
+  analyzeContent: noop,
+  executeSimulation: noop,
+  clearAnalysis: noop,
+  addManualAnalysisItem: noop
+});
 
 const defaultFeedItems = [
   {
@@ -74,7 +90,7 @@ export const AnalysisProvider = ({ children }) => {
     }]);
   }, []);
 
-  const analyzeContent = useCallback(async (content, profileContext) => {
+  const analyzeContent = useCallback(async (content, profileContext, sourceItemId = null) => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setSimulationResult(null);
@@ -122,10 +138,14 @@ export const AnalysisProvider = ({ children }) => {
       const result = await runPipeline(content, profileContext);
       
       // Update feed item relevance status in the feed list if it matches an existing item ID
-      if (result.feedItemId) {
+      const itemIdToUpdate = sourceItemId || result.feedItemId;
+      if (itemIdToUpdate) {
         setFeedItems(prev => prev.map(item => 
-          item.id === result.feedItemId 
-            ? { ...item, relevanceStatus: result.relevanceScore > 40 ? 'relevant' : 'ignored' }
+          item.id === itemIdToUpdate 
+            ? {
+                ...item,
+                relevanceStatus: result.relevanceScore >= 75 ? 'high-impact' : result.relevanceScore > 40 ? 'relevant' : 'ignored'
+              }
             : item
         ));
       }

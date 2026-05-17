@@ -237,7 +237,7 @@ export default function HomeScreen({ navigation, route }) {
               label="Update Saved Profile"
               variant="secondary"
               icon="settings-outline"
-              onPress={() => navigation.navigate('Onboarding')}
+              onPress={() => navigation.navigate('ProfileSettings')}
               style={{ marginTop: 8 }}
             />
           </Card>
@@ -297,9 +297,8 @@ export default function HomeScreen({ navigation, route }) {
             <View style={styles.traceContainer}>
               {executionLogs && executionLogs.length > 0 ? (
                 executionLogs.slice(-4).reverse().map((log, index) => {
-                  const match = log.match(/^\[(.*?)\]\s*(.*)$/);
-                  const time = match ? match[1] : 'LIVE';
-                  const text = match ? match[2] : log;
+                  const time = typeof log === 'string' ? 'LIVE' : (log.timestamp || '[LIVE]').replace(/^\[|\]$/g, '');
+                  const text = typeof log === 'string' ? log : log.message;
                   
                   let iconName = 'sync';
                   let iconColor = '#3B82F6';
@@ -451,6 +450,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingTop: 16,
+    paddingBottom: 90,
   },
   cardHeader: {
     flexDirection: 'row',

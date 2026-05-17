@@ -4,27 +4,41 @@ import Colors from '../../constants/colors';
 import { Spacing } from '../../constants/layout';
 import { FontSizes, FontWeights } from '../../constants/typography';
 
-export default function Badge({ label, variant = 'neutral', style }) {
+export default function Badge({ label, variant = 'neutral', style, icon }) {
   let bgColor = 'rgba(148, 163, 184, 0.1)'; // default gray
   let borderColor = 'rgba(148, 163, 184, 0.2)';
   let textColor = '#94a3b8';
-  let iconName = null;
+  let iconName = icon || null;
 
   if (variant === 'success') {
     bgColor = 'rgba(16, 185, 129, 0.1)'; // emerald green opacity
     borderColor = 'rgba(16, 185, 129, 0.3)';
     textColor = '#10b981';
-    iconName = 'checkmark-circle-outline';
+    iconName = icon || 'checkmark-circle-outline';
   } else if (variant === 'risk') {
     bgColor = 'rgba(245, 158, 11, 0.1)'; // amber opacity
     borderColor = 'rgba(245, 158, 11, 0.3)';
     textColor = '#f59e0b';
-    iconName = 'warning-outline';
+    iconName = icon || 'warning-outline';
   } else if (variant === 'active') {
     bgColor = 'rgba(59, 130, 246, 0.1)'; // electric blue opacity
     borderColor = 'rgba(59, 130, 246, 0.4)';
     textColor = '#3b82f6';
-    iconName = 'pulse-outline';
+    iconName = icon || 'pulse-outline';
+  } else if (variant === 'relevant') {
+    bgColor = '#3c4a5e'; // secondary-container
+    borderColor = 'rgba(185, 199, 224, 0.2)'; // secondary/20
+    textColor = '#abb9d2'; // on-secondary-container
+  } else if (variant === 'ignored') {
+    bgColor = '#131315'; // surface-dim
+    borderColor = 'rgba(69, 70, 77, 0.5)'; // outline-variant/50
+    textColor = '#c6c6cd'; // on-surface-variant
+    iconName = icon || 'eye-off-outline';
+  } else if (variant === 'high-impact') {
+    bgColor = '#0f172a'; // primary-container
+    borderColor = 'rgba(190, 198, 224, 0.2)'; // primary/20
+    textColor = '#798098'; // on-primary-container
+    iconName = icon || 'flash-outline';
   }
 
   return (

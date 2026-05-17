@@ -28,8 +28,10 @@ export async function runPipeline(rawContent, profile) {
     riskSensitivity: 'balanced'
   };
 
-  const concernsList = activeProfile.concerns.toLowerCase().split(',').map(s => s.trim());
-  const locationsList = activeProfile.locations.toLowerCase().split(',').map(s => s.trim());
+  const concernsText = activeProfile.concerns || activeProfile.goals || '';
+  const locationsText = activeProfile.locations || '';
+  const concernsList = concernsText.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  const locationsList = locationsText.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
 
   // Log traces compiled in the orchestrator
   const traceLogs = [];
@@ -154,7 +156,7 @@ export async function runPipeline(rawContent, profile) {
     insights.push({
       id: 'ins_fuel_margin',
       title: 'Severe Margin Compression Alert',
-      description: `Immediate margin compression of Rs. 18-22 per delivery on dispatch routes covering ${activeProfile.locations}. Fuel costs represent 35% of base logistics overhead.`,
+      description: `Immediate margin compression of Rs. 18-22 per delivery on dispatch routes covering ${locationsText || 'active operating locations'}. Fuel costs represent 35% of base logistics overhead.`,
       evidence: 'Fuel price increased by 12%',
       affectedArea: 'Operating Margins',
       priority: 'high'
@@ -264,7 +266,7 @@ export async function runPipeline(rawContent, profile) {
     insights.push({
       id: 'ins_custom_insight',
       title: 'Context-Aware Analysis',
-      description: `Analysis completed for '${activeProfile.businessName}'. Content references structural operations potentially impacting core concerns: ${activeProfile.concerns}.`,
+      description: `Analysis completed for '${activeProfile.businessName}'. Content references structural operations potentially impacting core concerns: ${concernsText || 'configured operating priorities'}.`,
       evidence: 'Dynamic term extraction',
       affectedArea: 'General Operations',
       priority: 'medium'

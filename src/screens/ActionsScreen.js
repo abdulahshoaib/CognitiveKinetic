@@ -3,33 +3,39 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Colors from '../constants/colors';
+import { FontSizes, FontWeights } from '../constants/typography';
+import { Spacing, BorderRadius } from '../constants/layout';
+import Card from '../components/common/Card';
+import Badge from '../components/common/Badge';
+import Button from '../components/common/Button';
+import Header from '../components/common/Header';
 import { useAnalysis } from '../context/AnalysisContext';
 
 export default function ActionsScreen({ navigation }) {
-  const { analysisResult, setSelectedItem } = useAnalysis();
+  const { analysisResult } = useAnalysis();
 
   if (!analysisResult) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
           <View style={styles.iconCircle}>
-            <Ionicons name="flash-off" size={48} color="#909097" />
+            <Ionicons name="flash-off" size={48} color={Colors.outline} />
           </View>
           <Text style={styles.emptyTitle}>No Recommendations Ready</Text>
           <Text style={styles.emptySubtitle}>
             Complete the operational impact analysis stage to see strategic recommendations.
           </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
+          <Button
+            label="Back to Ingestion Feed"
+            variant="outline"
             onPress={() => navigation.navigate('Ingestion')}
-          >
-            <Text style={styles.emptyButtonText}>Back to Ingestion Feed</Text>
-          </TouchableOpacity>
+          />
         </View>
       </SafeAreaView>
     );
@@ -37,106 +43,147 @@ export default function ActionsScreen({ navigation }) {
 
   const { recommendedActions } = analysisResult;
 
-  const getUrgencyColor = (urgency) => {
-    if (urgency === 'critical' || urgency === 'high') return '#ef4444'; // Threat/Red
-    if (urgency === 'medium') return '#F59E0B'; // Risk/Amber
-    return '#10b981'; // Growth/Emerald
-  };
-
-  const getUrgencyBg = (urgency) => {
-    if (urgency === 'critical' || urgency === 'high') return 'rgba(239, 68, 68, 0.1)';
-    if (urgency === 'medium') return 'rgba(245, 158, 11, 0.1)';
-    return 'rgba(16, 185, 129, 0.1)';
-  };
-
   const handleSelectSimulation = (action) => {
-    // Navigate directly to Simulation Screen and pass this action as a param
     navigation.navigate('Simulation', { action });
+  };
+
+  const getUrgencyIcon = (urgency) => {
+    if (urgency === 'critical' || urgency === 'high') return 'warning';
+    if (urgency === 'medium') return 'alert-circle';
+    return 'information-circle';
+  };
+  
+  const getActionIcon = (actionType) => {
+    switch (actionType) {
+      case 'pricing_adjust': return 'pricetag-outline';
+      case 'partnership': return 'people-outline';
+      case 'route_shift': return 'git-network-outline';
+      case 'asset_swap': return 'bicycle-outline';
+      case 'policy_review': return 'document-text-outline';
+      default: return 'build-outline';
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <Header
+        title="Recommended Actions"
+        subtitle="The agent has identified optimal adjustment paths based on current system load and predictive telemetry. Simulation is required before committing high-impact changes."
+      />
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         
-        {/* Stage Header */}
-        <View style={styles.stageIndicatorRow}>
-          <Text style={styles.stageTitle}>Ingestion → Insights → Impact → </Text>
-          <Text style={styles.stageTitleActive}>Actions Recommendations</Text>
-        </View>
-
-        <Text style={styles.sectionHeader}>Ranked Decisions Portfolio</Text>
-
-        {recommendedActions && recommendedActions.length > 0 ? (
-          recommendedActions.map((action) => {
-            const isSimulatable = action.simulationSupported;
-            return (
-              <View key={action.id} style={styles.actionCard}>
-                
-                {/* Card Header Row */}
-                <View style={styles.cardHeader}>
-                  <View style={styles.headerInfo}>
-                    <Text style={styles.actionTitle}>{action.title}</Text>
-                    <View style={styles.metaRow}>
-                      <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyBg(action.urgency), borderColor: getUrgencyColor(action.urgency) }]}>
-                        <Text style={[styles.urgencyBadgeText, { color: getUrgencyColor(action.urgency) }]}>
-                          {action.urgency.toUpperCase()}
-                        </Text>
+        {/* Action Grid */}
+        <View style={styles.grid}>
+          {recommendedActions && recommendedActions.length > 0 ? (
+            recommendedActions.map((action, index) => {
+              const isSimulatable = action.simulationSupported;
+              
+              if (isSimulatable) {
+                // Primary Action Card (Spans wide, detailed)
+                return (
+                  <Card key={action.id || index} variant="glass" style={{ marginBottom: Spacing.md }}>
+                    {/* Header */}
+                    <View style={styles.primaryHeader}>
+                      <View style={styles.headerInfo}>
+                        <View style={styles.iconContainerPrimary}>
+                          <Ionicons name={getActionIcon(action.actionType)} size={20} color={Colors.accent} />
+                        </View>
+                        <View>
+                          <Text style={styles.actionTitlePrimary}>{action.title}</Text>
+                          <View style={styles.tagsRow}>
+                            <Badge label={action.targetSystem} variant="neutral" />
+                            <Badge 
+                              label={action.urgency === 'critical' || action.urgency === 'high' ? 'High Urgency' : 'Medium Urgency'}
+                              variant={action.urgency === 'critical' || action.urgency === 'high' ? 'risk' : 'warning'}
+                              icon={getUrgencyIcon(action.urgency)}
+                            />
+                          </View>
+                        </View>
                       </View>
-                      <View style={styles.systemTag}>
-                        <Ionicons name="hardware-chip-outline" size={10} color="#94a3b8" style={{ marginRight: 4 }} />
-                        <Text style={styles.systemTagText}>{action.targetSystem}</Text>
+                      <Text style={styles.priorityLabel}>P{index + 1}</Text>
+                    </View>
+
+                    {/* Rationale */}
+                    <View style={styles.rationaleBox}>
+                      <Text style={styles.rationaleText}>
+                        <Text style={styles.rationaleLabel}>Rationale: </Text>
+                        {action.rationale || action.description}
+                      </Text>
+                    </View>
+
+                    {/* Impact Grid */}
+                    <View style={styles.impactGrid}>
+                      <View style={styles.impactItem}>
+                        <Ionicons name="analytics-outline" size={20} color={Colors.accent} />
+                        <View style={styles.impactItemText}>
+                          <Text style={styles.impactLabel}>Confidence</Text>
+                          <Text style={styles.impactValuePrimary}>{action.confidence}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.impactItem}>
+                        <Ionicons name="hardware-chip-outline" size={20} color={Colors.tertiary} />
+                        <View style={styles.impactItemText}>
+                          <Text style={styles.impactLabel}>Engine</Text>
+                          <Text style={styles.impactValueTertiary}>Autonomous API</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                </View>
 
-                {/* Body Details */}
-                <Text style={styles.actionDescription}>{action.description}</Text>
+                    {/* Footer CTA */}
+                    <View style={styles.actionFooter}>
+                      <Button
+                        label="Simulate Action"
+                        icon="play"
+                        variant="primary"
+                        onPress={() => handleSelectSimulation(action)}
+                      />
+                    </View>
+                  </Card>
+                );
+              } else {
+                // Secondary Action Card
+                return (
+                  <Card key={action.id || index} variant="surface" style={{ marginBottom: Spacing.md }}>
+                    <View style={styles.secondaryHeader}>
+                      <View style={styles.headerInfo}>
+                        <View style={styles.iconContainerSecondary}>
+                          <Ionicons name={getActionIcon(action.actionType)} size={18} color={Colors.secondary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.actionTitleSecondary}>{action.title}</Text>
+                          <Text style={styles.systemTagSecondary}>{action.targetSystem}</Text>
+                        </View>
+                      </View>
+                      <Badge 
+                        label={action.urgency === 'critical' || action.urgency === 'high' ? 'High' : (action.urgency === 'medium' ? 'Med' : 'Low')}
+                        variant={action.urgency === 'critical' || action.urgency === 'high' ? 'risk' : (action.urgency === 'medium' ? 'warning' : 'neutral')}
+                      />
+                    </View>
 
-                <View style={styles.rationaleContainer}>
-                  <Text style={styles.rationaleLabel}>STRATEGIC RATIONALE</Text>
-                  <Text style={styles.rationaleText}>{action.rationale}</Text>
-                </View>
+                    <Text style={styles.actionDescriptionSecondary}>{action.rationale || action.description}</Text>
 
-                <View style={styles.divider} />
+                    <View style={styles.expectedBox}>
+                      <Text style={styles.expectedLabel}>Confidence Coefficient:</Text>
+                      <Text style={styles.expectedValue}>{action.confidence}</Text>
+                    </View>
 
-                {/* Confidence Metrics */}
-                <View style={styles.metricsFooter}>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>CONFIDENCE COEFFICIENT</Text>
-                    <Text style={styles.metricVal}>{action.confidence}</Text>
-                  </View>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>INTEGRATION ENGINE</Text>
-                    <Text style={styles.metricVal}>{isSimulatable ? 'Autonomous API' : 'Manual Audit'}</Text>
-                  </View>
-                </View>
-
-                {/* Simulate vs Offline CTA buttons */}
-                {isSimulatable ? (
-                  <TouchableOpacity
-                    style={styles.simulateButton}
-                    onPress={() => handleSelectSimulation(action)}
-                  >
-                    <Ionicons name="play-circle" size={18} color="#ffffff" style={{ marginRight: 6 }} />
-                    <Text style={styles.simulateButtonText}>Run Operational Simulation</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={styles.offlineIndicator}>
-                    <Ionicons name="information-circle-outline" size={16} color="#94a3b8" style={{ marginRight: 6 }} />
-                    <Text style={styles.offlineText}>Requires Manual Administrative Action</Text>
-                  </View>
-                )}
-
-              </View>
-            );
-          })
-        ) : (
-          <View style={styles.emptySubCard}>
-            <Text style={styles.emptySubCardText}>No actionable strategy adjustments compiled.</Text>
-          </View>
-        )}
-        
+                    <View style={styles.secondaryFooter}>
+                      <View style={styles.reviewBtn}>
+                        <Ionicons name="information-circle-outline" size={16} color={Colors.textSecondary} />
+                        <Text style={styles.reviewBtnText}>Requires Manual Audit</Text>
+                      </View>
+                    </View>
+                  </Card>
+                );
+              }
+            })
+          ) : (
+            <View style={styles.emptyActionBox}>
+              <Text style={styles.emptyActionText}>No actionable strategy adjustments compiled.</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -145,231 +192,229 @@ export default function ActionsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617', // Base canvas L0
+    backgroundColor: Colors.background,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xl * 2,
   },
+  grid: {
+    flexDirection: 'column',
+    gap: Spacing.md,
+  },
+  // Primary Card Styles
+  primaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+  },
+  headerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainerPrimary: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  actionTitlePrimary: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textPrimary,
+    marginBottom: 6,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  priorityLabel: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    fontFamily: 'monospace',
+  },
+  rationaleBox: {
+    backgroundColor: Colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  rationaleText: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  rationaleLabel: {
+    fontWeight: FontWeights.semibold,
+    color: Colors.textPrimary,
+  },
+  impactGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: Spacing.md,
+  },
+  impactItem: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  impactItemText: {
+    flexDirection: 'column',
+  },
+  impactLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: FontWeights.semibold,
+    marginBottom: 2,
+  },
+  impactValuePrimary: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
+    color: Colors.accent,
+  },
+  impactValueTertiary: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
+    color: Colors.tertiary,
+  },
+  actionFooter: {
+    alignItems: 'flex-end',
+    marginTop: Spacing.xs,
+  },
+  // Secondary Card Styles
+  secondaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  iconContainerSecondary: {
+    padding: 8,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.surfaceContainer,
+    marginRight: Spacing.sm,
+  },
+  actionTitleSecondary: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textPrimary,
+  },
+  systemTagSecondary: {
+    fontSize: 11,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textSecondary,
+  },
+  actionDescriptionSecondary: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.sm,
+  },
+  expectedBox: {
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: BorderRadius.xs,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  expectedLabel: {
+    fontSize: 13,
+    fontFamily: 'monospace',
+    color: Colors.textSecondary,
+  },
+  expectedValue: {
+    fontSize: 13,
+    fontFamily: 'monospace',
+    color: Colors.secondary,
+  },
+  secondaryFooter: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.surfaceBorder,
+    paddingTop: Spacing.sm,
+    alignItems: 'flex-end',
+  },
+  reviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    borderRadius: BorderRadius.xs,
+  },
+  reviewBtnText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: FontWeights.semibold,
+  },
+  
+  // Empty State Styles
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: Spacing.xl,
     marginTop: 100,
   },
   iconCircle: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#0F172A', // Navy L1 surface
+    backgroundColor: Colors.surfaceContainer,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: '#1E293B', // Slate border
+    borderColor: Colors.surfaceBorder,
   },
   emptyTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
+    color: Colors.textPrimary,
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    marginBottom: Spacing.sm,
   },
   emptySubtitle: {
-    color: '#94a3b8',
-    fontSize: 14,
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
-  emptyButton: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  emptyActionBox: {
+    backgroundColor: Colors.surfaceContainer,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  emptyButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stageIndicatorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  stageTitle: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  stageTitleActive: {
-    color: '#3B82F6', // Active Pulse Blue
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  sectionHeader: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  actionCard: {
-    backgroundColor: '#0F172A', // Navy L1 Surface
-    borderWidth: 1,
-    borderColor: '#1E293B', // Slate Border
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  actionTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 20,
-    marginBottom: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
+    borderColor: Colors.surfaceBorder,
     alignItems: 'center',
   },
-  urgencyBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  urgencyBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  systemTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#020617', // L0 Deep Navy
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  systemTagText: {
-    color: '#94a3b8',
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  actionDescription: {
-    color: '#c6c6cd',
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  rationaleContainer: {
-    backgroundColor: '#020617', // L0 Deep Navy
-    borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6', // Electric Blue Bar
-    padding: 10,
-    borderRadius: 4,
-    marginBottom: 14,
-  },
-  rationaleLabel: {
-    color: '#3B82F6',
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  rationaleText: {
-    color: '#ffffff',
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    borderColor: '#1E293B',
-    borderBottomWidth: 1,
-    marginBottom: 12,
-  },
-  metricsFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  metricItem: {
-    flex: 1,
-  },
-  metricLabel: {
-    color: '#94a3b8',
-    fontSize: 9,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  metricVal: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  simulateButton: {
-    backgroundColor: '#3B82F6', // Electric Blue
-    paddingVertical: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  simulateButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  offlineIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    backgroundColor: '#020617',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  offlineText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  emptySubCard: {
-    backgroundColor: '#020617',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emptySubCardText: {
-    color: '#94a3b8',
-    fontSize: 12,
-  },
+  emptyActionText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+  }
 });
