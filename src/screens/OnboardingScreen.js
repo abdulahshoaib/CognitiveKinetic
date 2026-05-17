@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSizes, FontWeights } from '../constants/typography';
+import { FontSizes } from '../constants/typography';
 import { Spacing, BorderRadius } from '../constants/layout';
 import { useAuth } from '../context/AuthContext';
 import { saveProfile } from '../services/profileService';
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   headerBrand: {
     color: '#3B82F6',
     fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
+    fontWeight: 'bold',
     marginLeft: Spacing.sm,
     letterSpacing: -0.5,
   },
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#ffffff',
     fontSize: FontSizes['3xl'],
-    fontWeight: FontWeights.bold,
+    fontWeight: 'bold',
     marginBottom: Spacing.sm,
     letterSpacing: -1,
   },
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: '#3B82F6',
     fontSize: FontSizes.xl,
-    fontWeight: FontWeights.semibold,
+    fontWeight: 'bold',
   },
   row: {
     flexDirection: 'row',
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   label: {
     color: '#94a3b8',
     fontSize: 11,
-    fontWeight: FontWeights.semibold,
+    fontWeight: 'bold',
     marginBottom: Spacing.xs,
     letterSpacing: 1,
   },
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   radioTitle: {
     fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
+    fontWeight: 'bold',
     marginBottom: Spacing.xs,
   },
   radioDesc: {
@@ -441,6 +441,6 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: '#ffffff',
     fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
+    fontWeight: 'bold',
   }
 });
