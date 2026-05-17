@@ -17,21 +17,23 @@ import { useAnalysis } from '../context/AnalysisContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import ProgressBar from '../components/common/ProgressBar';
+import Header from '../components/common/Header';
 import Colors from '../constants/colors';
 
 const PIPELINE_STAGES = [
-  { key: 'loading_profile', label: 'Loading Profile', desc: 'Parameters retrieved and verified.', icon: 'shield-checkmark' },
-  { key: 'ingesting', label: 'Ingesting Content', desc: 'Market reports and live news parsed.', icon: 'cloud-download' },
-  { key: 'signals', label: 'Extracting Signals', desc: 'Identifying key entities and metrics.', icon: 'hardware-chip' },
-  { key: 'relevance', label: 'Checking Relevance', desc: 'Awaiting extracted signals.', icon: 'git-compare' },
-  { key: 'insights', label: 'Formulate Core Insights', desc: 'Structuring qualitative implications.', icon: 'bulb' },
-  { key: 'impact', label: 'Analyzing Impact', desc: 'Awaiting relevance check.', icon: 'analytics' },
-  { key: 'actions', label: 'Generating Recommendations', desc: 'Final output compilation.', icon: 'flash' }
+  { key: 'loading_profile', label: 'Loading Saved Profile', desc: 'Reading your custom settings.', icon: 'shield-checkmark' },
+  { key: 'ingesting', label: 'Reading News Content', desc: 'Loading target news article.', icon: 'cloud-download' },
+  { key: 'signals', label: 'Finding Key Facts', desc: 'Extracting important names, numbers, and facts.', icon: 'hardware-chip' },
+  { key: 'relevance', label: 'Checking Relevance', desc: 'Checking if this affects your business.', icon: 'git-compare' },
+  { key: 'insights', label: 'Generating Insights', desc: 'Figuring out what this means for your daily work.', icon: 'bulb' },
+  { key: 'impact', label: 'Analyzing Impact', desc: 'Calculating specific business changes.', icon: 'analytics' },
+  { key: 'actions', label: 'Recommending Actions', desc: 'Creating step-by-step suggestions.', icon: 'flash' }
 ];
 
 export default function UnderstandingScreen({ navigation }) {
   const { currentStage, executionLogs, isAnalyzing } = useAnalysis();
   const logListRef = useRef(null);
+  const [showLogs, setShowLogs] = React.useState(false);
 
   // Automatically scroll logs to end
   useEffect(() => {
@@ -97,13 +99,16 @@ export default function UnderstandingScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerSpacer} />
+      <Header
+        title="Analyzing Updates"
+        subtitle="The AI agent is finding matches and calculating business impact..."
+      />
       
       {/* Progress Track Section */}
       <View style={{ marginBottom: 24, paddingHorizontal: 4 }}>
         <View style={styles.progressHeaderRow}>
-          <Text style={styles.progressTitle}>Execution Sequence</Text>
-          <Text style={styles.progressSubtitle}>Agent #CK-89A is processing data streams.</Text>
+          <Text style={styles.progressTitle}>Analysis Steps</Text>
+          <Text style={styles.progressSubtitle}>Cognitive Kinetic is running your custom analysis workflow.</Text>
         </View>
 
         {/* Vertical Stages List */}
@@ -154,36 +159,53 @@ export default function UnderstandingScreen({ navigation }) {
       </View>
 
       {/* Terminal Log Console */}
-      <View style={styles.consoleCard}>
-        <View style={styles.consoleHeader}>
-          <View style={styles.consoleHeaderLeft}>
-            <Ionicons name="terminal" size={16} color={Colors.accent} style={{ marginRight: 8 }} />
-            <Text style={styles.consoleHeaderText}>LIVE AGENT TRACE</Text>
-          </View>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Live</Text>
-          </View>
-        </View>
-        
-        <FlatList
-          ref={logListRef}
-          data={executionLogs}
-          renderItem={renderLogItem}
-          keyExtractor={item => item.id}
-          style={styles.logsList}
-          contentContainerStyle={styles.logsListContent}
-          showsVerticalScrollIndicator={true}
-          ListEmptyComponent={
-            <View style={styles.emptyLogsContainer}>
-              <Text style={styles.emptyLogsText}>Initializing log stream...</Text>
+      {!showLogs ? (
+        <TouchableOpacity 
+          activeOpacity={0.8}
+          style={styles.toggleLogsButton}
+          onPress={() => setShowLogs(true)}
+        >
+          <Ionicons name="terminal-outline" size={16} color={Colors.slateText} style={{ marginRight: 8 }} />
+          <Text style={styles.toggleLogsText}>Show Technical Logs</Text>
+          <Ionicons name="chevron-down" size={16} color={Colors.slateText} style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.consoleCard}>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPress={() => setShowLogs(false)}
+            style={styles.consoleHeader}
+          >
+            <View style={styles.consoleHeaderLeft}>
+              <Ionicons name="terminal" size={16} color={Colors.accent} style={{ marginRight: 8 }} />
+              <Text style={styles.consoleHeaderText}>LIVE AGENT TRACE</Text>
             </View>
-          }
-        />
-        
-        {/* Fake Gradient overlay at bottom to suggest scrolling */}
-        <View style={styles.consoleBottomGradient} />
-      </View>
+            <View style={styles.liveIndicator}>
+              <Ionicons name="chevron-up" size={16} color={Colors.slateText} style={{ marginRight: 8 }} />
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Live</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <FlatList
+            ref={logListRef}
+            data={executionLogs}
+            renderItem={renderLogItem}
+            keyExtractor={item => item.id}
+            style={styles.logsList}
+            contentContainerStyle={styles.logsListContent}
+            showsVerticalScrollIndicator={true}
+            ListEmptyComponent={
+              <View style={styles.emptyLogsContainer}>
+                <Text style={styles.emptyLogsText}>Initializing log stream...</Text>
+              </View>
+            }
+          />
+          
+          {/* Fake Gradient overlay at bottom to suggest scrolling */}
+          <View style={styles.consoleBottomGradient} />
+        </View>
+      )}
 
       {/* Footer Navigation Trigger */}
       {currentStage === 'completed' && (
@@ -303,7 +325,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.surfaceBorder, // Outline variant
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.shadowSolid,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -360,7 +382,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   logLineImportant: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)', // Primary container
+    backgroundColor: Colors.accentSoft,
     borderLeftWidth: 2,
     borderLeftColor: Colors.accent, // Primary
     paddingLeft: 8,
@@ -384,9 +406,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 32,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
     // We would use a LinearGradient here ideally, but for now we'll just omit it or use a translucent view
-    backgroundColor: 'rgba(11, 15, 25, 0.7)',
+    backgroundColor: Colors.terminalOverlay,
   },
   emptyLogsContainer: {
     padding: 24,
@@ -396,5 +418,22 @@ const styles = StyleSheet.create({
     color: Colors.outline,
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  toggleLogsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  toggleLogsText: {
+    color: Colors.slateText,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

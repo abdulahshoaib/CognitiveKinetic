@@ -9,6 +9,7 @@ import { useAnalysis } from '../context/AnalysisContext';
 import { Ionicons } from '@expo/vector-icons';
 import { FontSizes, FontWeights } from '../constants/typography';
 import { Spacing, BorderRadius } from '../constants/layout';
+import Colors from '../constants/colors';
 
 // Import Reusable Design System Components
 import Card from '../components/common/Card';
@@ -27,6 +28,7 @@ export default function HomeScreen({ navigation, route }) {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profile, setProfile] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
+  const [showLogs, setShowLogs] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -117,14 +119,14 @@ export default function HomeScreen({ navigation, route }) {
       <StatusBar style="light" />
       {isLoadingProfile && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={Colors.accent} />
         </View>
       )}
 
       {/* Floating Toast Notification */}
       {toastMsg && (
         <Animated.View style={[styles.toastContainer, { opacity: toastFade }]}>
-          <Ionicons name="checkmark-circle" size={18} color="#10b981" style={{ marginRight: 8 }} />
+          <Ionicons name="checkmark-circle" size={18} color={Colors.success} style={{ marginRight: 8 }} />
           <Text style={styles.toastText}>{toastMsg}</Text>
         </Animated.View>
       )}
@@ -133,13 +135,13 @@ export default function HomeScreen({ navigation, route }) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatarContainer}>
-            <Ionicons name="hardware-chip" size={16} color="#3B82F6" />
+            <Ionicons name="hardware-chip" size={16} color={Colors.accent} />
             <View style={styles.onlineDot} />
           </View>
           <Text style={styles.headerTitle}>Cognitive Kinetic</Text>
         </View>
         <TouchableOpacity style={styles.settingsButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color="#94a3b8" />
+          <Ionicons name="log-out-outline" size={22} color={Colors.slateText} />
         </TouchableOpacity>
       </View>
 
@@ -161,33 +163,21 @@ export default function HomeScreen({ navigation, route }) {
           />
         </Animated.View>
 
-        {/* System Threat Vector */}
+        {/* System Health */}
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <Card variant="surface">
             <View style={styles.cardHeader}>
               <View style={styles.cardTitleRow}>
-                <Ionicons name="pulse" size={20} color="#3B82F6" style={{ marginRight: 8 }} />
-                <Text style={styles.cardTitle}>System Threat Vector</Text>
+                <Ionicons name="shield-checkmark" size={20} color={Colors.success} style={{ marginRight: 8 }} />
+                <Text style={styles.cardTitle}>System Health</Text>
               </View>
-              <Badge label="Live Update" variant="active" />
+              <Badge label="Running Smoothly" variant="success" />
             </View>
             
             <View style={styles.vizContainer}>
-              <View style={styles.vizRow}>
-                <Text style={styles.vizLabel}>Ingestion Rate</Text>
-                <Badge label="Nominal" variant="success" />
-              </View>
-              <View style={styles.progressBarWrapper}>
-                <ProgressBar progress={75} showLabel={false} />
-              </View>
-              
-              <View style={[styles.vizRow, { marginTop: 16 }]}>
-                <Text style={styles.vizLabel}>Anomaly Detection</Text>
-                <Badge label="Elevated" variant="risk" />
-              </View>
-              <View style={styles.progressBarWrapper}>
-                <ProgressBar progress={50} showLabel={false} />
-              </View>
+              <Text style={{ color: Colors.slateText, fontSize: FontSizes.sm, lineHeight: 20 }}>
+                All background systems are active. Cognitive Kinetic is matching news updates to your business context automatically.
+              </Text>
             </View>
           </Card>
         </Animated.View>
@@ -197,7 +187,7 @@ export default function HomeScreen({ navigation, route }) {
           <Card variant="surface">
             <View style={styles.profileHeader}>
               <View style={styles.profileAvatar}>
-                <Ionicons name="business" size={24} color="#3B82F6" />
+                <Ionicons name="business" size={24} color={Colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.profileName} numberOfLines={1}>{profile?.businessName || 'Business Context'}</Text>
@@ -219,9 +209,9 @@ export default function HomeScreen({ navigation, route }) {
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Risk Threshold</Text>
                 <Text style={[styles.statValue, { 
-                  color: profile?.riskSensitivity === 'aggressive' ? '#ef4444' 
-                       : profile?.riskSensitivity === 'conservative' ? '#10b981' 
-                       : '#f59e0b',
+                  color: profile?.riskSensitivity === 'aggressive' ? Colors.danger 
+                       : profile?.riskSensitivity === 'conservative' ? Colors.success 
+                       : Colors.warning,
                   textTransform: 'capitalize' 
                 }]}>
                   {profile?.riskSensitivity || 'Balanced'}
@@ -243,16 +233,16 @@ export default function HomeScreen({ navigation, route }) {
           </Card>
         </Animated.View>
 
-        {/* Active Ruleset & Surcharges */}
+        {/* Your Current Prices */}
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <Card variant="surface" active={systemState?.longDistanceSurcharge > 0}>
             <View style={styles.cardHeader}>
               <View style={styles.cardTitleRow}>
-                <Ionicons name="git-network" size={20} color="#3B82F6" style={{ marginRight: 8 }} />
-                <Text style={styles.cardTitle}>Live Operational Rules</Text>
+                <Ionicons name="cash-outline" size={20} color={Colors.accent} style={{ marginRight: 8 }} />
+                <Text style={styles.cardTitle}>Your Current Prices</Text>
               </View>
               <Badge 
-                label={systemState?.longDistanceSurcharge > 0 ? 'Optimized Surcharge' : 'Baseline Active'} 
+                label={systemState?.longDistanceSurcharge > 0 ? 'Prices Adjusted' : 'Standard Prices'} 
                 variant={systemState?.longDistanceSurcharge > 0 ? 'success' : 'neutral'} 
               />
             </View>
@@ -267,7 +257,7 @@ export default function HomeScreen({ navigation, route }) {
                 <Text style={[
                   styles.statValue, 
                   { 
-                    color: systemState?.longDistanceSurcharge > 0 ? '#10b981' : '#ffffff', 
+                    color: systemState?.longDistanceSurcharge > 0 ? Colors.success : Colors.white, 
                     fontWeight: systemState?.longDistanceSurcharge > 0 ? '700' : '400' 
                   }
                 ]}>
@@ -278,61 +268,89 @@ export default function HomeScreen({ navigation, route }) {
                 <Text style={styles.statLabel}>Peak-Hour Surcharge</Text>
                 <Text style={styles.statValue}>Rs. {systemState?.peakHourSurcharge || 15}</Text>
               </View>
-              <View style={[styles.statRow, { borderBottomWidth: 0 }]}>
-                <Text style={styles.statLabel}>Last System Sync</Text>
-                <Text style={[styles.statValue, { fontStyle: 'italic', fontSize: 11, color: '#64748b' }]}>{systemState?.lastUpdate || 'Synced'}</Text>
+              <View style={[styles.statRow, { borderBottomWidth: 0, paddingBottom: 0, marginTop: 4 }]}>
+                <Text style={{ color: Colors.slateMuted, fontSize: FontSizes.xs, fontStyle: 'italic', flex: 1 }}>
+                  Automatically adjusts instantly when relevant market updates are found.
+                </Text>
               </View>
             </View>
           </Card>
         </Animated.View>
 
-        {/* Execution Trace */}
+        {/* Technical Activity Logs */}
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <Card variant="glass">
-            <View style={[styles.cardTitleRow, { marginBottom: 16 }]}>
-              <Ionicons name="time" size={20} color="#94a3b8" style={{ marginRight: 8 }} />
-              <Text style={styles.cardTitle}>Execution Trace</Text>
-            </View>
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              onPress={() => setShowLogs(!showLogs)}
+              style={[styles.cardTitleRow, { justifyContent: 'space-between', width: '100%' }]}
+            >
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="settings-outline" size={20} color={Colors.slateText} style={{ marginRight: 8 }} />
+                <Text style={styles.cardTitle}>Technical Activity Logs</Text>
+              </View>
+              <Ionicons 
+                name={showLogs ? "chevron-up" : "chevron-down"} 
+                size={18} 
+                color={Colors.slateText} 
+              />
+            </TouchableOpacity>
             
-            <View style={styles.traceContainer}>
-              {executionLogs && executionLogs.length > 0 ? (
-                executionLogs.slice(-4).reverse().map((log, index) => {
-                  const time = typeof log === 'string' ? 'LIVE' : (log.timestamp || '[LIVE]').replace(/^\[|\]$/g, '');
-                  const text = typeof log === 'string' ? log : log.message;
-                  
-                  let iconName = 'sync';
-                  let iconColor = '#3B82F6';
-                  if (text.toLowerCase().includes('ingest') || text.toLowerCase().includes('complete') || text.toLowerCase().includes('success') || text.toLowerCase().includes('executed')) {
-                    iconName = 'checkmark-circle';
-                    iconColor = '#10b981';
-                  } else if (text.toLowerCase().includes('warn') || text.toLowerCase().includes('critical') || text.toLowerCase().includes('insufficient')) {
-                    iconName = 'warning';
-                    iconColor = '#ef4444';
-                  }
-                  
-                  return (
-                    <View key={index} style={styles.traceRow}>
-                      <Text style={styles.traceTime}>[{time}]</Text>
-                      <Ionicons name={iconName} size={16} color={iconColor} style={{ marginHorizontal: 6 }} />
-                      <Text style={[styles.traceText, { color: iconColor === '#ef4444' ? '#ef4444' : '#e2e8f0' }]} numberOfLines={2}>
-                        {text}
-                      </Text>
+            <View style={[styles.traceContainer, { marginTop: showLogs ? 16 : 12 }]}>
+              {showLogs ? (
+                executionLogs && executionLogs.length > 0 ? (
+                  executionLogs.slice(-4).reverse().map((log, index) => {
+                    const time = typeof log === 'string' ? 'LIVE' : (log.timestamp || '[LIVE]').replace(/^\[|\]$/g, '');
+                    const text = typeof log === 'string' ? log : log.message;
+                    
+                    let iconName = 'sync';
+                    let iconColor = Colors.accent;
+                    if (text.toLowerCase().includes('ingest') || text.toLowerCase().includes('complete') || text.toLowerCase().includes('success') || text.toLowerCase().includes('executed')) {
+                      iconName = 'checkmark-circle';
+                      iconColor = Colors.success;
+                    } else if (text.toLowerCase().includes('warn') || text.toLowerCase().includes('critical') || text.toLowerCase().includes('insufficient')) {
+                      iconName = 'warning';
+                      iconColor = Colors.danger;
+                    }
+                    
+                    return (
+                      <View key={index} style={styles.traceRow}>
+                        <Text style={styles.traceTime}>[{time}]</Text>
+                        <Ionicons name={iconName} size={16} color={iconColor} style={{ marginHorizontal: 6 }} />
+                        <Text style={[styles.traceText, { color: iconColor === Colors.danger ? Colors.danger : Colors.traceText }]} numberOfLines={2}>
+                          {text}
+                        </Text>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <>
+                    <View style={styles.traceRow}>
+                      <Text style={styles.traceTime}>[LIVE]</Text>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} style={{ marginHorizontal: 6 }} />
+                      <Text style={styles.traceText} numberOfLines={1}>Agent core fully loaded. System active.</Text>
                     </View>
-                  );
-                })
+                    <View style={styles.traceRow}>
+                      <Text style={styles.traceTime}>[LIVE]</Text>
+                      <Ionicons name="sync" size={16} color={Colors.accent} style={{ marginHorizontal: 6 }} />
+                      <Text style={styles.traceText} numberOfLines={1}>Listening to context datastreams...</Text>
+                    </View>
+                  </>
+                )
               ) : (
-                <>
-                  <View style={styles.traceRow}>
-                    <Text style={styles.traceTime}>[LIVE]</Text>
-                    <Ionicons name="checkmark-circle" size={16} color="#10b981" style={{ marginHorizontal: 6 }} />
-                    <Text style={styles.traceText} numberOfLines={1}>Agent core fully loaded. System active.</Text>
-                  </View>
-                  <View style={styles.traceRow}>
-                    <Text style={styles.traceTime}>[LIVE]</Text>
-                    <Ionicons name="sync" size={16} color="#3B82F6" style={{ marginHorizontal: 6 }} />
-                    <Text style={styles.traceText} numberOfLines={1}>Listening to context datastreams...</Text>
-                  </View>
-                </>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                  <Ionicons 
+                    name="shield-checkmark" 
+                    size={16} 
+                    color={Colors.success} 
+                    style={{ marginRight: 8 }} 
+                  />
+                  <Text style={{ color: Colors.slateText, fontSize: FontSizes.xs, flex: 1 }}>
+                    {executionLogs && executionLogs.length > 0 
+                      ? "AI agent successfully analyzed the last news update. Tap to view logs." 
+                      : "AI agent is ready and listening in the background. Tap to view logs."}
+                  </Text>
+                </View>
               )}
             </View>
           </Card>
@@ -342,7 +360,7 @@ export default function HomeScreen({ navigation, route }) {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <Card variant="surface">
             <View style={[styles.cardTitleRow, { marginBottom: 16 }]}>
-              <Ionicons name="flash" size={20} color="#f59e0b" style={{ marginRight: 8 }} />
+              <Ionicons name="flash" size={20} color={Colors.warning} style={{ marginRight: 8 }} />
               <Text style={styles.cardTitle}>Pending Actions</Text>
             </View>
 
@@ -357,12 +375,12 @@ export default function HomeScreen({ navigation, route }) {
                     <View style={styles.actionItemLeft}>
                       <View style={[
                         styles.actionIconContainer,
-                        { backgroundColor: action.urgency === 'critical' || action.urgency === 'high' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)' }
+                        { backgroundColor: action.urgency === 'critical' || action.urgency === 'high' ? Colors.dangerMedium : Colors.successMedium }
                       ]}>
                         <Ionicons 
                           name={action.simulationSupported ? "play-circle" : "shield"} 
                           size={18} 
-                          color={action.urgency === 'critical' || action.urgency === 'high' ? '#ef4444' : '#10b981'} 
+                          color={action.urgency === 'critical' || action.urgency === 'high' ? Colors.danger : Colors.success} 
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -370,12 +388,12 @@ export default function HomeScreen({ navigation, route }) {
                         <Text style={styles.actionItemDesc} numberOfLines={1}>{action.targetSystem} • Confidence {action.confidence}</Text>
                       </View>
                     </View>
-                    <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
+                    <Ionicons name="arrow-forward" size={16} color={Colors.slateText} />
                   </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.emptySubCard}>
-                  <Ionicons name="shield-checkmark" size={24} color="#10b981" style={{ marginBottom: 6 }} />
+                  <Ionicons name="shield-checkmark" size={24} color={Colors.success} style={{ marginBottom: 6 }} />
                   <Text style={styles.emptySubCardText}>No actionable adjustments compiled. System is stable.</Text>
                 </View>
               )}
@@ -391,11 +409,11 @@ export default function HomeScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617', // Base canvas from docs/DESIGN.md
+    backgroundColor: Colors.background,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#020617',
+    backgroundColor: Colors.background,
     zIndex: 100,
     justifyContent: 'center',
     alignItems: 'center',
@@ -407,8 +425,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)', // Glassmorphic sticky top
+    borderBottomColor: Colors.l1Border,
+    backgroundColor: Colors.glassHeader,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -418,9 +436,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: Colors.accentSoft,
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -431,10 +449,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
+    backgroundColor: Colors.success,
   },
   headerTitle: {
-    color: '#3B82F6',
+    color: Colors.accent,
     fontSize: FontSizes.lg,
     fontWeight: FontWeights.semibold,
     marginLeft: 8,
@@ -463,7 +481,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: FontSizes.base,
     fontWeight: FontWeights.bold,
   },
@@ -477,7 +495,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   vizLabel: {
-    color: '#94a3b8',
+    color: Colors.slateText,
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.semibold,
     textTransform: 'uppercase',
@@ -495,15 +513,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: Colors.l1Border,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: Colors.subtleBorder,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   profileName: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
   },
@@ -520,35 +538,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: Colors.subtleBorder,
   },
   statLabel: {
-    color: '#94a3b8',
+    color: Colors.slateText,
     fontSize: FontSizes.sm,
   },
   statValue: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: FontSizes.sm,
   },
   traceContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
   },
   traceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: Colors.subtleBorder,
   },
   traceTime: {
-    color: '#64748b',
+    color: Colors.slateMuted,
     fontSize: 12,
     fontFamily: 'System',
     marginRight: 4,
     fontWeight: 'bold',
   },
   traceText: {
-    color: '#e2e8f0',
+    color: Colors.traceText,
     fontSize: 13,
     flex: 1,
   },
@@ -556,9 +574,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionItem: {
-    backgroundColor: '#1E293B',
+    backgroundColor: Colors.l1Border,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: Colors.subtleBorder,
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -578,15 +596,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: Colors.subtleBorder,
   },
   actionItemTitle: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
   },
   actionItemDesc: {
-    color: '#94a3b8',
+    color: Colors.slateText,
     fontSize: FontSizes.xs,
     marginTop: 2,
   },
@@ -595,37 +613,37 @@ const styles = StyleSheet.create({
     top: 16,
     left: 16,
     right: 16,
-    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    backgroundColor: Colors.glassPanelStrong,
     borderWidth: 1,
-    borderColor: '#10b981',
+    borderColor: Colors.success,
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 999,
-    shadowColor: '#10b981',
+    shadowColor: Colors.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
   },
   toastText: {
-    color: '#ffffff',
+    color: Colors.white,
     fontSize: FontSizes.sm,
     fontWeight: '600',
   },
   emptySubCard: {
-    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    backgroundColor: Colors.l2Subtle,
     borderRadius: 8,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: Colors.subtleBorder,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
   },
   emptySubCardText: {
-    color: '#94a3b8',
+    color: Colors.slateText,
     fontSize: FontSizes.xs,
     textAlign: 'center',
   },

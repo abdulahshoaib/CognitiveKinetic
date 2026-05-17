@@ -21,6 +21,7 @@ import { getProfile } from '../services/profileService';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
+import Header from '../components/common/Header';
 import Colors from '../constants/colors';
 
 export default function IngestionScreen({ navigation }) {
@@ -137,12 +138,18 @@ export default function IngestionScreen({ navigation }) {
   };
 
   const getStatusLabel = (status) => {
-    if (status === 'high-impact') return 'High Impact';
-    return (status || 'pending').charAt(0).toUpperCase() + (status || 'pending').slice(1);
+    if (status === 'high-impact') return 'Important';
+    if (status === 'relevant') return 'Matches Business';
+    if (status === 'ignored') return 'Not Relevant';
+    return 'New';
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <Header
+        title="Analyze New News"
+        subtitle="View incoming market updates and check how they affect your business."
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -153,7 +160,7 @@ export default function IngestionScreen({ navigation }) {
           <Card variant="glass" active={true} style={{ marginBottom: 24 }}>
             <View style={styles.indicatorHeader}>
               <Ionicons name="shield-checkmark" size={18} color={Colors.success} />
-              <Text style={styles.indicatorTitle}>SAVED CONTEXT ACTIVE</Text>
+              <Text style={styles.indicatorTitle}>SAVED PROFILE ACTIVE</Text>
             </View>
             {isLoadingProfile ? (
               <ActivityIndicator size="small" color={Colors.accent} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
@@ -161,10 +168,10 @@ export default function IngestionScreen({ navigation }) {
               <View>
                 <Text style={styles.profileNameText}>{profile?.businessName}</Text>
                 <Text style={styles.profileMetaText} numberOfLines={1}>
-                  Sector: {profile?.industry} | Scope: {profile?.locations}
+                  Industry: {profile?.industry} | Locations: {profile?.locations}
                 </Text>
                 <Text style={styles.profileBadgeText}>
-                  Relevance signals will match "{profile?.concerns}" automatically.
+                  Incoming news will automatically check for matches with your concerns: "{profile?.concerns}".
                 </Text>
               </View>
             )}
@@ -173,13 +180,13 @@ export default function IngestionScreen({ navigation }) {
           {/* Section: Multi-Source Content Feed */}
           <View style={styles.sectionHeaderRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>Data Stream Feed</Text>
-              <Text style={styles.sectionSubtitle}>Real-time ingestion logs from multi-source agents. Awaiting execution context.</Text>
+              <Text style={styles.sectionTitle}>Incoming Market Updates</Text>
+              <Text style={styles.sectionSubtitle}>Browse updates fetched from the internet. Select one below to check how it affects your business.</Text>
             </View>
             <View style={styles.headerActionRow}>
               <TouchableOpacity style={styles.filterButton} onPress={() => setActiveTab('pending')}>
                 <Ionicons name="filter" size={16} color={Colors.textPrimary} />
-                <Text style={styles.filterButtonText}>Pending</Text>
+                <Text style={styles.filterButtonText}>New</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.analyzeSelectedButton} onPress={handleAnalyzeSelected}>
                 <Ionicons name="play" size={16} color={Colors.textPrimary} />
@@ -196,6 +203,16 @@ export default function IngestionScreen({ navigation }) {
               if (tab !== 'all') {
                 count = feedItems.filter(item => (item.relevanceStatus || 'pending') === tab).length;
               }
+              
+              const getTabLabel = (t) => {
+                if (t === 'all') return 'All News';
+                if (t === 'pending') return 'New';
+                if (t === 'relevant') return 'Matches Business';
+                if (t === 'high-impact') return 'Important';
+                if (t === 'ignored') return 'Not Relevant';
+                return t.charAt(0).toUpperCase() + t.slice(1);
+              };
+
               return (
                 <TouchableOpacity
                   key={tab}
@@ -208,7 +225,7 @@ export default function IngestionScreen({ navigation }) {
                 >
                   {tab === 'high-impact' && <View style={styles.tabDot} />}
                   <Text style={[styles.tabButtonText, activeTab === tab && styles.tabButtonTextActive]}>
-                    {tab === 'high-impact' ? 'High Impact' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    {getTabLabel(tab)}
                     <Text style={{ opacity: 0.7 }}>  {count}</Text>
                   </Text>
                 </TouchableOpacity>
@@ -438,7 +455,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
     borderWidth: 1,
     borderColor: Colors.outlineVariant,
     marginRight: 8,
@@ -466,7 +483,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   feedCard: {
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
     borderRadius: 12,
@@ -482,7 +499,7 @@ const styles = StyleSheet.create({
   },
   feedCardIgnored: {
     opacity: 0.6,
-    borderColor: 'rgba(30, 41, 59, 0.5)',
+    borderColor: Colors.l2BorderSubtle,
   },
   feedCardHeader: {
     flexDirection: 'row',
@@ -508,8 +525,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.accent,
   },
   checkboxDisabled: {
-    borderColor: 'rgba(51, 65, 85, 0.5)',
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    borderColor: Colors.slateBorderSubtle,
+    backgroundColor: Colors.glassPanel,
   },
   sourceTypeBadge: {
     flexDirection: 'row',

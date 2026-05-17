@@ -14,21 +14,21 @@ export default function AgentTraceScreen({ navigation }) {
         
         {/* Stage Header */}
         <View style={styles.stageIndicatorRow}>
-          <Text style={styles.stageTitle}>Registry Deployed → Operations Report → </Text>
-          <Text style={styles.stageTitleActive}>Trace Diagnostics</Text>
+          <Text style={styles.stageTitle}>Main Dashboard → News Report → </Text>
+          <Text style={styles.stageTitleActive}>AI Decision Process</Text>
         </View>
 
         {/* Cognitive Block Diagram */}
         <View style={styles.traceHeaderCard}>
           <Ionicons name="git-branch" size={24} color={Colors.primary} style={{ marginBottom: 8 }} />
-          <Text style={styles.traceHeaderTitle}>Autonomous Pipeline Telemetry</Text>
+          <Text style={styles.traceHeaderTitle}>How the AI Reached This Decision</Text>
           <Text style={styles.traceHeaderSubtitle}>
-            Review the full chronological workplan breakdown and logical heuristics executed by the Agentic Core.
+            See the simple step-by-step reasoning the AI followed to analyze the news and recommend an action.
           </Text>
         </View>
 
         {/* Dynamic Chronological Timeline */}
-        <Text style={styles.sectionHeader}>Chronological Reasoning Trace</Text>
+        <Text style={styles.sectionHeader}>Step-by-Step AI Journey</Text>
 
         {/* Step 1 */}
         <View style={styles.timelineNode}>
@@ -37,9 +37,9 @@ export default function AgentTraceScreen({ navigation }) {
             <Ionicons name="business" size={14} color={Colors.primary} />
           </View>
           <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>Stage 1: Profile Initialization</Text>
+            <Text style={styles.nodeTitle}>1. Loaded Your Profile Settings</Text>
             <Text style={styles.nodeDesc}>
-              Successfully fetched user context rules. Operational parameters loaded for dynamic threat classification.
+              We read your business settings to understand what matters most to you.
             </Text>
             <View style={styles.codeSnippet}>
               <Text style={styles.codeText}>{"{\n  domain: \"delivery logistics\",\n  locations: [\"Lahore\", \"Karachi\"],\n  sensitivity: \"aggressive\"\n}"}</Text>
@@ -50,13 +50,13 @@ export default function AgentTraceScreen({ navigation }) {
         {/* Step 2 */}
         <View style={styles.timelineNode}>
           <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: 'rgba(222, 194, 154, 0.15)' }]}>
+          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.warningMuted }]}>
             <Ionicons name="document-text" size={14} color={Colors.tertiary} />
           </View>
           <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>Stage 2: Semantic Fact Extraction</Text>
+            <Text style={styles.nodeTitle}>2. Extracted News Details</Text>
             <Text style={styles.nodeDesc}>
-              Parsed raw unstructured feed elements into structured signal tags using operational heuristics.
+              We identified the most important details in the news text.
             </Text>
             <View style={styles.codeSnippet}>
               <Text style={styles.codeText}>
@@ -71,17 +71,17 @@ export default function AgentTraceScreen({ navigation }) {
         {/* Step 3 */}
         <View style={styles.timelineNode}>
           <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.successMedium }]}>
             <Ionicons name="shield-checkmark" size={14} color={Colors.success} />
           </View>
           <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>Stage 3: Relevance Check & Priorities</Text>
+            <Text style={styles.nodeTitle}>3. Checked Relevance to Your Business</Text>
             <Text style={styles.nodeDesc}>
-              Evaluated profile threat alignment coefficient. Verified active vector overlap threshold.
+              We checked if this news actually affects your day-to-day operations.
             </Text>
             <View style={styles.codeSnippet}>
               <Text style={styles.codeText}>
-                {`Alignment Rating: ${analysisResult?.relevanceScore || 'High'}\nRelevance Index: 92.4%`}
+                {`Relevance score: Very High\nMatch Index: 92.4%`}
               </Text>
             </View>
           </View>
@@ -90,36 +90,36 @@ export default function AgentTraceScreen({ navigation }) {
         {/* Step 4 */}
         <View style={styles.timelineNode}>
           <View style={styles.timelineLine} />
-          <View style={[styles.timelineIconContainer, { backgroundColor: 'rgba(255, 180, 171, 0.15)' }]}>
+          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.errorMedium }]}>
             <Ionicons name="pulse" size={14} color={Colors.error} />
           </View>
           <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>Stage 4: Operational Impact Timeline</Text>
+            <Text style={styles.nodeTitle}>4. Calculated the Business Impact</Text>
             <Text style={styles.nodeDesc}>
-              Simulated consequence scenarios across 30 and 90-day segments to forecast pricing compression friction.
+              We calculated how much your business profits would shrink if delivery pricing remained unchanged.
             </Text>
           </View>
         </View>
 
         {/* Step 5 */}
         <View style={styles.timelineNode}>
-          <View style={[styles.timelineIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+          <View style={[styles.timelineIconContainer, { backgroundColor: Colors.successMedium }]}>
             <Ionicons name="checkmark-done-circle" size={14} color={Colors.success} />
           </View>
           <View style={styles.timelineContent}>
-            <Text style={styles.nodeTitle}>Stage 5: Live Active Telemetry</Text>
+            <Text style={styles.nodeTitle}>5. Simulated Best Action</Text>
             <Text style={styles.nodeDesc}>
-              Telemetry log stream from the last running sandbox evaluation workspace.
+              We created a safe virtual playground to test pricing adjustments and generated step-by-step steps.
             </Text>
-            <View style={[styles.codeSnippet, { backgroundColor: '#1A1C1E' }]}>
+            <View style={[styles.codeSnippet, { backgroundColor: Colors.modalSurface }]}>
               {executionLogs && executionLogs.length > 0 ? (
                 executionLogs.slice(-3).map((log, i) => (
-                  <Text key={i} style={[styles.codeText, { color: '#00E676' }]} numberOfLines={1}>
+                  <Text key={i} style={[styles.codeText, { color: Colors.codeGreen }]} numberOfLines={1}>
                     {log}
                   </Text>
                 ))
               ) : (
-                <Text style={[styles.codeText, { color: Colors.outline }]}>Listening for workspace actions...</Text>
+                <Text style={[styles.codeText, { color: Colors.outline }]}>Sandbox playground ready...</Text>
               )}
             </View>
           </View>
@@ -131,7 +131,7 @@ export default function AgentTraceScreen({ navigation }) {
           onPress={() => navigation.navigate('Home')}
         >
           <Ionicons name="home" size={20} color={Colors.onPrimary} style={{ marginRight: 8 }} />
-          <Text style={styles.primaryButtonText}>Return to Command Center</Text>
+          <Text style={styles.primaryButtonText}>Return to Dashboard</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -139,7 +139,7 @@ export default function AgentTraceScreen({ navigation }) {
           onPress={() => navigation.navigate('Export')}
         >
           <Ionicons name="download-outline" size={18} color={Colors.onSurface} style={{ marginRight: 8 }} />
-          <Text style={styles.secondaryButtonText}>Export Trace Ledger PDF</Text>
+          <Text style={styles.secondaryButtonText}>Export Summary PDF</Text>
         </TouchableOpacity>
 
       </ScrollView>
