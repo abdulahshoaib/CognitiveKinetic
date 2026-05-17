@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "expo"
+        versions: [">= 55.0.0"] # Pin expo major version until manual upgrade
