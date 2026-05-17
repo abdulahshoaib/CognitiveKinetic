@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import Colors from '../../constants/colors';
 
 export default function SignupScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
@@ -40,7 +41,7 @@ export default function SignupScreen({ navigation }) {
           <View style={styles.container}>
             <View style={styles.header}>
               <View style={styles.logoBox}>
-                <MaterialIcons name="person-add" size={32} color="#3B82F6" />
+                <MaterialIcons name="person-add" size={32} color={Colors.accent} />
               </View>
               <Text style={styles.title}>Cognitive Kinetic</Text>
               <Text style={styles.subtitle}>Create your workspace account</Text>
@@ -50,11 +51,11 @@ export default function SignupScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>FULL NAME</Text>
                 <View style={styles.inputWrapper}>
-                  <MaterialIcons name="person" size={20} color="#94a3b8" style={styles.inputIcon} />
+                  <MaterialIcons name="person" size={20} color={Colors.slateText} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.input} 
                     placeholder="Jane Doe" 
-                    placeholderTextColor="rgba(148, 163, 184, 0.4)"
+                    placeholderTextColor={Colors.placeholder}
                     value={fullName} 
                     onChangeText={setFullName} 
                   />
@@ -64,11 +65,11 @@ export default function SignupScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>WORKSPACE EMAIL</Text>
                 <View style={styles.inputWrapper}>
-                  <MaterialIcons name="mail" size={20} color="#94a3b8" style={styles.inputIcon} />
+                  <MaterialIcons name="mail" size={20} color={Colors.slateText} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.input} 
                     placeholder="name@company.com" 
-                    placeholderTextColor="rgba(148, 163, 184, 0.4)"
+                    placeholderTextColor={Colors.placeholder}
                     value={email} 
                     onChangeText={setEmail} 
                     autoCapitalize="none"
@@ -80,17 +81,17 @@ export default function SignupScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>ACCESS SECRET</Text>
                 <View style={styles.inputWrapper}>
-                  <MaterialIcons name="lock" size={20} color="#94a3b8" style={styles.inputIcon} />
+                  <MaterialIcons name="lock" size={20} color={Colors.slateText} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.input} 
                     placeholder="••••••••••••" 
-                    placeholderTextColor="rgba(148, 163, 184, 0.4)"
+                    placeholderTextColor={Colors.placeholder}
                     value={password} 
                     onChangeText={setPassword} 
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                    <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color="#94a3b8" />
+                    <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color={Colors.slateText} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -98,23 +99,23 @@ export default function SignupScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>CONFIRM SECRET</Text>
                 <View style={styles.inputWrapper}>
-                  <MaterialIcons name="lock-clock" size={20} color="#94a3b8" style={styles.inputIcon} />
+                  <MaterialIcons name="lock-clock" size={20} color={Colors.slateText} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.input} 
                     placeholder="••••••••••••" 
-                    placeholderTextColor="rgba(148, 163, 184, 0.4)"
+                    placeholderTextColor={Colors.placeholder}
                     value={confirm} 
                     onChangeText={setConfirm} 
                     secureTextEntry={!showConfirm}
                   />
                   <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeIcon}>
-                    <MaterialIcons name={showConfirm ? "visibility-off" : "visibility"} size={20} color="#94a3b8" />
+                    <MaterialIcons name={showConfirm ? "visibility-off" : "visibility"} size={20} color={Colors.slateText} />
                   </TouchableOpacity>
                 </View>
               </View>
               
               <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
-                {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Sign up</Text>}
+                {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Sign up</Text>}
               </TouchableOpacity>
             </View>
 
@@ -132,23 +133,23 @@ export default function SignupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#020617' },
+  safeArea: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
   container: { paddingHorizontal: 32, paddingVertical: 40, justifyContent: 'center', alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
-  logoBox: { width: 56, height: 56, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B', borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: '#ffffff', letterSpacing: -0.5, marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#94a3b8' },
+  logoBox: { width: 56, height: 56, backgroundColor: Colors.l1Surface, borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: Colors.white, letterSpacing: -0.5, marginBottom: 4 },
+  subtitle: { fontSize: 14, color: Colors.slateText },
   form: { width: '100%', maxWidth: 420 },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 11, fontWeight: '600', color: '#94a3b8', letterSpacing: 0.5, marginBottom: 4, paddingHorizontal: 4 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#1E293B', borderRadius: 12, backgroundColor: '#0F172A', paddingHorizontal: 16, height: 48 },
+  label: { fontSize: 11, fontWeight: '600', color: Colors.slateText, letterSpacing: 0.5, marginBottom: 4, paddingHorizontal: 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, backgroundColor: Colors.l1Surface, paddingHorizontal: 16, height: 48 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, color: '#ffffff', fontSize: 16 },
+  input: { flex: 1, color: Colors.white, fontSize: 16 },
   eyeIcon: { padding: 4 },
-  button: { backgroundColor: '#3B82F6', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 16 },
-  buttonText: { color: '#ffffff', fontWeight: '700', fontSize: 16 },
+  button: { backgroundColor: Colors.accent, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 16 },
+  buttonText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
   footer: { flexDirection: 'row', marginTop: 32, justifyContent: 'center' },
-  footerText: { color: '#94a3b8', fontSize: 14 },
-  signupText: { color: '#3B82F6', fontWeight: '700', fontSize: 14 }
+  footerText: { color: Colors.slateText, fontSize: 14 },
+  signupText: { color: Colors.accent, fontWeight: '700', fontSize: 14 }
 });
