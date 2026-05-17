@@ -1,167 +1,184 @@
-# Cognitive Kinetic
+# Cognitive Kinetic — Autonomous Content-to-Action Agent System
 
-Cognitive Kinetic is a React Native (Expo) mobile application designed to help users track, analyze, and improve their cognitive and physical progress.
+Cognitive Kinetic is a React Native mobile application built on Expo that functions as an **Autonomous Content-to-Action Agent System**. It is designed to automatically ingest unstructured external content—such as regional news, policy updates, logistics reports, or operational alerts—analyze it against a saved, persistent business operating context, model its financial and regulatory impacts, recommend concrete mitigating decisions, and simulate action execution to modify system states.
 
-## How to Start the App
-
-### Prerequisites
-Ensure you have [Node.js](https://nodejs.org/) installed on your machine.
-
-### Installation
-1. Navigate to the project directory:
-   ```bash
-   cd CognitiveKinetic
-   ```
-2. Install the project dependencies:
-   ```bash
-   npm install
-   ```
-
-### Running the App
-Start the Expo development server by running:
-```bash
-npm start
-```
-*(Alternatively, you can use `npx expo start`)*
-
-Once the server is running in your terminal, you can:
-- Press **`a`** to open the app on an Android emulator (if running/installed).
-- Press **`i`** to open the app on an iOS simulator (macOS only).
-- Scan the **QR code** displayed in your terminal using the **Expo Go** app on your physical iOS or Android device.
+Unlike conversational chatbots or generic summarization tools, CognitiveKinetic provides a structured, automated, and deterministic operational instrument panel. It keeps critical agent reasoning transparent via a step-by-step **Agent Trace Timeline** and an **Interactive Action Simulator**.
 
 ---
 
-## Features Roadmap
+## 1. System Overview: What It Is & What It Does
 
-Based on the challenge requirements, CognitiveKinetic will evolve into an autonomous content-to-action agent system that turns unstructured information into insights, decisions, simulated actions, and visible outcomes.
+CognitiveKinetic automates the transformation of unstructured regional information into tactical business defense actions. It targets logistics, dispatch, and operational teams who need real-time, context-aware analysis and defensive system adaptations.
 
-### 1. Content Ingestion
+```mermaid
+graph TD
+    A[Unstructured External Content] --> B(Ingestion Feed / Paste Input)
+    C[Persistent Business Profile] --> D{Relevance Check & Signal Extraction}
+    B --> D
+    D -->|Low Relevance| E[Bypass / Ignore Content]
+    D -->|High Relevance| F[Extract Facts & Severity Insights]
+    F --> G[Model Operational & Margin Impacts]
+    G --> H[Formulate Action Recommendation Grid]
+    H --> I[Interactive Simulator Play]
+    I --> J[Modify Live System State & Log Traces]
+```
 
-- Text input for reports, news, policy updates, business data, and dashboard summaries
-- PDF and document upload support
-- Web article or URL-based content ingestion
-- Manual sample input for demo scenarios
-- Input history for previously analyzed content
+### The Primary Value Proposition
+- **Persistent Context**: Businesses enter their goals, regions, and risk tolerances once. Every piece of ingested content is automatically evaluated against this saved boundary.
+- **Action over Summary**: Instead of generating a generic "summary block", the system extracts quantifiable signals (+12% cost variance, 12-hour route bans) and calculates clear short- and medium-term impacts.
+- **Actionable State Simulation**: The app features a live, mockable pricing and dispatch database. Users can execute recommended actions to see before/after system configurations alongside technical execution logs.
 
-### 2. Content Understanding
+---
 
-- Extract key facts, entities, numbers, dates, locations, and metrics
-- Detect important signals such as decline, increase, risk, delay, loss, opportunity, or anomaly
-- Convert unstructured content into structured JSON
-- Categorize input by domain such as business, logistics, finance, public policy, or news
+## 2. Core Agentic Pipeline & How It Works
 
-### 3. Insight Extraction
+The agent logic is strictly segregated from UI render components, orchestrated by the modules inside `src/services/agent/`. Each analysis run executes the following chronological steps:
 
-- Identify meaningful insights instead of simple summaries
-- Detect trends, risks, opportunities, and unusual patterns
-- Highlight the most important findings from the input
-- Rank insights by severity, urgency, and business impact
+### Phase 1: Onboarding Context Selection
+Users initialize their profile during onboarding. This profile is persisted locally and loaded automatically at startup:
+- **Business Profile Fields**: Business Name, Industry, Operating Locations (e.g. Lahore, Karachi), Key Concerns (e.g. fuel costs, delivery margins, customer churn), and Risk Sensitivity (e.g. balanced, aggressive).
 
-### 4. Impact Analysis
+### Phase 2: Unstructured Content Ingestion
+The system ingests unstructured text through:
+- **Pasted Strategic Content**: Manual entry of market reports or operational alerts.
+- **Multi-Source Mock Feed**: Real-time simulated feed items representing fuel reviews, traffic regulatory bans, sports news, or cultural festivals.
 
-- Explain why each insight matters
-- Connect insights to real-world consequences
-- Estimate possible effects such as revenue loss, cost increase, customer impact, delivery delay, or operational risk
-- Show affected departments, users, regions, or systems
+### Phase 3: Facts & Signals Extraction (`src/services/understanding.js`)
+The agent scans the content to extract core data structures:
+- **Quantitative Metrics**: Detects percentage fluctuations (e.g. `12% fuel surcharge`) and numeric variances.
+- **Jurisdictional Targets**: Flags mentions of defined operational locations (e.g. `Lahore`, `Islamabad`).
+- **Severity Rating**: Classifies signals as Low, Medium, or High based on impact indicators.
 
-### 5. Action Recommendation
+### Phase 4: Relevance Checks (`src/services/agent/orchestrator.js`)
+To avoid analyzing irrelevant noise (like standard celebrity news or local social events), a semantic matcher scores the article:
+- **High-Impact Scores**: Core operating keywords (e.g., fuel, surcharge, smog, route bans) generate high relevance.
+- **Low Relevance Bypass**: If relevance falls below a 30% threshold, deep insights are skipped, saving computing cycles, and the item is marked as "ignored".
 
-- Generate realistic recommended actions based on the extracted insight
-- Suggest domain-relevant actions such as:
-  - Launching a discount campaign
-  - Updating pricing
-  - Sending customer notifications
-  - Creating a task for a team
-  - Updating a dashboard metric
-  - Triggering a mock workflow
-- Explain why each action is recommended
-- Rank actions by priority and expected effectiveness
+### Phase 5: Severity Insights & Impact Modeling (`src/services/impact.js`)
+If relevant, the agent formulates structural impact grids:
+- **Short-Term Consequences**: High-level immediate impacts (e.g., immediate 15% drop in route profitability).
+- **Medium-Term Risks**: Projected issues (e.g., driver burnout, contract partner friction).
+- **Risk Multipliers**: Scales calculated severities dynamically based on the user's saved risk sensitivity (e.g. elevated to "critical" for conservative settings).
 
-### 6. Action Simulation
+### Phase 6: Practical Action Formulations (`src/services/actions.js`)
+The agent lists concrete mitigations with key parameters:
+- **Action Metadata**: Title, Description, Rationale, Urgency (e.g., critical, medium), and Confidence level.
+- **Support Actions**: Distinguishes between manual audits (e.g. "Review System Configuration") and direct system actions supporting real-time simulation.
 
-- Simulate execution of at least one recommended action
-- Support mock actions such as:
-  - Mock API call
-  - Dashboard update
-  - CRM or spreadsheet update
-  - Email/SMS notification generation
-  - Workflow trigger
-  - Pricing table update
-- Show whether the simulated action succeeded or failed
-- Generate execution logs for every step
+### Phase 7: Interactive Simulation & State Transition (`src/services/simulation.js`)
+Allows developers and operators to test real-world action consequences:
+- **Mock System State**: Maintains a live reactive state (e.g., `baseDeliveryFee: Rs. 100`, `longDistanceSurcharge: Rs. 0`, `peakHourSurcharge: Rs. 15`).
+- **Before vs After Render**: Displays side-by-side metric tables showing variables changed by execution.
+- **Execution Log Trace**: Produces technical developer outputs (e.g. database updates, POST API response status codes, event broadcasts).
 
-### 7. Before vs After State
+---
 
-- Display the system state before the action
-- Display the updated system state after simulation
-- Show changed values clearly, such as:
-  - Old price vs new price
-  - Previous sales state vs projected result
-  - Previous delivery cost vs updated delivery cost
-  - Previous risk level vs reduced risk level
-- Provide a visual comparison dashboard
+## 3. Demo Scenarios & System Response
 
-### 8. Agentic Workflow
+The application comes equipped with standard presets to illustrate its capabilities:
 
-- Use Google Antigravity as the core orchestration layer
-- Manage agent planning, reasoning, tool calls, and action execution through Antigravity
-- Show a traceable workflow from:
+### Scenario A: Surcharge Fuel Adjustments
+*   **Saved Profile Context**: Apex Logistics, operating in Lahore, Karachi, and Islamabad, concerned about fuel costs and delivery margins.
+*   **Ingested Raw News**: *"Ministry of Energy announced a sudden 12% hike in base fuel and diesel prices, effective immediately."*
+*   **Calculated Relevance**: `95%` (Direct match on concerns: "fuel costs" and "delivery margins").
+*   **Extracted Insight**: Margin compression of Rs. 18-22 per dispatch corridor.
+*   **Recommended Action**: Implement Long-Distance Surcharge (+Rs. 20).
+*   **Simulated Output**:
+    *   *Before*: Base delivery fee: Rs. 100 | Long-Distance Surcharge: Rs. 0
+    *   *After*: Base delivery fee: Rs. 100 | Long-Distance Surcharge: Rs. 20
+    *   *System Event Logs*:
+        ```text
+        [02:35:10] API Request: POST /api/v1/config/pricing-rules
+        [02:35:11] Payload: { rule: "long_distance_surcharge", value: 20, active: true }
+        [02:35:11] Response Status: 200 OK
+        [02:35:12] Database Write: Table [PricingRules] updated row [long_distance] with value [20]
+        ```
+
+### Scenario B: Environmental Smog Ban
+*   **Saved Profile Context**: Regional courier service operating in Lahore.
+*   **Ingested Raw News**: *"Commercial vehicle daytime restrictions on Mall Road Lahore due to environmental smog control."*
+*   **Calculated Relevance**: `85%` (Location match: "Lahore", structural constraint matches).
+*   **Extracted Insight**: Dispatch peak gridlock and daytime delivery access blocked.
+*   **Recommended Action**: Canal Road Rerouting & Peak Surcharge (+Rs. 30).
+*   **Simulated Output**:
+    *   *Before*: Peak Hour Surcharge: Rs. 15 | Active Corridor: Mall Road
+    *   *After*: Peak Hour Surcharge: Rs. 30 | Active Corridor: Canal Road Reroute
+    *   *System Event Logs*:
+        ```text
+        [02:35:14] API Request: POST /api/v1/routes/optimizer
+        [02:35:15] AI Dispatch Engine: Routing graph reconstructed to re-route 14 vehicles.
+        [02:35:16] Surcharge updated: Peak hour buffer raised to Rs. 30
+        ```
+
+---
+
+## 4. UI Architecture & Screen Mappings
+
+CognitiveKinetic implements a highly polished **Technical Glassmorphism** dashboard interface with uniform `2px` stroke Feather line icons, using dark mode backdrops and dynamic, context-aware colors.
+
+The navigation system is divided into four highly focused operational tabs:
+1.  **Dashboard Screen (`src/screens/DashboardScreen.js`)**:
+    *   *Active Profile Panel*: Displays a summary of the saved business parameters.
+    *   *Live Signals & Insights Feed*: Shows recent items and highlights current risk status.
+    *   *Recent Logs Preview*: Displays a live chronological log of agent background traces.
+2.  **New Content Ingestion Screen (`src/screens/NewContentScreen.js`)**:
+    *   Allows operators to paste raw text or select items from the multi-source feed.
+    *   Supports single-tap loading of sample scenarios to speed up demonstrations.
+3.  **Actions & Simulation Screen (`src/screens/SimulationResultScreen.js`)**:
+    *   Presents a card deck of recommended actions categorized by urgency.
+    *   Hosts the **Interactive Simulation Sandbox** featuring side-by-side state grids (Before vs. After) and terminal-like execution traces.
+4.  **Profile & Preferences Screen (`src/screens/UserPreferencesScreen.js`)**:
+    *   Houses the onboarding profile form where operational parameters are updated.
+    *   Supports dynamic theme swapping (e.g. *Ember Carbon*, *Graphite Copper*, *Forest Moss*) to update the visual appearance of the application.
+
+---
+
+## 5. Technical Stack & File Architecture
 
 ```text
-Input → Understanding → Insight → Impact → Action → Simulation → Outcome
-````
+src/
+├── components/          # Reusable visual components
+│   └── common/          # Badges, buttons, header layouts, step indicators
+├── constants/           # Thematic styles and color swatches
+├── context/             # Global states (Auth, Preferences, AnalysisContext)
+├── navigation/          # React Navigation setup
+├── screens/             # Functional screen components (Dashboard, Ingestion, Simulation)
+├── services/            # Logic layers
+│   ├── agent/           # Orchestration pipelines, task planning, trace compilation
+│   └── firebase.js      # Backend integrations
+└── utils/               # Formatting, timing, and parsing utility files
+```
 
-* Display agent workplan, task plan, reasoning steps, decision flow, and execution logs
+- **Core Framework**: React Native with Expo (target SDK v54.0.0).
+- **Styling Paradigm**: Dynamic CSS/JS HSL palettes drawing variables from `usePreferences()`.
+- **Icon Suite**: Minimal, uniform line icons (`Feather` from `@expo/vector-icons`).
+- **State Engine**: React Context API separating UI screens from raw pipeline orchestrations.
 
-### 9. Agent Trace Viewer
+---
 
-* Show how the agent processed the input
-* Display each step of the autonomous workflow
-* Include:
+## 6. How to Install and Run Locally
 
-  * Workplan
-  * Task breakdown
-  * Extracted facts
-  * Generated insights
-  * Reasoning behind action
-  * Simulated execution result
-* Make the system transparent for evaluation
+### Prerequisites
+Make sure you have [Node.js](https://nodejs.org/) installed (v18+ recommended) along with the Expo Go app on your physical device.
 
-### 10. Outcome Visualization
+### Detailed Installation Steps
+1.  **Clone / Enter Directory**:
+    ```bash
+    cd CognitiveKinetic
+    ```
+2.  **Install Project Dependencies**:
+    ```bash
+    npm install
+    ```
 
-* Dashboard showing final results after action simulation
-* Cards for insights, impacts, recommendations, and executed actions
-* Timeline view for execution logs
-* Before/after comparison screen
-* Final outcome summary for demo presentation
+### Starting the Local Development Server
+Launch the Expo bundler:
+```bash
+npm start
+```
 
-### 11. Demo Scenario Support
-
-* Built-in sample scenarios for fast demonstration:
-
-  * Sales decline in a region
-  * Fuel price increase affecting delivery cost
-  * Supply chain delay
-  * Customer complaint spike
-  * Policy change affecting business operations
-* One-click demo flow from input to final outcome
-
-### 12. Documentation & Export
-
-* Export agent trace and logs for submission
-* Generate structured report of:
-
-  * Input
-  * Extracted facts
-  * Insights
-  * Impact analysis
-  * Recommended actions
-  * Simulated execution
-  * Final outcome
-* README documentation explaining:
-
-  * Architecture
-  * Tools/APIs used
-  * Antigravity usage
-  * Assumptions
-  * Setup instructions
+Once the terminal server is active:
+-   Press **`w`** to view in a web browser.
+-   Press **`a`** to load on an active Android Emulator.
+-   Press **`i`** to launch on a local iOS Simulator.
+-   Scan the terminal **QR Code** using your physical device's camera (iOS) or the **Expo Go** application (Android) to test immediately.
