@@ -3,19 +3,23 @@ import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function EmptyState({ icon = 'document-text-outline', title, description, primaryAction, primaryActionTitle }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={48} color={Colors.primaryFixedDim} />
+    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.iconContainer, { backgroundColor: c.primarySubtle }]}>
+        <Ionicons name={icon} size={48} color={c.primaryFixedDim || c.primary} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {description && <Text style={styles.description}>{description}</Text>}
+      <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
+      {description && <Text style={[styles.description, { color: c.textSecondary }]}>{description}</Text>}
       
       {primaryAction && primaryActionTitle && (
-        <TouchableOpacity style={styles.button} onPress={primaryAction}>
-          <Text style={styles.buttonText}>{primaryActionTitle}</Text>
+        <TouchableOpacity style={[styles.button, { backgroundColor: c.accent }]} onPress={primaryAction}>
+          <Text style={[styles.buttonText, { color: c.white }]}>{primaryActionTitle}</Text>
         </TouchableOpacity>
       )}
     </View>

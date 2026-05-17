@@ -4,21 +4,25 @@ import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function InsightCard({ insight, style }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   if (!insight) return null;
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, { backgroundColor: c.primaryContainerLight, borderColor: c.primaryBorderMedium }, style]}>
       <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="bulb" size={20} color={Colors.accent} />
+        <View style={[styles.iconContainer, { backgroundColor: c.accentSoft }]}>
+          <Ionicons name="bulb" size={20} color={c.accent} />
         </View>
         <StatusPill label={insight.category || 'Insight'} status="accent" />
       </View>
       
-      <Text style={styles.title}>{insight.title}</Text>
-      <Text style={styles.description}>{insight.description}</Text>
+      <Text style={[styles.title, { color: c.textPrimary }]}>{insight.title}</Text>
+      <Text style={[styles.description, { color: c.textSecondary }]}>{insight.description}</Text>
     </View>
   );
 }

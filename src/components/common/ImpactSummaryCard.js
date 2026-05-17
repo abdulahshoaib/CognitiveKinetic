@@ -3,14 +3,18 @@ import { StyleSheet, View, Text } from 'react-native';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function ImpactSummaryCard({ impact, style }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   if (!impact) return null;
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, style]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Impact Summary</Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>Impact Summary</Text>
         <StatusPill 
           label={`Risk: ${impact.riskLevel || 'Unknown'}`} 
           status={impact.riskLevel === 'High' ? 'danger' : impact.riskLevel === 'Medium' ? 'warning' : 'success'} 
@@ -19,13 +23,13 @@ export default function ImpactSummaryCard({ impact, style }) {
       
       <View style={styles.grid}>
         <View style={styles.cell}>
-          <Text style={styles.label}>Short-term</Text>
-          <Text style={styles.value}>{impact.shortTerm || 'No data'}</Text>
+          <Text style={[styles.label, { color: c.textSecondary }]}>Short-term</Text>
+          <Text style={[styles.value, { color: c.textPrimary }]}>{impact.shortTerm || 'No data'}</Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: c.surfaceBorder }]} />
         <View style={styles.cell}>
-          <Text style={styles.label}>Medium-term</Text>
-          <Text style={styles.value}>{impact.mediumTerm || 'No data'}</Text>
+          <Text style={[styles.label, { color: c.textSecondary }]}>Medium-term</Text>
+          <Text style={[styles.value, { color: c.textPrimary }]}>{impact.mediumTerm || 'No data'}</Text>
         </View>
       </View>
     </View>

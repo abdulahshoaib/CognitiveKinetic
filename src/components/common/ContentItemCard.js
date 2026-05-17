@@ -4,8 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function ContentItemCard({ item, onPress, style }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   if (!item) return null;
 
   const getSourceIcon = (type) => {
@@ -21,30 +25,30 @@ export default function ContentItemCard({ item, onPress, style }) {
 
   return (
     <TouchableOpacity 
-      style={[styles.container, style]} 
+      style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, style]} 
       onPress={() => onPress && onPress(item)}
       activeOpacity={onPress ? 0.7 : 1}
     >
       <View style={styles.header}>
         <View style={styles.sourceInfo}>
-          <Ionicons name={getSourceIcon(item.sourceType)} size={16} color={Colors.textSecondary} />
-          <Text style={styles.sourceName}>{item.sourceName}</Text>
+          <Ionicons name={getSourceIcon(item.sourceType)} size={16} color={c.textSecondary} />
+          <Text style={[styles.sourceName, { color: c.textSecondary }]}>{item.sourceName}</Text>
         </View>
-        <Text style={styles.timestamp}>{item.timestamp}</Text>
+        <Text style={[styles.timestamp, { color: c.textSecondary }]}>{item.timestamp}</Text>
       </View>
       
-      <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.body} numberOfLines={3}>{item.body}</Text>
+      <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>{item.title}</Text>
+      <Text style={[styles.body, { color: c.textSecondary }]} numberOfLines={3}>{item.body}</Text>
       
-      <View style={styles.footer}>
+      <View style={[styles.footer, { borderTopColor: c.surfaceBorderSubtle }]}>
         <View style={styles.topicsRow}>
           {item.detectedTopics?.slice(0, 2).map((topic, idx) => (
-            <View key={idx} style={styles.topicChip}>
-              <Text style={styles.topicText}>{topic}</Text>
+            <View key={idx} style={[styles.topicChip, { backgroundColor: c.surfaceVariant }]}>
+              <Text style={[styles.topicText, { color: c.textSecondary }]}>{topic}</Text>
             </View>
           ))}
           {item.detectedTopics?.length > 2 && (
-            <Text style={styles.topicText}>+{item.detectedTopics.length - 2}</Text>
+            <Text style={[styles.topicText, { color: c.textSecondary }]}>+{item.detectedTopics.length - 2}</Text>
           )}
         </View>
         <StatusPill label={item.relevanceStatus} status={item.relevanceStatus} />

@@ -3,9 +3,12 @@ import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function AgentLogList({ logs, limit = 5, style }) {
   const [expanded, setExpanded] = useState(false);
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const normalizeLog = (log, index) => {
     if (typeof log === 'string') {
       return { id: index, message: log, level: 'info' };
@@ -30,8 +33,8 @@ export default function AgentLogList({ logs, limit = 5, style }) {
 
   if (!logs || logs.length === 0) {
     return (
-      <View style={[styles.container, style]}>
-        <Text style={styles.emptyText}>No logs available</Text>
+      <View style={[styles.container, { backgroundColor: c.surfaceContainerHighest, borderColor: c.surfaceBorder }, style]}>
+        <Text style={[styles.emptyText, { color: c.textSecondary }]}>No logs available</Text>
       </View>
     );
   }
@@ -39,12 +42,12 @@ export default function AgentLogList({ logs, limit = 5, style }) {
   const displayLogs = expanded ? logs : logs.slice(-limit);
 
   return (
-    <View style={[styles.container, style]}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Execution Logs</Text>
+    <View style={[styles.container, { backgroundColor: c.surfaceContainerHighest, borderColor: c.surfaceBorder }, style]}>
+      <View style={[styles.header, { backgroundColor: c.surfaceContainerLow, borderBottomColor: c.surfaceBorder }]}>
+        <Text style={[styles.headerText, { color: c.textSecondary }]}>Execution Logs</Text>
         {logs.length > limit && (
           <TouchableOpacity onPress={() => setExpanded(!expanded)}>
-            <Text style={styles.toggleText}>{expanded ? 'Show Less' : `Show All (${logs.length})`}</Text>
+            <Text style={[styles.toggleText, { color: c.accent }]}>{expanded ? 'Show Less' : `Show All (${logs.length})`}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -52,13 +55,13 @@ export default function AgentLogList({ logs, limit = 5, style }) {
       <View style={styles.logContainer}>
         {displayLogs.map((entry, index) => {
           const log = normalizeLog(entry, index);
-          let color = Colors.textSecondary;
-          if (log.level === 'error') color = Colors.danger;
-          if (log.level === 'success') color = Colors.success;
+          let color = c.textSecondary;
+          if (log.level === 'error') color = c.danger;
+          if (log.level === 'success') color = c.success;
           
           return (
             <View key={log.id || index} style={styles.logLine}>
-              <Text style={styles.timestamp}>{log.timestamp || ''}</Text>
+              <Text style={[styles.timestamp, { color: c.textSecondary }]}>{log.timestamp || ''}</Text>
               <Text style={[styles.message, { color }]}>
                 {log.stage ? `[${log.stage}] ` : ''}{log.message}
               </Text>

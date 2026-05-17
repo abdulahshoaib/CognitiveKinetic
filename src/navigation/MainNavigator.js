@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../constants/colors';
+import { usePreferences } from '../context/PreferencesContext';
 
 // New Unified Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -30,6 +31,9 @@ const Tab = createBottomTabNavigator();
 
 // Bottom Tab Navigator configuration
 function BottomTabNavigator() {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -48,9 +52,9 @@ function BottomTabNavigator() {
 
           return <Ionicons name={iconName} size={22} color={color} />;
         },
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: c.accent,
+        tabBarInactiveTintColor: c.textSecondary,
+        tabBarStyle: [styles.tabBar, { backgroundColor: c.surfaceContainerLow, borderTopColor: c.surfaceBorder }],
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
         headerShown: false,
@@ -89,8 +93,19 @@ const stackScreenOptions = {
 };
 
 export default function MainNavigator() {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   return (
-    <Stack.Navigator initialRouteName="Home" screenOptions={stackScreenOptions}>
+    <Stack.Navigator
+      initialRouteName="Home"
+      screenOptions={{
+        ...stackScreenOptions,
+        headerStyle: { backgroundColor: c.background },
+        headerTintColor: c.textPrimary,
+        contentStyle: { backgroundColor: c.background },
+      }}
+    >
       {/* Tab bar is mounted as the default "Home" route */}
       <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
       
@@ -100,6 +115,7 @@ export default function MainNavigator() {
       {/* Other stack screens for workflow flows, fully accessible with back buttons */}
       <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} options={{ title: 'Profile Settings' }} />
       <Stack.Screen name="UserPreferences" component={UserPreferencesScreen} options={{ title: 'User Preferences' }} />
+      <Stack.Screen name="ReportActions" component={ActionsScreen} options={{ title: 'Recommended Actions' }} />
       
       {/* Pipeline execution screens */}
       <Stack.Screen name="AnalysisRun" component={AnalysisRunScreen} options={{ title: 'Analysis Progress' }} />

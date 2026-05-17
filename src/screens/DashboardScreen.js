@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { getProfile } from '../services/profileService';
 import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
@@ -16,6 +17,8 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { user } = useAuth();
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const { feedItems, analysisResult, simulationResult, analyzeContent } = useAnalysis();
   const [profile, setProfile] = useState(null);
 
@@ -61,30 +64,30 @@ export default function DashboardScreen() {
     <Screen scroll={true}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Welcome back</Text>
-          <Text style={styles.appName}>CognitiveKinetic</Text>
+          <Text style={[styles.greeting, { color: c.textSecondary }]}>Welcome back</Text>
+          <Text style={[styles.appName, { color: c.textPrimary }]}>CognitiveKinetic</Text>
         </View>
         <TouchableOpacity style={styles.profileControl} onPress={() => navigation.navigate('UserPreferences')}>
           <View style={styles.profileControlText}>
-            <Text style={styles.profileControlLabel} numberOfLines={1}>{userLabel}</Text>
-            <Text style={styles.profileControlCompany} numberOfLines={1}>
+            <Text style={[styles.profileControlLabel, { color: c.textPrimary }]} numberOfLines={1}>{userLabel}</Text>
+            <Text style={[styles.profileControlCompany, { color: c.textSecondary }]} numberOfLines={1}>
               User preferences
             </Text>
           </View>
-          <View style={styles.profileAvatar}>
-            <Ionicons name="person" size={18} color={Colors.white} />
+          <View style={[styles.profileAvatar, { backgroundColor: c.accent }]}>
+            <Ionicons name="person" size={18} color={c.white} />
           </View>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.profileSummary}>
+      <View style={[styles.profileSummary, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
         <View style={styles.profileHeader}>
-          <Text style={styles.profileName}>{profile.businessName || 'Business Profile'}</Text>
+          <Text style={[styles.profileName, { color: c.textPrimary }]}>{profile.businessName || 'Business Profile'}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')}>
-            <Text style={styles.editLink}>Edit</Text>
+            <Text style={[styles.editLink, { color: c.accent }]}>Edit</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.profileDetail}>{profile.industry || 'Industry not set'} • {locationsLabel}</Text>
+        <Text style={[styles.profileDetail, { color: c.textSecondary }]}>{profile.industry || 'Industry not set'} • {locationsLabel}</Text>
       </View>
 
       <SectionHeader title="Latest Report" />
@@ -99,55 +102,55 @@ export default function DashboardScreen() {
       ) : (
         <View style={styles.reportContainer}>
           <TouchableOpacity
-            style={styles.reportSummaryCard}
+            style={[styles.reportSummaryCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
             onPress={() => navigation.navigate('ImpactReport')}
           >
             <View style={styles.reportTopRow}>
-              <View style={styles.reportIcon}>
-                <Ionicons name="document-text-outline" size={20} color={Colors.accent} />
+              <View style={[styles.reportIcon, { backgroundColor: c.accentSoft }]}>
+                <Ionicons name="document-text-outline" size={20} color={c.accent} />
               </View>
               <View style={styles.reportTextBlock}>
-                <Text style={styles.reportTitle}>{latestInsight?.title || 'Impact report ready'}</Text>
-                <Text style={styles.reportSubtitle} numberOfLines={2}>
+                <Text style={[styles.reportTitle, { color: c.textPrimary }]}>{latestInsight?.title || 'Impact report ready'}</Text>
+                <Text style={[styles.reportSubtitle, { color: c.textSecondary }]} numberOfLines={2}>
                   {latestImpact?.shortTerm || 'Review extracted signals, impact analysis, and recommended actions.'}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.reportMetaRow}>
+            <View style={[styles.reportMetaRow, { backgroundColor: c.surfaceContainerLowest }]}>
               <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Relevance</Text>
-                <Text style={styles.metaValue}>{analysisResult.relevanceScore}%</Text>
+                <Text style={[styles.metaLabel, { color: c.textSecondary }]}>Relevance</Text>
+                <Text style={[styles.metaValue, { color: c.textPrimary }]}>{analysisResult.relevanceScore}%</Text>
               </View>
               <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Risk</Text>
-                <Text style={styles.metaValue}>{latestImpact?.riskLevel || 'Unknown'}</Text>
+                <Text style={[styles.metaLabel, { color: c.textSecondary }]}>Risk</Text>
+                <Text style={[styles.metaValue, { color: c.textPrimary }]}>{latestImpact?.riskLevel || 'Unknown'}</Text>
               </View>
               <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Actions</Text>
-                <Text style={styles.metaValue}>{pendingActions}</Text>
+                <Text style={[styles.metaLabel, { color: c.textSecondary }]}>Actions</Text>
+                <Text style={[styles.metaValue, { color: c.textPrimary }]}>{pendingActions}</Text>
               </View>
             </View>
 
             <View style={styles.reportLinkRow}>
-              <Text style={styles.reportLink}>Open full report</Text>
-              <Ionicons name="arrow-forward" size={16} color={Colors.accent} />
+              <Text style={[styles.reportLink, { color: c.accent }]}>Open full report</Text>
+              <Ionicons name="arrow-forward" size={16} color={c.accent} />
             </View>
           </TouchableOpacity>
 
           <View style={styles.reportActionRow}>
             <TouchableOpacity
-              style={styles.secondaryButton}
+              style={[styles.secondaryButton, { backgroundColor: c.surfaceContainerHigh }]}
               onPress={() => navigation.navigate('ImpactReport')}
             >
-              <Text style={styles.secondaryButtonText}>View Report</Text>
+              <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>View Report</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: c.accent }]}
               onPress={() => navigation.navigate('ActionsTab')}
             >
-              <Text style={styles.actionButtonText}>Actions</Text>
-              <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+              <Text style={[styles.actionButtonText, { color: c.white }]}>Actions</Text>
+              <Ionicons name="arrow-forward" size={16} color={c.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -157,15 +160,15 @@ export default function DashboardScreen() {
         <>
           <SectionHeader title="Latest Simulation" />
           <TouchableOpacity 
-            style={styles.simCard}
+            style={[styles.simCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.successBorder }]}
             onPress={() => navigation.navigate('SimulationResult')}
           >
             <View style={styles.simHeader}>
-              <Ionicons name="play-circle" size={24} color={Colors.success} />
-              <Text style={styles.simTitle}>{simulationResult.actionTitle}</Text>
+              <Ionicons name="play-circle" size={24} color={c.success} />
+              <Text style={[styles.simTitle, { color: c.textPrimary }]}>{simulationResult.actionTitle}</Text>
             </View>
-            <Text style={styles.simStatus}>System state updated successfully.</Text>
-            <Text style={styles.simLink}>View detailed result</Text>
+            <Text style={[styles.simStatus, { color: c.textSecondary }]}>System state updated successfully.</Text>
+            <Text style={[styles.simLink, { color: c.accent }]}>View detailed result</Text>
           </TouchableOpacity>
         </>
       )}
@@ -174,7 +177,7 @@ export default function DashboardScreen() {
         title="Recent Content" 
         rightElement={
           <TouchableOpacity onPress={() => navigation.navigate('IngestionTab')}>
-            <Text style={styles.seeAllLink}>See All</Text>
+            <Text style={[styles.seeAllLink, { color: c.accent }]}>See All</Text>
           </TouchableOpacity>
         }
       />

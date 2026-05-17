@@ -2,44 +2,48 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function StatusPill({ label, status = 'default', style }) {
+  const { activeTheme } = usePreferences();
+  const themeColors = activeTheme.colors;
+
   const getStatusStyles = () => {
     switch (status) {
       case 'success':
       case 'high-impact':
         return {
-          bg: Colors.successSoft,
-          border: Colors.successBorder,
-          text: Colors.success,
+          bg: themeColors.successSoft,
+          border: themeColors.successBorder,
+          text: themeColors.success,
         };
       case 'warning':
       case 'pending':
         return {
-          bg: Colors.warningSoft,
-          border: Colors.warningBorder,
-          text: Colors.warning,
+          bg: themeColors.warningSoft,
+          border: themeColors.warningBorder,
+          text: themeColors.warning,
         };
       case 'danger':
       case 'ignored':
         return {
-          bg: Colors.dangerSoft,
-          border: Colors.dangerMedium,
-          text: Colors.danger,
+          bg: themeColors.dangerSoft,
+          border: themeColors.dangerMedium,
+          text: themeColors.danger,
         };
       case 'accent':
       case 'relevant':
         return {
-          bg: Colors.accentSoft,
-          border: Colors.accentBorder,
-          text: Colors.accent,
+          bg: themeColors.accentSoft,
+          border: themeColors.accentBorder,
+          text: themeColors.accent,
         };
       case 'default':
       default:
         return {
-          bg: Colors.surfaceVariant,
-          border: Colors.outlineVariantMedium,
-          text: Colors.onSurfaceVariant,
+          bg: themeColors.surfaceVariant,
+          border: themeColors.outlineVariantMedium,
+          text: themeColors.onSurfaceVariant,
         };
     }
   };

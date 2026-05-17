@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { getProfile } from '../services/profileService';
 import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
@@ -26,6 +27,8 @@ export default function NewContentScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { user } = useAuth();
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const { feedItems, analyzeContent, addManualAnalysisItem } = useAnalysis();
   const [profile, setProfile] = useState(null);
   
@@ -86,7 +89,7 @@ export default function NewContentScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.keyboardView} 
+      style={[styles.keyboardView, { backgroundColor: c.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen scroll={true}>
@@ -95,50 +98,50 @@ export default function NewContentScreen() {
           subtitle={`Using profile: ${profile.businessName}`}
         />
 
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
           <TextInput
-            style={styles.titleInput}
+            style={[styles.titleInput, { color: c.textPrimary, borderBottomColor: c.surfaceBorder }]}
             placeholder="Headline or Title (Optional)"
-            placeholderTextColor={Colors.placeholder}
+            placeholderTextColor={c.placeholder}
             value={title}
             onChangeText={setTitle}
           />
           
           <TextInput
-            style={styles.bodyInput}
+            style={[styles.bodyInput, { color: c.textPrimary }]}
             placeholder="Paste article text, operational update, policy changes, or risk reports here..."
-            placeholderTextColor={Colors.placeholder}
+            placeholderTextColor={c.placeholder}
             value={body}
             onChangeText={setBody}
             multiline
             textAlignVertical="top"
           />
 
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, { backgroundColor: c.surfaceContainerLowest, borderTopColor: c.surfaceBorder }]}>
             <TouchableOpacity 
               style={styles.demoLink}
               onPress={() => setShowDemos(!showDemos)}
             >
-              <Ionicons name="flask-outline" size={16} color={Colors.accent} />
-              <Text style={styles.demoText}>Load Sample</Text>
+              <Ionicons name="flask-outline" size={16} color={c.accent} />
+              <Text style={[styles.demoText, { color: c.accent }]}>Load Sample</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.analyzeBtn, !body.trim() && styles.analyzeBtnDisabled]}
+              style={[styles.analyzeBtn, { backgroundColor: body.trim() ? c.accent : c.surfaceVariant }]}
               onPress={handleAnalyze}
               disabled={!body.trim()}
             >
-              <Text style={styles.analyzeBtnText}>Analyze</Text>
-              <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+              <Text style={[styles.analyzeBtnText, { color: c.white }]}>Analyze</Text>
+              <Ionicons name="arrow-forward" size={16} color={c.white} />
             </TouchableOpacity>
           </View>
         </View>
 
         {showDemos && (
-          <View style={styles.demoContainer}>
+          <View style={[styles.demoContainer, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder }]}>
             {DEMO_SAMPLES.map((demo, idx) => (
-              <TouchableOpacity key={idx} style={styles.demoItem} onPress={() => loadDemo(demo)}>
-                <Text style={styles.demoItemTitle}>{demo.title}</Text>
+              <TouchableOpacity key={idx} style={[styles.demoItem, { borderBottomColor: c.surfaceBorder }]} onPress={() => loadDemo(demo)}>
+                <Text style={[styles.demoItemTitle, { color: c.textSecondary }]}>{demo.title}</Text>
               </TouchableOpacity>
             ))}
           </View>

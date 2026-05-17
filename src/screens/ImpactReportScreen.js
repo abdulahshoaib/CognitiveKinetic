@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalysis } from '../context/AnalysisContext';
+import { usePreferences } from '../context/PreferencesContext';
 import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
@@ -15,6 +16,8 @@ import StatusPill from '../components/common/StatusPill';
 export default function ImpactReportScreen() {
   const navigation = useNavigation();
   const { analysisResult } = useAnalysis();
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
 
   if (!analysisResult) {
     return (
@@ -38,17 +41,17 @@ export default function ImpactReportScreen() {
   return (
     <Screen scroll={true}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>Impact Report</Text>
-        <Text style={styles.title}>Content-to-action analysis</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.eyebrow, { color: c.accent }]}>Impact Report</Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>Content-to-action analysis</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>
           Generated against the saved profile automatically.
         </Text>
       </View>
 
-      <View style={styles.summaryCard}>
+      <View style={[styles.summaryCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
         <View style={styles.scoreBlock}>
-          <Text style={styles.scoreLabel}>Relevance</Text>
-          <Text style={styles.scoreValue}>{analysisResult.relevanceScore}%</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Relevance</Text>
+          <Text style={[styles.scoreValue, { color: c.textPrimary }]}>{analysisResult.relevanceScore}%</Text>
         </View>
         <StatusPill label={relevanceStatus} status={analysisResult.isRelevant ? 'success' : 'warning'} />
       </View>
@@ -56,16 +59,16 @@ export default function ImpactReportScreen() {
       <SectionHeader title="Extracted Signals" />
       <View style={styles.sectionBody}>
         {signals.length === 0 ? (
-          <Text style={styles.emptyText}>No signals extracted.</Text>
+          <Text style={[styles.emptyText, { color: c.textSecondary, backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>No signals extracted.</Text>
         ) : (
           signals.map(signal => (
-            <View key={signal.id} style={styles.signalRow}>
-              <View style={styles.signalIcon}>
-                <Ionicons name="pulse-outline" size={16} color={Colors.accent} />
+            <View key={signal.id} style={[styles.signalRow, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+              <View style={[styles.signalIcon, { backgroundColor: c.accentSoft }]}>
+                <Ionicons name="pulse-outline" size={16} color={c.accent} />
               </View>
               <View style={styles.signalText}>
-                <Text style={styles.signalTitle}>{signal.label}</Text>
-                <Text style={styles.signalEvidence}>{signal.evidence}</Text>
+                <Text style={[styles.signalTitle, { color: c.textPrimary }]}>{signal.label}</Text>
+                <Text style={[styles.signalEvidence, { color: c.textSecondary }]}>{signal.evidence}</Text>
               </View>
             </View>
           ))
@@ -83,27 +86,42 @@ export default function ImpactReportScreen() {
       <View style={styles.sectionBody}>
         <ImpactSummaryCard impact={analysisResult.impact} />
         {analysisResult.impact?.explanation && (
-          <View style={styles.explanationCard}>
-            <Text style={styles.explanationLabel}>Reasoning</Text>
-            <Text style={styles.explanationText}>{analysisResult.impact.explanation}</Text>
+          <View style={[styles.explanationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <Text style={[styles.explanationLabel, { color: c.textSecondary }]}>Reasoning</Text>
+            <Text style={[styles.explanationText, { color: c.textPrimary }]}>{analysisResult.impact.explanation}</Text>
           </View>
         )}
       </View>
 
-      <View style={styles.actionPanel}>
+      <View style={[styles.actionPanel, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
         <View style={styles.actionCopy}>
-          <Text style={styles.actionTitle}>Recommended actions</Text>
-          <Text style={styles.actionSubtitle}>
-            {actions.length} action{actions.length === 1 ? '' : 's'} ready for review and simulation.
+          <Text style={[styles.actionTitle, { color: c.textPrimary }]}>
+            {actions.length === 0 ? 'No actions recommended' : 'Recommended actions'}
+          </Text>
+          <Text style={[styles.actionSubtitle, { color: c.textSecondary }]}>
+            {actions.length === 0
+              ? 'No follow-up action is needed from this report. Return to the dashboard to review other content.'
+              : `${actions.length} action${actions.length === 1 ? '' : 's'} ready for review and simulation.`}
           </Text>
         </View>
         <TouchableOpacity
-          style={[styles.actionButton, actions.length === 0 && styles.actionButtonDisabled]}
-          onPress={() => navigation.navigate('Home', { screen: 'ActionsTab' })}
-          disabled={actions.length === 0}
+          style={[styles.actionButton, { backgroundColor: actions.length === 0 ? c.surfaceContainerHigh : c.accent }]}
+          onPress={() => {
+            if (actions.length === 0) {
+              navigation.navigate('Home', { screen: 'Dashboard' });
+            } else {
+              navigation.navigate('ReportActions');
+            }
+          }}
         >
-          <Text style={styles.actionButtonText}>View Actions</Text>
-          <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+          <Text style={[styles.actionButtonText, { color: c.white }]}>
+            {actions.length === 0 ? 'Go to Dashboard' : 'View Actions'}
+          </Text>
+          <Ionicons
+            name={actions.length === 0 ? 'grid-outline' : 'arrow-forward'}
+            size={16}
+            color={c.white}
+          />
         </TouchableOpacity>
       </View>
     </Screen>
@@ -259,8 +277,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 8,
   },
-  actionButtonDisabled: {
-    backgroundColor: Colors.surfaceVariant,
+  dashboardButton: {
+    backgroundColor: Colors.surfaceContainerHigh,
   },
   actionButtonText: {
     color: Colors.white,

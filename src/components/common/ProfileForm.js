@@ -3,8 +3,12 @@ import { StyleSheet, View, Text, TextInput, TouchableOpacity, Switch, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function ProfileForm({ initialData, onSave, isSaving }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   const [formData, setFormData] = useState({
     businessName: '',
     industry: '',
@@ -38,39 +42,44 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
 
   const renderInput = (label, field, placeholder, multiline = false) => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: c.textPrimary }]}>{label}</Text>
       <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
+        style={[
+          styles.input,
+          { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder, color: c.textPrimary },
+          multiline && styles.inputMultiline,
+        ]}
         value={formData[field]}
         onChangeText={(text) => handleChange(field, text)}
         placeholder={placeholder}
-        placeholderTextColor={Colors.placeholder}
+        placeholderTextColor={c.placeholder}
         multiline={multiline}
       />
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
       {renderInput('Business Name', 'businessName', 'e.g. Apex Delivery')}
       {renderInput('Industry / Domain', 'industry', 'e.g. Logistics')}
       {renderInput('Operating Locations', 'locations', 'e.g. Lahore, Karachi (comma separated)')}
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Risk Sensitivity</Text>
+        <Text style={[styles.label, { color: c.textPrimary }]}>Risk Sensitivity</Text>
         <View style={styles.buttonGroup}>
           {['Low', 'Medium', 'High'].map(level => (
             <TouchableOpacity
               key={level}
               style={[
                 styles.selectButton,
-                formData.riskSensitivity === level && styles.selectButtonActive
+                { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder },
+                formData.riskSensitivity === level && { backgroundColor: c.accentSoft, borderColor: c.accent },
               ]}
               onPress={() => handleChange('riskSensitivity', level)}
             >
               <Text style={[
                 styles.selectButtonText,
-                formData.riskSensitivity === level && styles.selectButtonTextActive
+                { color: formData.riskSensitivity === level ? c.accent : c.textSecondary },
               ]}>{level}</Text>
             </TouchableOpacity>
           ))}
@@ -79,28 +88,28 @@ export default function ProfileForm({ initialData, onSave, isSaving }) {
 
       <View style={[styles.inputGroup, styles.switchRow]}>
         <View style={styles.switchTextContainer}>
-          <Text style={styles.label}>Auto-Simulation</Text>
-          <Text style={styles.helpText}>Allow agent to simulate actions automatically</Text>
+          <Text style={[styles.label, { color: c.textPrimary }]}>Auto-Simulation</Text>
+          <Text style={[styles.helpText, { color: c.textSecondary }]}>Allow agent to simulate actions automatically</Text>
         </View>
         <Switch
           value={formData.enableAutoSim}
           onValueChange={(val) => handleChange('enableAutoSim', val)}
-          trackColor={{ false: Colors.surfaceVariant, true: Colors.accentSoft }}
-          thumbColor={formData.enableAutoSim ? Colors.accent : Colors.textSecondary}
+          trackColor={{ false: c.surfaceVariant, true: c.accentSoft }}
+          thumbColor={formData.enableAutoSim ? c.accent : c.textSecondary}
         />
       </View>
 
       <TouchableOpacity 
-        style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
+        style={[styles.saveButton, { backgroundColor: c.accent }, isSaving && styles.saveButtonDisabled]} 
         onPress={handleSave}
         disabled={isSaving}
       >
         {isSaving ? (
-          <ActivityIndicator color={Colors.white} size="small" />
+          <ActivityIndicator color={c.white} size="small" />
         ) : (
           <>
-            <Ionicons name="save-outline" size={20} color={Colors.white} />
-            <Text style={styles.saveButtonText}>Save Profile</Text>
+            <Ionicons name="save-outline" size={20} color={c.white} />
+            <Text style={[styles.saveButtonText, { color: c.white }]}>Save Profile</Text>
           </>
         )}
       </TouchableOpacity>

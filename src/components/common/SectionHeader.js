@@ -2,13 +2,17 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function SectionHeader({ title, subtitle, rightElement, style }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.textContainer}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
+        {subtitle && <Text style={[styles.subtitle, { color: c.textSecondary }]}>{subtitle}</Text>}
       </View>
       {rightElement && <View style={styles.right}>{rightElement}</View>}
     </View>

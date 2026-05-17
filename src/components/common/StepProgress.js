@@ -3,6 +3,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
+import { usePreferences } from '../../context/PreferencesContext';
 
 const STAGES = [
   { id: 'idle', label: 'Ready', icon: 'play-outline' },
@@ -17,31 +18,33 @@ const STAGES = [
 ];
 
 export default function StepProgress({ currentStage, style }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const currentIndex = STAGES.findIndex(s => s.id === currentStage);
 
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.track} />
+      <View style={[styles.track, { backgroundColor: c.surfaceBorder }]} />
       <View style={styles.stepsRow}>
         {STAGES.map((stage, index) => {
           const isCompleted = index < currentIndex || currentStage === 'completed';
           const isCurrent = index === currentIndex && currentStage !== 'completed';
           
-          let color = Colors.surfaceVariant;
-          if (isCompleted) color = Colors.success;
-          if (isCurrent) color = Colors.accent;
+          let color = c.surfaceVariant;
+          if (isCompleted) color = c.success;
+          if (isCurrent) color = c.accent;
 
           return (
             <View key={stage.id} style={styles.stepContainer}>
               <View style={[
                 styles.iconWrapper, 
                 { backgroundColor: color },
-                isCurrent && styles.currentGlow
+                isCurrent && [styles.currentGlow, { shadowColor: c.accent, borderColor: c.white }]
               ]}>
-                <Ionicons name={stage.icon} size={14} color={Colors.white} />
+                <Ionicons name={stage.icon} size={14} color={c.white} />
               </View>
               {isCurrent && (
-                <Text style={styles.label}>{stage.label}</Text>
+                <Text style={[styles.label, { color: c.textPrimary }]}>{stage.label}</Text>
               )}
             </View>
           );
