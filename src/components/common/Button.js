@@ -23,7 +23,7 @@ export default function Button({ label, onPress, variant = 'primary', icon, styl
           <Ionicons
             name={icon}
             size={18}
-            color={isPrimary ? '#ffffff' : Colors.onSurface}
+            color={isPrimary ? Colors.white : Colors.onSurface}
             style={styles.icon}
           />
         )}
@@ -58,27 +58,27 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   primary: {
-    backgroundColor: '#3B82F6', // Solid Electric Blue from docs/DESIGN.md
-    borderColor: '#3B82F6',
-    shadowColor: '#3B82F6',
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+    shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   secondary: {
-    backgroundColor: '#1E293B', // Slate-800 background from docs/DESIGN.md L2/Secondary
-    borderColor: 'rgba(255, 255, 255, 0.1)', // 1px subtle border
+    backgroundColor: Colors.l1Border,
+    borderColor: Colors.controlBorder,
   },
   ghost: {
-    backgroundColor: 'transparent',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.transparent,
+    borderColor: Colors.controlBorder,
   },
   text: {
     fontSize: FontSizes.base - 1,
     fontWeight: FontWeights.semibold,
     letterSpacing: 0.5,
   },
-  primaryText: { color: '#ffffff' },
-  secondaryText: { color: '#e4e2e4' }, // on-surface
+  primaryText: { color: Colors.white },
+  secondaryText: { color: Colors.onSurface },
 });

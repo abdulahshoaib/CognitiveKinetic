@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, // Exact 12px from docs/DESIGN.md
     padding: Spacing.lg,
     borderWidth: 1,
-    shadowColor: '#000',
+    shadowColor: Colors.shadowSolid,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -28,12 +28,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   surface: {
-    backgroundColor: '#0F172A', // Navy L1 surface
-    borderColor: '#1E293B', // Slate 1px border
+    backgroundColor: Colors.l1Surface,
+    borderColor: Colors.l1Border,
   },
   glass: {
-    backgroundColor: 'rgba(30, 41, 59, 0.6)', // Slate-800 with 60% opacity (L2)
-    borderColor: 'rgba(30, 41, 59, 0.8)',
+    backgroundColor: Colors.l2Surface,
+    borderColor: Colors.l2Border,
   },
   activeGlow: {
     borderColor: Colors.accent, // Electric Blue active ring

@@ -25,18 +25,18 @@ const styles = StyleSheet.create({
   barBg: {
     flex: 1,
     height: 6,
-    backgroundColor: '#1E293B', // Slate-800 track background
+    backgroundColor: Colors.l1Border,
     borderRadius: 999,
     marginRight: Spacing.md,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
-    backgroundColor: '#3B82F6', // Solid Electric Blue from docs/DESIGN.md
+    backgroundColor: Colors.accent,
     borderRadius: 999,
   },
   label: {
-    color: '#94a3b8', // slate textSecondary
+    color: Colors.slateText,
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.bold,
     fontFamily: 'System', // fall back to clean monospaced font if needed

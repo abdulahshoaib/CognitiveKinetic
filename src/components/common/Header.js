@@ -26,6 +26,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
     paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
   },
   leftContent: {
     flex: 1,
@@ -35,7 +37,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   subtitle: {
-    color: '#94a3b8', // slate textSecondary
+    color: Colors.slateText,
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.semibold,
     marginBottom: 4,
@@ -43,7 +45,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: {
-    color: '#ffffff', // pure white textPrimary
+    color: Colors.white,
     fontSize: FontSizes['2xl'] + 2,
     fontWeight: FontWeights.bold,
     letterSpacing: -0.5,
