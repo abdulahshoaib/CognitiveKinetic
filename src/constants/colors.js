@@ -1,6 +1,6 @@
 /**
- * CognitiveKinetic Design Tokens — Colors
- * Extracted from docs/DESIGN.md
+ * CognitiveKinetic color tokens.
+ * Source: docs/DESIGN.md
  */
 
 export const Colors = {
@@ -48,25 +48,71 @@ export const Colors = {
   tertiaryFixedDim: '#dec29a',
   onTertiaryFixed: '#271901',
   onTertiaryFixedVariant: '#574425',
-  background: '#020617', // Premium Deep Navy canvas from docs/DESIGN.md prose
+  background: '#020617',
   onBackground: '#e4e2e4',
   surfaceVariant: '#353436',
-  
-  // Custom additions and component aliases based on design doc
-  accent: '#3B82F6', // Electric Blue for active states & primary buttons
-  surfaceBorder: '#1E293B', // Slate border (1px border from L1)
-  textPrimary: '#e4e2e4', // onSurface
-  textSecondary: '#c6c6cd', // onSurfaceVariant
-  shadow: 'rgba(0, 0, 0, 0.5)',
-  
-  success: '#10b981', // Emerald Green from design prose
-  successBg: 'rgba(16, 185, 129, 0.1)',
+
+  accent: '#3B82F6',
+  accentSoft: 'rgba(59, 130, 246, 0.1)',
+  accentGlow: 'rgba(59, 130, 246, 0.2)',
+  accentBorder: 'rgba(59, 130, 246, 0.4)',
+
+  success: '#10b981',
+  successSoft: 'rgba(16, 185, 129, 0.1)',
+  successMedium: 'rgba(16, 185, 129, 0.15)',
   successBorder: 'rgba(16, 185, 129, 0.3)',
-  warning: '#F59E0B', // Amber from design prose
-  warningBg: 'rgba(245, 158, 11, 0.1)',
-  
-  // Opacity variants
-  errorContainerLight: 'rgba(147, 0, 10, 0.2)', 
+
+  warning: '#F59E0B',
+  warningSoft: 'rgba(245, 158, 11, 0.1)',
+  warningBorder: 'rgba(245, 158, 11, 0.3)',
+  warningMuted: 'rgba(222, 194, 154, 0.15)',
+
+  danger: '#ef4444',
+  dangerSoft: 'rgba(239, 68, 68, 0.1)',
+  dangerMedium: 'rgba(239, 68, 68, 0.15)',
+
+  l1Surface: '#0F172A',
+  l1Border: '#1E293B',
+  l2Surface: 'rgba(30, 41, 59, 0.6)',
+  l2Border: 'rgba(30, 41, 59, 0.8)',
+  l2Subtle: 'rgba(30, 41, 59, 0.4)',
+  l2BorderSubtle: 'rgba(30, 41, 59, 0.5)',
+  slateBorderSubtle: 'rgba(51, 65, 85, 0.5)',
+  glassHeader: 'rgba(15, 23, 42, 0.8)',
+  glassPanel: 'rgba(15, 23, 42, 0.5)',
+  glassPanelStrong: 'rgba(15, 23, 42, 0.95)',
+  modalSurface: 'rgba(26, 28, 30, 0.95)',
+  terminalOverlay: 'rgba(11, 15, 25, 0.7)',
+
+  white: '#ffffff',
+  black: '#000000',
+  transparent: 'transparent',
+  slateText: '#94a3b8',
+  slateMuted: '#64748b',
+  traceText: '#e2e8f0',
+  codeGreen: '#00E676',
+  successBright: '#81c995',
+
+  textPrimary: '#e4e2e4',
+  textSecondary: '#c6c6cd',
+  textInverse: '#ffffff',
+  placeholder: 'rgba(148, 163, 184, 0.4)',
+  subtleBorder: 'rgba(255, 255, 255, 0.05)',
+  controlBorder: 'rgba(255, 255, 255, 0.1)',
+  shadow: 'rgba(0, 0, 0, 0.5)',
+  shadowSolid: '#000000',
+
+  surfaceBorder: '#1E293B',
+  surfaceBorderSubtle: 'rgba(144, 144, 151, 0.2)',
+  primarySubtle: 'rgba(190, 198, 224, 0.08)',
+  primaryBorderSubtle: 'rgba(190, 198, 224, 0.2)',
+  primaryBorderMedium: 'rgba(190, 198, 224, 0.3)',
+  secondaryBorderSubtle: 'rgba(185, 199, 224, 0.2)',
+  outlineVariantMedium: 'rgba(69, 70, 77, 0.5)',
+  errorSoft: 'rgba(255, 180, 171, 0.1)',
+  errorMedium: 'rgba(255, 180, 171, 0.15)',
+  errorBorderSubtle: 'rgba(255, 180, 171, 0.2)',
+  errorContainerLight: 'rgba(147, 0, 10, 0.2)',
   primaryContainerLight: 'rgba(15, 23, 42, 0.5)',
   surfaceContainerLowTranslucent: 'rgba(27, 27, 29, 0.8)',
 };
