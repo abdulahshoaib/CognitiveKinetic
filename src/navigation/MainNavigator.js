@@ -8,6 +8,7 @@ import Colors from '../constants/colors';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import IngestionScreen from '../screens/IngestionScreen';
 import UnderstandingScreen from '../screens/UnderstandingScreen';
 import InsightsScreen from '../screens/InsightsScreen';
@@ -33,6 +34,7 @@ export default function MainNavigator() {
   return (
     <Stack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Ingestion" component={IngestionScreen} options={{ title: 'Content Input' }} />
       <Stack.Screen name="Understanding" component={UnderstandingScreen} options={{ title: 'Understanding' }} />
       <Stack.Screen name="Insights" component={InsightsScreen} options={{ title: 'Insights' }} />
