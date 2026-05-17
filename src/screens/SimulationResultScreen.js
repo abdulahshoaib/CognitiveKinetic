@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
+import { usePreferences } from '../context/PreferencesContext';
 import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
@@ -12,13 +13,50 @@ import EmptyState from '../components/common/EmptyState';
 
 export default function SimulationResultScreen() {
   const navigation = useNavigation();
-  const { simulationResult } = useAnalysis();
+  const { simulationResult, isSimulating, executionLogs } = useAnalysis();
+  const { activeTheme, preferences } = usePreferences();
+  const c = activeTheme.colors;
+
+  if (isSimulating) {
+    return (
+      <Screen scroll={true}>
+        <View style={[styles.header, { backgroundColor: c.surfaceContainerLowest, borderBottomColor: c.surfaceBorder }]}>
+          <View style={[styles.iconCircle, { backgroundColor: c.accentSoft, borderColor: c.accentBorder }]}>
+            <ActivityIndicator color={c.accent} size="large" />
+          </View>
+          <Text style={[styles.title, { color: c.textPrimary }]}>Simulation Running</Text>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+            Applying the selected action to the mock system state.
+          </Text>
+        </View>
+
+        <View style={[styles.stateCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, marginTop: 24 }]}>
+          <Text style={[styles.keyText, { color: c.textPrimary }]}>Working on simulation</Text>
+          <Text style={[styles.noChangeText, { color: c.textSecondary }]}>
+            Reading current state, preparing mock update, and writing execution logs.
+          </Text>
+        </View>
+
+        {preferences.agentTransparency !== 'hidden' && (
+          <>
+            <SectionHeader title="Live Execution Logs" />
+            <View style={styles.logsWrapper}>
+              <AgentLogList
+                logs={executionLogs}
+                limit={preferences.agentTransparency === 'full-trace' ? 10 : 3}
+              />
+            </View>
+          </>
+        )}
+      </Screen>
+    );
+  }
 
   if (!simulationResult) {
     return (
       <Screen>
         <EmptyState 
-          icon="play-skip-back-outline"
+          icon="skip-back"
           title="No Simulation Result"
           description="You haven't run any simulations yet."
           primaryAction={() => navigation.popToTop()}
@@ -37,27 +75,27 @@ export default function SimulationResultScreen() {
 
   return (
     <Screen scroll={true}>
-      <View style={styles.header}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="checkmark" size={32} color={Colors.success} />
+      <View style={[styles.header, { backgroundColor: c.surfaceContainerLowest, borderBottomColor: c.surfaceBorder }]}>
+        <View style={[styles.iconCircle, { backgroundColor: c.successSoft, borderColor: c.successBorder }]}>
+          <Feather name="check" size={32} color={c.success} />
         </View>
-        <Text style={styles.title}>Simulation Complete</Text>
-        <Text style={styles.subtitle}>{actionTitle}</Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>Simulation Complete</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>{actionTitle}</Text>
       </View>
 
       <SectionHeader title="System State Changes" />
       
-      <View style={styles.stateCard}>
+      <View style={[styles.stateCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
         {changedKeys.length === 0 ? (
-          <Text style={styles.noChangeText}>No explicit state changes detected.</Text>
+          <Text style={[styles.noChangeText, { color: c.textSecondary }]}>No explicit state changes detected.</Text>
         ) : (
           changedKeys.map(key => (
-            <View key={key} style={styles.changeRow}>
-              <Text style={styles.keyText}>{key}</Text>
+            <View key={key} style={[styles.changeRow, { borderBottomColor: c.surfaceBorderSubtle }]}>
+              <Text style={[styles.keyText, { color: c.textPrimary }]}>{key}</Text>
               <View style={styles.valueRow}>
-                <Text style={styles.beforeValue}>{beforeState[key]}</Text>
-                <Ionicons name="arrow-forward" size={14} color={Colors.textSecondary} style={{ marginHorizontal: 8 }} />
-                <Text style={styles.afterValue}>{afterState[key]}</Text>
+                <Text style={[styles.beforeValue, { color: c.textSecondary }]}>{beforeState[key]}</Text>
+                <Feather name="arrow-right" size={14} color={c.textSecondary} style={{ marginHorizontal: 8 }} />
+                <Text style={[styles.afterValue, { color: c.success }]}>{afterState[key]}</Text>
               </View>
             </View>
           ))
@@ -71,10 +109,10 @@ export default function SimulationResultScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={styles.btn} 
+          style={[styles.btn, { backgroundColor: c.surfaceContainerHigh }]} 
           onPress={() => navigation.popToTop()}
         >
-          <Text style={styles.btnText}>Return to Dashboard</Text>
+          <Text style={[styles.btnText, { color: c.textPrimary }]}>Return to Dashboard</Text>
         </TouchableOpacity>
       </View>
     </Screen>

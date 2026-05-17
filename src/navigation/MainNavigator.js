@@ -6,7 +6,7 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../constants/colors';
 import { usePreferences } from '../context/PreferencesContext';
 
@@ -28,6 +28,66 @@ import ExportScreen from '../screens/ExportScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const DashboardStack = createNativeStackNavigator();
+const IngestionStack = createNativeStackNavigator();
+const ActionsStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
+
+const subStackScreenOptions = (c) => ({
+  headerStyle: { backgroundColor: c.background },
+  headerTintColor: c.textPrimary,
+  headerTitleStyle: { fontWeight: '700' },
+  contentStyle: { backgroundColor: c.background },
+  headerBackTitleVisible: false,
+});
+
+function DashboardStackScreen() {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+  return (
+    <DashboardStack.Navigator screenOptions={subStackScreenOptions(c)}>
+      <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} options={{ headerShown: false }} />
+      <DashboardStack.Screen name="ImpactReport" component={ImpactReportScreen} options={{ title: 'Impact Report' }} />
+      <DashboardStack.Screen name="SimulationResult" component={SimulationResultScreen} options={{ title: 'Simulation Result' }} />
+      <DashboardStack.Screen name="AgentTrace" component={AgentTraceScreen} options={{ title: 'Agent Trace' }} />
+      <DashboardStack.Screen name="Export" component={ExportScreen} options={{ title: 'Export' }} />
+      <DashboardStack.Screen name="Demo" component={DemoScreen} options={{ title: 'Demo Scenarios' }} />
+    </DashboardStack.Navigator>
+  );
+}
+
+function IngestionStackScreen() {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+  return (
+    <IngestionStack.Navigator screenOptions={subStackScreenOptions(c)}>
+      <IngestionStack.Screen name="IngestionMain" component={NewContentScreen} options={{ headerShown: false }} />
+      <IngestionStack.Screen name="AnalysisRun" component={AnalysisRunScreen} options={{ title: 'Analysis Progress' }} />
+    </IngestionStack.Navigator>
+  );
+}
+
+function ActionsStackScreen() {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+  return (
+    <ActionsStack.Navigator screenOptions={subStackScreenOptions(c)}>
+      <ActionsStack.Screen name="ActionsMain" component={ActionsScreen} options={{ headerShown: false }} />
+      <ActionsStack.Screen name="SimulationResult" component={SimulationResultScreen} options={{ title: 'Simulation Result' }} />
+    </ActionsStack.Navigator>
+  );
+}
+
+function SettingsStackScreen() {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
+  return (
+    <SettingsStack.Navigator screenOptions={subStackScreenOptions(c)}>
+      <SettingsStack.Screen name="SettingsMain" component={ProfileSettingsScreen} options={{ headerShown: false }} />
+      <SettingsStack.Screen name="UserPreferences" component={UserPreferencesScreen} options={{ title: 'User Preferences' }} />
+    </SettingsStack.Navigator>
+  );
+}
 
 // Bottom Tab Navigator configuration
 function BottomTabNavigator() {
@@ -37,20 +97,20 @@ function BottomTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ color, size }) => {
           let iconName;
 
           if (route.name === 'Dashboard') {
-            iconName = focused ? 'grid' : 'grid-outline';
+            iconName = 'activity';
           } else if (route.name === 'IngestionTab') {
-            iconName = focused ? 'add-circle' : 'add-circle-outline';
+            iconName = 'plus-circle';
           } else if (route.name === 'ActionsTab') {
-            iconName = focused ? 'flash' : 'flash-outline';
+            iconName = 'zap';
           } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'business' : 'business-outline';
+            iconName = 'sliders';
           }
 
-          return <Ionicons name={iconName} size={22} color={color} />;
+          return <Feather name={iconName} size={20} color={color} />;
         },
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.textSecondary,
@@ -62,23 +122,23 @@ function BottomTabNavigator() {
     >
       <Tab.Screen 
         name="Dashboard" 
-        component={DashboardScreen} 
+        component={DashboardStackScreen} 
         options={{ tabBarLabel: 'Dashboard' }} 
       />
       <Tab.Screen 
         name="IngestionTab" 
-        component={NewContentScreen} 
+        component={IngestionStackScreen} 
         options={{ tabBarLabel: 'New Content' }} 
       />
       <Tab.Screen 
         name="ActionsTab" 
-        component={ActionsScreen} 
+        component={ActionsStackScreen} 
         options={{ tabBarLabel: 'Actions' }} 
       />
       <Tab.Screen 
         name="ProfileTab" 
-        component={ProfileSettingsScreen} 
-        options={{ tabBarLabel: 'Context' }} 
+        component={SettingsStackScreen} 
+        options={{ tabBarLabel: 'Settings' }} 
       />
     </Tab.Navigator>
   );
@@ -91,7 +151,6 @@ const stackScreenOptions = {
   contentStyle: { backgroundColor: Colors.background },
   headerBackTitleVisible: false,
 };
-
 export default function MainNavigator() {
   const { activeTheme } = usePreferences();
   const c = activeTheme.colors;
@@ -111,20 +170,6 @@ export default function MainNavigator() {
       
       {/* Onboarding doesn't show tab bar and has no header */}
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
-      
-      {/* Other stack screens for workflow flows, fully accessible with back buttons */}
-      <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} options={{ title: 'Profile Settings' }} />
-      <Stack.Screen name="UserPreferences" component={UserPreferencesScreen} options={{ title: 'User Preferences' }} />
-      <Stack.Screen name="ReportActions" component={ActionsScreen} options={{ title: 'Recommended Actions' }} />
-      
-      {/* Pipeline execution screens */}
-      <Stack.Screen name="AnalysisRun" component={AnalysisRunScreen} options={{ title: 'Analysis Progress' }} />
-      <Stack.Screen name="ImpactReport" component={ImpactReportScreen} options={{ title: 'Impact Report' }} />
-      <Stack.Screen name="SimulationResult" component={SimulationResultScreen} options={{ title: 'Simulation Result' }} />
-      
-      <Stack.Screen name="AgentTrace" component={AgentTraceScreen} options={{ title: 'Agent Trace' }} />
-      <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Demo Scenarios' }} />
-      <Stack.Screen name="Export" component={ExportScreen} options={{ title: 'Export' }} />
     </Stack.Navigator>
   );
 }

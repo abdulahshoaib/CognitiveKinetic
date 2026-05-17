@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { runPipeline } from '../services/agent/orchestrator';
+import { usePreferences } from './PreferencesContext';
 
 const noop = () => {};
 
@@ -10,6 +11,7 @@ const AnalysisContext = createContext({
   isAnalyzing: false,
   currentStage: 'idle',
   analysisResult: null,
+  isSimulating: false,
   simulationResult: null,
   executionLogs: [],
   systemState: null,
@@ -63,11 +65,13 @@ const defaultFeedItems = [
 ];
 
 export const AnalysisProvider = ({ children }) => {
+  const { preferences } = usePreferences();
   const [feedItems, setFeedItems] = useState(defaultFeedItems);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentStage, setCurrentStage] = useState('idle'); // idle, loading_profile, ingesting, signals, relevance, insights, impact, actions, completed
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
   const [executionLogs, setExecutionLogs] = useState([]);
   
@@ -96,42 +100,43 @@ export const AnalysisProvider = ({ children }) => {
     setSimulationResult(null);
     setExecutionLogs([]);
     
-    const delay = (ms) => new Promise(res => setTimeout(res, ms));
+    const delayMs = preferences.motion === 'minimal' ? 0 : preferences.motion === 'reduced' ? 300 : 800;
+    const delay = () => new Promise(res => setTimeout(res, delayMs));
     
     // Stage 1: Load saved profile
     setCurrentStage('loading_profile');
     addLog(`Loading active business profile context for '${profileContext?.businessName || 'Apex Logistics'}'`, 'profile');
-    await delay(800);
+    await delay();
     
     // Stage 2: Ingestion
     setCurrentStage('ingesting');
     addLog(`Ingesting new content block. Size: ${content.length} characters.`, 'ingestion');
-    await delay(800);
+    await delay();
     
     // Stage 3: Extract signals
     setCurrentStage('signals');
     addLog('Extracting entities, numeric values, and keywords...', 'signals');
-    await delay(800);
+    await delay();
     
     // Stage 4: Check relevance
     setCurrentStage('relevance');
     addLog('Running multi-factor semantic alignment check against active profile...', 'relevance');
-    await delay(800);
+    await delay();
     
     // Stage 5: Insights
     setCurrentStage('insights');
     addLog('Formulating operational insights and risk priorities...', 'insights');
-    await delay(800);
+    await delay();
     
     // Stage 6: Impact
     setCurrentStage('impact');
     addLog('Modeling financial, structural, and regulatory impacts...', 'impact');
-    await delay(800);
+    await delay();
     
     // Stage 7: Actions
     setCurrentStage('actions');
     addLog('Compiling recommended actions and decision parameters...', 'actions');
-    await delay(800);
+    await delay();
 
     // Call orchestrator pipeline to build the actual structured results
     try {
@@ -164,70 +169,78 @@ export const AnalysisProvider = ({ children }) => {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [addLog]);
+  }, [addLog, preferences.motion]);
 
   const executeSimulation = useCallback(async (action) => {
     if (!action) return;
-    addLog(`Initiating simulation run for action: ${action.title}`, 'simulation');
-    
-    const delay = (ms) => new Promise(res => setTimeout(res, ms));
-    await delay(600);
-    
-    addLog(`Reading base configuration values...`, 'simulation');
-    const beforeState = { ...systemState };
-    await delay(600);
-    
-    addLog(`Simulating API call / DB update to configure target: ${action.targetSystem}`, 'simulation');
-    await delay(800);
-    
-    let afterState = { ...beforeState };
-    let logs = [];
-    
-    if (action.actionType === 'pricing_adjust') {
-      afterState.longDistanceSurcharge = 20;
-      afterState.lastUpdate = 'Surcharge Active (+Rs. 20)';
-      logs = [
-        'API Request: POST /api/v1/config/pricing-rules',
-        'Payload: { rule: "long_distance_surcharge", value: 20, active: true }',
-        'Response Status: 200 OK',
-        'Database Write: Table [PricingRules] updated row [long_distance] with value [20]',
-        'System event triggered: PRICING_UPDATED_BROADCAST'
-      ];
-    } else if (action.actionType === 'route_shift') {
-      afterState.peakHourSurcharge = 30;
-      afterState.lastUpdate = 'Peak Adjustment Active (+Rs. 30)';
-      logs = [
-        'API Request: POST /api/v1/routes/optimizer',
-        'Payload: { avoidZone: "Mall Road Lahore", shiftWindows: ["08:00", "20:00"] }',
-        'Response Status: 200 OK',
-        'AI Dispatch Engine: Routing graph reconstructed to re-route 14 vehicles.',
-        'Surcharge updated: Peak hour buffer raised to Rs. 30'
-      ];
-    } else {
-      afterState.lastUpdate = 'Policy Updated (Manual)';
-      logs = [
-        'Notification Service: Dispatched urgent alert to operations team.',
-        'Document Repository: Created policy amendment report.',
-        'Task Queue: Added manual review task for account managers.'
-      ];
+    setIsSimulating(true);
+    setSimulationResult(null);
+    try {
+      addLog(`Initiating simulation run for action: ${action.title}`, 'simulation');
+      
+      const delayMs = preferences.motion === 'minimal' ? 0 : preferences.motion === 'reduced' ? 250 : 600;
+      const delay = (multiplier = 1) => new Promise(res => setTimeout(res, delayMs * multiplier));
+      await delay();
+      
+      addLog(`Reading base configuration values...`, 'simulation');
+      const beforeState = { ...systemState };
+      await delay();
+      
+      addLog(`Simulating API call / DB update to configure target: ${action.targetSystem}`, 'simulation');
+      await delay(1.3);
+      
+      let afterState = { ...beforeState };
+      let logs = [];
+      
+      if (action.actionType === 'pricing_adjust') {
+        afterState.longDistanceSurcharge = 20;
+        afterState.lastUpdate = 'Surcharge Active (+Rs. 20)';
+        logs = [
+          'API Request: POST /api/v1/config/pricing-rules',
+          'Payload: { rule: "long_distance_surcharge", value: 20, active: true }',
+          'Response Status: 200 OK',
+          'Database Write: Table [PricingRules] updated row [long_distance] with value [20]',
+          'System event triggered: PRICING_UPDATED_BROADCAST'
+        ];
+      } else if (action.actionType === 'route_shift') {
+        afterState.peakHourSurcharge = 30;
+        afterState.lastUpdate = 'Peak Adjustment Active (+Rs. 30)';
+        logs = [
+          'API Request: POST /api/v1/routes/optimizer',
+          'Payload: { avoidZone: "Mall Road Lahore", shiftWindows: ["08:00", "20:00"] }',
+          'Response Status: 200 OK',
+          'AI Dispatch Engine: Routing graph reconstructed to re-route 14 vehicles.',
+          'Surcharge updated: Peak hour buffer raised to Rs. 30'
+        ];
+      } else {
+        afterState.lastUpdate = 'Policy Updated (Manual)';
+        logs = [
+          'Notification Service: Dispatched urgent alert to operations team.',
+          'Document Repository: Created policy amendment report.',
+          'Task Queue: Added manual review task for account managers.'
+        ];
+      }
+      
+      setSystemState(afterState);
+      logs.forEach(logLine => addLog(logLine, 'tool', 'info'));
+      
+      setSimulationResult({
+        actionId: action.id,
+        actionTitle: action.title,
+        beforeState,
+        afterState,
+        logs
+      });
+      
+      addLog(`Simulation finalized. State transition completed successfully.`, 'simulation', 'success');
+    } finally {
+      setIsSimulating(false);
     }
-    
-    setSystemState(afterState);
-    logs.forEach(logLine => addLog(logLine, 'tool', 'info'));
-    
-    setSimulationResult({
-      actionId: action.id,
-      actionTitle: action.title,
-      beforeState,
-      afterState,
-      logs
-    });
-    
-    addLog(`Simulation finalized. State transition completed successfully.`, 'simulation', 'success');
-  }, [systemState, addLog]);
+  }, [systemState, addLog, preferences.motion]);
 
   const clearAnalysis = useCallback(() => {
     setAnalysisResult(null);
+    setIsSimulating(false);
     setSimulationResult(null);
     setExecutionLogs([]);
     setCurrentStage('idle');
@@ -257,6 +270,7 @@ export const AnalysisProvider = ({ children }) => {
       isAnalyzing,
       currentStage,
       analysisResult,
+      isSimulating,
       simulationResult,
       executionLogs,
       systemState,

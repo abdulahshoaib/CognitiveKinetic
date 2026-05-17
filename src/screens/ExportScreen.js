@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+import { Feather } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
+import { usePreferences } from '../context/PreferencesContext';
+import { FontSizes, FontWeights } from '../constants/typography';
 
 export default function ExportScreen({ navigation }) {
   const { systemState } = useAnalysis();
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const [downloadingFile, setDownloadingFile] = useState(null);
   const [downloadStatus, setDownloadStatus] = useState('');
 
@@ -25,97 +28,97 @@ export default function ExportScreen({ navigation }) {
     setTimeout(() => {
       setDownloadingFile(null);
       setDownloadStatus('');
-      alert(`Successfully generated & exported ${fileName} to local documents!`);
+      Alert.alert('Export Success', `Successfully generated & exported ${fileName} to local documents!`);
     }, 2000);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Stage Header */}
         <View style={styles.stageIndicatorRow}>
-          <Text style={styles.stageTitle}>Prices Updated → Business Safe → </Text>
-          <Text style={styles.stageTitleActive}>Export Reports</Text>
+          <Text style={[styles.stageTitle, { color: c.textSecondary }]}>Prices Updated → Business Safe → </Text>
+          <Text style={[styles.stageTitleActive, { color: c.accent }]}>Export Reports</Text>
         </View>
 
         {/* Header Brief */}
-        <View style={styles.exportHeaderCard}>
-          <Ionicons name="cloud-download-outline" size={24} color={Colors.primary} style={{ marginBottom: 8 }} />
-          <Text style={styles.exportHeaderTitle}>Download Business Reports</Text>
-          <Text style={styles.exportHeaderSubtitle}>
+        <View style={[styles.exportHeaderCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <Feather name="download-cloud" size={24} color={c.accent} style={{ marginBottom: 8 }} />
+          <Text style={[styles.exportHeaderTitle, { color: c.textPrimary }]}>Download Business Reports</Text>
+          <Text style={[styles.exportHeaderSubtitle, { color: c.textSecondary }]}>
             Download your pricing reports, logs, and decisions to save them locally.
           </Text>
         </View>
 
         {/* Dynamic Downloader Overlay */}
         {downloadingFile && (
-          <View style={styles.overlayCard}>
-            <ActivityIndicator size="large" color={Colors.primary} style={{ marginBottom: 12 }} />
-            <Text style={styles.overlayTitle}>Preparing File...</Text>
-            <Text style={styles.overlayText}>{downloadingFile}</Text>
-            <Text style={styles.overlayStatus}>{downloadStatus}</Text>
+          <View style={[styles.overlayCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.accent }]}>
+            <ActivityIndicator size="large" color={c.accent} style={{ marginBottom: 12 }} />
+            <Text style={[styles.overlayTitle, { color: c.textPrimary }]}>Preparing File...</Text>
+            <Text style={[styles.overlayText, { color: c.accent }]}>{downloadingFile}</Text>
+            <Text style={[styles.overlayStatus, { color: c.textSecondary }]}>{downloadStatus}</Text>
           </View>
         )}
 
         {/* Files Grid list */}
-        <Text style={styles.sectionHeader}>Available Documents</Text>
+        <Text style={[styles.sectionHeader, { color: c.textPrimary }]}>Available Documents</Text>
 
         {/* PDF Option */}
         <TouchableOpacity 
-          style={styles.fileCard}
+          style={[styles.fileCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
           disabled={!!downloadingFile}
           onPress={() => triggerDownload('pricing_surcharge_brief.pdf', 'PDF')}
         >
-          <View style={styles.fileIconBox}>
-            <Ionicons name="document-text" size={24} color={Colors.error} />
+          <View style={[styles.fileIconBox, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+            <Feather name="file-text" size={24} color={c.error} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.fileTitle}>Pricing Surcharge Report</Text>
-            <Text style={styles.fileMeta}>Format: PDF • Contains Pricing Differences & Surcharges</Text>
+            <Text style={[styles.fileTitle, { color: c.textPrimary }]}>Pricing Surcharge Report</Text>
+            <Text style={[styles.fileMeta, { color: c.textSecondary }]}>Format: PDF • Contains Pricing Differences & Surcharges</Text>
           </View>
-          <Ionicons name="download-outline" size={20} color={Colors.onSurfaceVariant} />
+          <Feather name="download" size={20} color={c.textSecondary} />
         </TouchableOpacity>
 
         {/* JSON Option */}
         <TouchableOpacity 
-          style={styles.fileCard}
+          style={[styles.fileCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
           disabled={!!downloadingFile}
           onPress={() => triggerDownload('agent_reasoning_trace.json', 'JSON')}
         >
-          <View style={styles.fileIconBox}>
-            <Ionicons name="code-working" size={24} color={Colors.primary} />
+          <View style={[styles.fileIconBox, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+            <Feather name="code" size={24} color={c.primary} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.fileTitle}>AI Decision Step Log</Text>
-            <Text style={styles.fileMeta}>Format: JSON • Contains AI Steps & Timeline Logs</Text>
+            <Text style={[styles.fileTitle, { color: c.textPrimary }]}>AI Decision Step Log</Text>
+            <Text style={[styles.fileMeta, { color: c.textSecondary }]}>Format: JSON • Contains AI Steps & Timeline Logs</Text>
           </View>
-          <Ionicons name="download-outline" size={20} color={Colors.onSurfaceVariant} />
+          <Feather name="download" size={20} color={c.textSecondary} />
         </TouchableOpacity>
 
         {/* CSV Option */}
         <TouchableOpacity 
-          style={styles.fileCard}
+          style={[styles.fileCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
           disabled={!!downloadingFile}
           onPress={() => triggerDownload('operational_signals_feed.csv', 'CSV')}
         >
-          <View style={styles.fileIconBox}>
-            <Ionicons name="analytics" size={24} color={Colors.success} />
+          <View style={[styles.fileIconBox, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
+            <Feather name="bar-chart-2" size={24} color={c.success} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.fileTitle}>Extracted News Signals</Text>
-            <Text style={styles.fileMeta}>Format: CSV • Fact Signals & Relevance Scores</Text>
+            <Text style={[styles.fileTitle, { color: c.textPrimary }]}>Extracted News Signals</Text>
+            <Text style={[styles.fileMeta, { color: c.textSecondary }]}>Format: CSV • Fact Signals & Relevance Scores</Text>
           </View>
-          <Ionicons name="download-outline" size={20} color={Colors.onSurfaceVariant} />
+          <Feather name="download" size={20} color={c.textSecondary} />
         </TouchableOpacity>
 
         {/* Return Button */}
         <TouchableOpacity 
-          style={styles.primaryButton}
+          style={[styles.primaryButton, { backgroundColor: c.accent }]}
           onPress={() => navigation.navigate('Home')}
         >
-          <Ionicons name="home" size={20} color={Colors.onPrimary} style={{ marginRight: 8 }} />
-          <Text style={styles.primaryButtonText}>Return to Dashboard</Text>
+          <Feather name="home" size={20} color={c.white} style={{ marginRight: 8 }} />
+          <Text style={[styles.primaryButtonText, { color: c.white }]}>Return to Dashboard</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -125,7 +128,6 @@ export default function ExportScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollContent: {
     padding: 16,
@@ -138,46 +140,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   stageTitle: {
-    color: Colors.outline,
     fontSize: 11,
     fontWeight: '500',
   },
   stageTitleActive: {
-    color: Colors.primary,
     fontSize: 11,
     fontWeight: '700',
   },
   exportHeaderCard: {
-    backgroundColor: Colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
   },
   exportHeaderTitle: {
-    color: Colors.onSurface,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
     marginBottom: 6,
   },
   exportHeaderSubtitle: {
-    color: Colors.onSurfaceVariant,
-    fontSize: 13,
+    fontSize: FontSizes.sm,
     lineHeight: 18,
   },
   sectionHeader: {
-    color: Colors.onSurface,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
     marginBottom: 14,
   },
   fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -186,66 +179,50 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: Colors.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
   fileTitle: {
-    color: Colors.onSurface,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
     marginBottom: 2,
   },
   fileMeta: {
-    color: Colors.outline,
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.medium,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
     paddingVertical: 14,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
     marginTop: 32,
   },
   primaryButtonText: {
-    color: Colors.onPrimary,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
   },
   overlayCard: {
-    backgroundColor: Colors.modalSurface,
     borderWidth: 1,
-    borderColor: Colors.primary,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
   },
   overlayTitle: {
-    color: Colors.onSurface,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
     marginBottom: 4,
   },
   overlayText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
     marginBottom: 10,
   },
   overlayStatus: {
-    color: Colors.outline,
-    fontSize: 11,
+    fontSize: FontSizes.xs,
     fontStyle: 'italic',
   },
 });

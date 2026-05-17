@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -17,7 +17,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { user } = useAuth();
-  const { activeTheme } = usePreferences();
+  const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
   const { feedItems, analysisResult, simulationResult, analyzeContent } = useAnalysis();
   const [profile, setProfile] = useState(null);
@@ -57,43 +57,15 @@ export default function DashboardScreen() {
 
     const contentToAnalyze = `${item.title}\n\n${item.body}`;
     analyzeContent(contentToAnalyze, profile, item.id);
-    navigation.navigate('AnalysisRun');
+    navigation.navigate('IngestionTab', { screen: 'AnalysisRun' });
   };
 
-  return (
-    <Screen scroll={true}>
-      <View style={styles.header}>
-        <View>
-          <Text style={[styles.greeting, { color: c.textSecondary }]}>Welcome back</Text>
-          <Text style={[styles.appName, { color: c.textPrimary }]}>CognitiveKinetic</Text>
-        </View>
-        <TouchableOpacity style={styles.profileControl} onPress={() => navigation.navigate('UserPreferences')}>
-          <View style={styles.profileControlText}>
-            <Text style={[styles.profileControlLabel, { color: c.textPrimary }]} numberOfLines={1}>{userLabel}</Text>
-            <Text style={[styles.profileControlCompany, { color: c.textSecondary }]} numberOfLines={1}>
-              User preferences
-            </Text>
-          </View>
-          <View style={[styles.profileAvatar, { backgroundColor: c.accent }]}>
-            <Ionicons name="person" size={18} color={c.white} />
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.profileSummary, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
-        <View style={styles.profileHeader}>
-          <Text style={[styles.profileName, { color: c.textPrimary }]}>{profile.businessName || 'Business Profile'}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')}>
-            <Text style={[styles.editLink, { color: c.accent }]}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={[styles.profileDetail, { color: c.textSecondary }]}>{profile.industry || 'Industry not set'} • {locationsLabel}</Text>
-      </View>
-
+  const renderReportSection = () => (
+    <>
       <SectionHeader title="Latest Report" />
       {!analysisResult ? (
         <EmptyState 
-          icon="analytics-outline"
+          icon="bar-chart-2"
           title="No Active Report"
           description="Analyze new content to generate an insight and impact report for your business."
           primaryAction={() => navigation.navigate('IngestionTab')}
@@ -107,7 +79,7 @@ export default function DashboardScreen() {
           >
             <View style={styles.reportTopRow}>
               <View style={[styles.reportIcon, { backgroundColor: c.accentSoft }]}>
-                <Ionicons name="document-text-outline" size={20} color={c.accent} />
+                <Feather name="file-text" size={20} color={c.accent} />
               </View>
               <View style={styles.reportTextBlock}>
                 <Text style={[styles.reportTitle, { color: c.textPrimary }]}>{latestInsight?.title || 'Impact report ready'}</Text>
@@ -134,7 +106,7 @@ export default function DashboardScreen() {
 
             <View style={styles.reportLinkRow}>
               <Text style={[styles.reportLink, { color: c.accent }]}>Open full report</Text>
-              <Ionicons name="arrow-forward" size={16} color={c.accent} />
+              <Feather name="arrow-right" size={16} color={c.accent} />
             </View>
           </TouchableOpacity>
 
@@ -150,29 +122,33 @@ export default function DashboardScreen() {
               onPress={() => navigation.navigate('ActionsTab')}
             >
               <Text style={[styles.actionButtonText, { color: c.white }]}>Actions</Text>
-              <Ionicons name="arrow-forward" size={16} color={c.white} />
+              <Feather name="arrow-right" size={16} color={c.white} />
             </TouchableOpacity>
           </View>
         </View>
       )}
+    </>
+  );
 
-      {simulationResult && (
-        <>
-          <SectionHeader title="Latest Simulation" />
-          <TouchableOpacity 
-            style={[styles.simCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.successBorder }]}
-            onPress={() => navigation.navigate('SimulationResult')}
-          >
-            <View style={styles.simHeader}>
-              <Ionicons name="play-circle" size={24} color={c.success} />
-              <Text style={[styles.simTitle, { color: c.textPrimary }]}>{simulationResult.actionTitle}</Text>
-            </View>
-            <Text style={[styles.simStatus, { color: c.textSecondary }]}>System state updated successfully.</Text>
-            <Text style={[styles.simLink, { color: c.accent }]}>View detailed result</Text>
-          </TouchableOpacity>
-        </>
-      )}
+  const renderSimulationSection = () => simulationResult ? (
+    <>
+      <SectionHeader title="Latest Simulation" />
+      <TouchableOpacity 
+        style={[styles.simCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.successBorder }]}
+        onPress={() => navigation.navigate('SimulationResult')}
+      >
+        <View style={styles.simHeader}>
+          <Feather name="play-circle" size={24} color={c.success} />
+          <Text style={[styles.simTitle, { color: c.textPrimary }]}>{simulationResult.actionTitle}</Text>
+        </View>
+        <Text style={[styles.simStatus, { color: c.textSecondary }]}>System state updated successfully.</Text>
+        <Text style={[styles.simLink, { color: c.accent }]}>View detailed result</Text>
+      </TouchableOpacity>
+    </>
+  ) : null;
 
+  const renderRecentContentSection = () => (
+    <>
       <SectionHeader 
         title="Recent Content" 
         rightElement={
@@ -191,6 +167,48 @@ export default function DashboardScreen() {
           />
         ))}
       </View>
+    </>
+  );
+
+  const focusSections = preferences.homeFocus === 'action-queue'
+    ? [renderReportSection, renderSimulationSection, renderRecentContentSection]
+    : preferences.homeFocus === 'progress-summary'
+      ? [renderSimulationSection, renderReportSection, renderRecentContentSection]
+      : [renderReportSection, renderRecentContentSection, renderSimulationSection];
+
+  return (
+    <Screen scroll={true}>
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.greeting, { color: c.textSecondary }]}>Welcome back</Text>
+          <Text style={[styles.appName, { color: c.textPrimary }]}>CognitiveKinetic</Text>
+        </View>
+        <TouchableOpacity style={styles.profileControl} onPress={() => navigation.navigate('ProfileTab', { screen: 'SettingsMain', params: { tab: 'account' } })}>
+          <View style={styles.profileControlText}>
+            <Text style={[styles.profileControlLabel, { color: c.textPrimary }]} numberOfLines={1}>{userLabel}</Text>
+            <Text style={[styles.profileControlCompany, { color: c.textSecondary }]} numberOfLines={1}>
+              Account settings
+            </Text>
+          </View>
+          <View style={[styles.profileAvatar, { backgroundColor: c.accent }]}>
+            <Feather name="user" size={18} color={c.white} />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.profileSummary, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+        <View style={styles.profileHeader}>
+          <Text style={[styles.profileName, { color: c.textPrimary }]}>{profile.businessName || 'Business Profile'}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')}>
+            <Text style={[styles.editLink, { color: c.accent }]}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={[styles.profileDetail, { color: c.textSecondary }]}>{profile.industry || 'Industry not set'} • {locationsLabel}</Text>
+      </View>
+
+      {focusSections.map((renderSection, index) => (
+        <React.Fragment key={index}>{renderSection()}</React.Fragment>
+      ))}
     </Screen>
   );
 }
