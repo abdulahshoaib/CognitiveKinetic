@@ -6,11 +6,11 @@ const PREFERENCES_STORAGE_KEY = '@cognitive_kinetic_preferences';
 
 const defaultPreferences = {
   themeMode: 'ember-carbon',
-  density: 'comfortable', // comfortable, compact, data-dense
   insightStyle: 'simple', // simple, detailed, technical
   motion: 'full', // full, reduced, minimal
   homeFocus: 'latest-insight', // latest-insight, current-goal, action-queue, progress-summary
   agentTransparency: 'summary-only', // hidden, summary-only, full-trace
+  density: 'cozy', // compact, cozy, spacious
 };
 
 const PreferencesContext = createContext();
