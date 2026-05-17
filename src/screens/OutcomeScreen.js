@@ -25,40 +25,40 @@ export default function OutcomeScreen({ navigation }) {
         
         {/* Stage Header */}
         <View style={styles.stageIndicatorRow}>
-          <Text style={styles.stageTitle}>Registry Deployed → Telemetry Sync → </Text>
-          <Text style={styles.stageTitleActive}>Operations Report</Text>
+          <Text style={styles.stageTitle}>Prices Updated → Business Safe → </Text>
+          <Text style={styles.stageTitleActive}>Deployment Report</Text>
         </View>
 
         {/* Deployed Banner */}
         <View style={[styles.bannerCard, { borderColor: isOptimized ? Colors.success : Colors.tertiary }]}>
-          <View style={[styles.iconContainer, { backgroundColor: isOptimized ? 'rgba(16, 185, 129, 0.15)' : 'rgba(222, 194, 154, 0.15)' }]}>
+          <View style={[styles.iconContainer, { backgroundColor: isOptimized ? Colors.successMedium : Colors.warningMuted }]}>
             <Ionicons 
-              name={isOptimized ? "cloud-done" : "cloud-offline-outline"} 
+               name={isOptimized ? "cloud-done" : "cloud-offline-outline"} 
               size={36} 
               color={isOptimized ? Colors.success : Colors.tertiary} 
             />
           </View>
           <Text style={styles.bannerTitle}>
-            {isOptimized ? 'Dynamic Surcharges Online' : 'Baseline Surcharges Online'}
+            {isOptimized ? 'New Pricing Active' : 'Current Pricing Active'}
           </Text>
           <Text style={styles.bannerSubtitle}>
             {isOptimized 
-              ? 'Dynamic Rs. 20 surcharge deployed successfully to defend fuel compression.'
-              : 'Logistics rules running nominal baseline configuration. No active threat shields.'}
+              ? 'A Rs. 20 long-distance surcharge is now live to protect your delivery profits.'
+              : 'Your business is running standard baseline pricing. No surcharge is active.'}
           </Text>
         </View>
 
         {/* Yield Telemetry Grid */}
-        <Text style={styles.sectionHeader}>Operational Performance Metrics</Text>
+        <Text style={styles.sectionHeader}>Expected Results</Text>
         <View style={styles.gridRow}>
           <View style={styles.gridCard}>
             <Ionicons name="trending-up" size={20} color={isOptimized ? Colors.success : Colors.outline} style={{ marginBottom: 8 }} />
-            <Text style={styles.gridLabel}>Yield Defense</Text>
+            <Text style={styles.gridLabel}>Profit Improvement</Text>
             <Text style={[styles.gridValue, { color: isOptimized ? Colors.success : Colors.onSurface }]}>+{marginImprovement}</Text>
           </View>
           <View style={styles.gridCard}>
             <Ionicons name="calculator" size={20} color={Colors.primary} style={{ marginBottom: 8 }} />
-            <Text style={styles.gridLabel}>Gross Tariff</Text>
+            <Text style={styles.gridLabel}>Estimated Delivery Price</Text>
             <Text style={styles.gridValue}>Rs. {grossRate}</Text>
           </View>
         </View>
@@ -66,12 +66,12 @@ export default function OutcomeScreen({ navigation }) {
         <View style={styles.gridRow}>
           <View style={styles.gridCard}>
             <Ionicons name="analytics" size={20} color={Colors.tertiary} style={{ marginBottom: 8 }} />
-            <Text style={styles.gridLabel}>Offset Capability</Text>
+            <Text style={styles.gridLabel}>Fuel Cost Covered</Text>
             <Text style={styles.gridValue}>{costOffsetIndex}</Text>
           </View>
           <View style={styles.gridCard}>
             <Ionicons name="people" size={20} color={isOptimized ? Colors.error : Colors.success} style={{ marginBottom: 8 }} />
-            <Text style={styles.gridLabel}>Churn Friction</Text>
+            <Text style={styles.gridLabel}>Customer Impact Risk</Text>
             <Text style={[styles.gridValue, { color: isOptimized ? Colors.error : Colors.success }]}>{customerFriction}</Text>
           </View>
         </View>
@@ -80,27 +80,27 @@ export default function OutcomeScreen({ navigation }) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="receipt-outline" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
-            <Text style={styles.cardTitle}>Active Rule Registry</Text>
+            <Text style={styles.cardTitle}>Active Delivery Fees</Text>
           </View>
           
           <View style={styles.statsContainer}>
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Base Dispatch Rate</Text>
+              <Text style={styles.statLabel}>Base Fee</Text>
               <Text style={styles.statValue}>Rs. {baseRate}</Text>
             </View>
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Long-Distance Increment</Text>
+              <Text style={styles.statLabel}>Long Distance Surcharge</Text>
               <Text style={[styles.statValue, isOptimized && { color: Colors.success, fontWeight: '700' }]}>
                 Rs. {surcharge}
               </Text>
             </View>
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Peak-Hours Loading</Text>
+              <Text style={styles.statLabel}>Peak Hour Fee</Text>
               <Text style={styles.statValue}>Rs. {systemState?.peakHourSurcharge || 15}</Text>
             </View>
             <View style={[styles.statRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.statLabel}>Registry Sync Status</Text>
-              <Text style={[styles.statValue, { fontStyle: 'italic', color: Colors.success }]}>Active & Synced</Text>
+              <Text style={styles.statLabel}>Pricing Status</Text>
+              <Text style={[styles.statValue, { fontStyle: 'italic', color: Colors.success }]}>Active & Live</Text>
             </View>
           </View>
         </View>
@@ -111,7 +111,7 @@ export default function OutcomeScreen({ navigation }) {
           onPress={() => navigation.navigate('Home')}
         >
           <Ionicons name="home" size={20} color={Colors.onPrimary} style={{ marginRight: 8 }} />
-          <Text style={styles.primaryButtonText}>Return to Command Center</Text>
+          <Text style={styles.primaryButtonText}>Return to Dashboard</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -119,7 +119,7 @@ export default function OutcomeScreen({ navigation }) {
           onPress={() => navigation.navigate('AgentTrace')}
         >
           <Ionicons name="newspaper-outline" size={18} color={Colors.onSurface} style={{ marginRight: 8 }} />
-          <Text style={styles.secondaryButtonText}>Review Agent Reasoning Trace</Text>
+          <Text style={styles.secondaryButtonText}>See How AI Reached This Decision</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: Colors.shadowSolid,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statsContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
   },
   statRow: {
     flexDirection: 'row',

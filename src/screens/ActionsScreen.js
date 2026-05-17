@@ -68,7 +68,7 @@ export default function ActionsScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <Header
         title="Recommended Actions"
-        subtitle="The agent has identified optimal adjustment paths based on current system load and predictive telemetry. Simulation is required before committing high-impact changes."
+        subtitle="The AI agent has recommended the following changes to handle the business updates. You can test each action in a safe simulation environment before choosing to run it."
       />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -94,20 +94,20 @@ export default function ActionsScreen({ navigation }) {
                           <View style={styles.tagsRow}>
                             <Badge label={action.targetSystem} variant="neutral" />
                             <Badge 
-                              label={action.urgency === 'critical' || action.urgency === 'high' ? 'High Urgency' : 'Medium Urgency'}
+                              label={action.urgency === 'critical' || action.urgency === 'high' ? 'High Priority' : 'Medium Priority'}
                               variant={action.urgency === 'critical' || action.urgency === 'high' ? 'risk' : 'warning'}
                               icon={getUrgencyIcon(action.urgency)}
                             />
                           </View>
                         </View>
                       </View>
-                      <Text style={styles.priorityLabel}>P{index + 1}</Text>
+                      <Text style={styles.priorityLabel}>Option #{index + 1}</Text>
                     </View>
 
                     {/* Rationale */}
                     <View style={styles.rationaleBox}>
                       <Text style={styles.rationaleText}>
-                        <Text style={styles.rationaleLabel}>Rationale: </Text>
+                        <Text style={styles.rationaleLabel}>Description: </Text>
                         {action.rationale || action.description}
                       </Text>
                     </View>
@@ -117,15 +117,15 @@ export default function ActionsScreen({ navigation }) {
                       <View style={styles.impactItem}>
                         <Ionicons name="analytics-outline" size={20} color={Colors.accent} />
                         <View style={styles.impactItemText}>
-                          <Text style={styles.impactLabel}>Confidence</Text>
+                          <Text style={styles.impactLabel}>Success Chance</Text>
                           <Text style={styles.impactValuePrimary}>{action.confidence}</Text>
                         </View>
                       </View>
                       <View style={styles.impactItem}>
                         <Ionicons name="hardware-chip-outline" size={20} color={Colors.tertiary} />
                         <View style={styles.impactItemText}>
-                          <Text style={styles.impactLabel}>Engine</Text>
-                          <Text style={styles.impactValueTertiary}>Autonomous API</Text>
+                          <Text style={styles.impactLabel}>AI Engine</Text>
+                          <Text style={styles.impactValueTertiary}>Cognitive Kinetic</Text>
                         </View>
                       </View>
                     </View>
@@ -133,7 +133,7 @@ export default function ActionsScreen({ navigation }) {
                     {/* Footer CTA */}
                     <View style={styles.actionFooter}>
                       <Button
-                        label="Simulate Action"
+                        label="Test This Action"
                         icon="play"
                         variant="primary"
                         onPress={() => handleSelectSimulation(action)}
@@ -164,14 +164,14 @@ export default function ActionsScreen({ navigation }) {
                     <Text style={styles.actionDescriptionSecondary}>{action.rationale || action.description}</Text>
 
                     <View style={styles.expectedBox}>
-                      <Text style={styles.expectedLabel}>Confidence Coefficient:</Text>
+                      <Text style={styles.expectedLabel}>Success Chance:</Text>
                       <Text style={styles.expectedValue}>{action.confidence}</Text>
                     </View>
 
                     <View style={styles.secondaryFooter}>
                       <View style={styles.reviewBtn}>
                         <Ionicons name="information-circle-outline" size={16} color={Colors.textSecondary} />
-                        <Text style={styles.reviewBtnText}>Requires Manual Audit</Text>
+                        <Text style={styles.reviewBtnText}>Requires Manual Review</Text>
                       </View>
                     </View>
                   </Card>
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   priorityLabel: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    fontFamily: 'monospace',
+    fontWeight: '600',
   },
   rationaleBox: {
     backgroundColor: Colors.surfaceContainerLow,
@@ -379,7 +379,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
-    marginTop: 100,
   },
   iconCircle: {
     width: 96,

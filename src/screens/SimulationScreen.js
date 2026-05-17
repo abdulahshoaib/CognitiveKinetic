@@ -6,7 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   FlatList,
-  Platform
+  Platform,
+  TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ export default function SimulationScreen({ route, navigation }) {
   const { action } = route.params || {};
   const { executeSimulation, simulationResult, executionLogs } = useAnalysis();
   const [isRunning, setIsRunning] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const logListRef = useRef(null);
 
   // Automatically start simulation on mount if action is valid
@@ -79,7 +81,7 @@ export default function SimulationScreen({ route, navigation }) {
         <Text style={styles.logTime}>{item.timestamp}</Text>
         <Text style={[
           styles.logMessage, 
-          isSuccess && { color: '#81c995', fontWeight: '700' },
+          isSuccess && { color: Colors.successBright, fontWeight: '700' },
           isTool && { color: Colors.primary }
         ]}>
           {item.message}
@@ -105,53 +107,71 @@ export default function SimulationScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Header
+        title="Test Your Action"
+        subtitle="See the before and after state of applying this change."
+        rightComponent={
+          <Badge 
+            label={isRunning ? 'Testing...' : 'Test Finished'} 
+            variant={isRunning ? 'active' : 'success'} 
+          />
+        }
+      />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Header Section */}
-        <View style={styles.headerSection}>
-          <Badge 
-            label={isRunning ? 'SIMULATION RUNNING' : 'SIMULATION COMPLETE'} 
-            variant={isRunning ? 'active' : 'success'} 
-            icon={isRunning ? 'pulse-outline' : 'checkmark-circle'}
-            style={{ marginBottom: Spacing.sm }}
-          />
-          <Text style={styles.headerTitle}>{action.title}</Text>
-          <Text style={styles.headerSubtitle}>
-            {isRunning 
-              ? 'The agent is currently simulating the updated dynamic model within the sandbox.'
-              : 'The agent has successfully simulated the updated dynamic model. Projected margin recovery calculated based on real-time data.'}
+        {/* Simulation Scenario Objective */}
+        <Card variant="surface" style={{ marginBottom: Spacing.md }}>
+          <Text style={{ color: Colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 }}>
+            TESTING THIS CHANGE
           </Text>
-        </View>
+          <Text style={{ color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
+            {action.title}
+          </Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 13, lineHeight: 18 }}>
+            {isRunning 
+              ? 'Testing the change in a safe playground environment...'
+              : 'The test is complete. Below are the estimated differences in your delivery fees.'}
+          </Text>
+        </Card>
 
         {/* Execution Status Panel */}
         <Card variant="glass" style={{ marginBottom: Spacing.md }}>
-          <View style={styles.panelHeaderRow}>
-            <Ionicons name="hardware-chip-outline" size={20} color={Colors.textSecondary} style={{ marginRight: 8 }} />
-            <Text style={styles.panelTitle}>Execution Trace</Text>
-          </View>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPress={() => setShowLogs(!showLogs)}
+            style={styles.panelHeaderRowToggle}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="terminal-outline" size={20} color={Colors.accent} style={{ marginRight: 8 }} />
+              <Text style={styles.panelTitle}>Technical Logs</Text>
+            </View>
+            <Ionicons name={showLogs ? "chevron-up" : "chevron-down"} size={18} color={Colors.slateText} />
+          </TouchableOpacity>
           
-          <View style={styles.consoleCard}>
-            <FlatList
-              ref={logListRef}
-              data={simLogs}
-              renderItem={renderLogItem}
-              keyExtractor={item => item.id}
-              style={styles.logsList}
-              contentContainerStyle={styles.logsListContent}
-              scrollEnabled={false}
-              ListEmptyComponent={
-                <View style={styles.emptyLogsContainer}>
-                  <Text style={styles.emptyLogsText}>Initializing isolated environment...</Text>
-                </View>
-              }
-            />
-          </View>
+          {showLogs && (
+            <View style={[styles.consoleCard, { marginTop: 12 }]}>
+              <FlatList
+                ref={logListRef}
+                data={simLogs}
+                renderItem={renderLogItem}
+                keyExtractor={item => item.id}
+                style={styles.logsList}
+                contentContainerStyle={styles.logsListContent}
+                scrollEnabled={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyLogsContainer}>
+                    <Text style={styles.emptyLogsText}>Initializing isolated environment...</Text>
+                  </View>
+                }
+              />
+            </View>
+          )}
 
           {!isRunning && (
-            <View style={styles.confidenceSection}>
+            <View style={[styles.confidenceSection, { marginTop: showLogs ? 16 : 8 }]}>
               <View style={styles.confidenceRow}>
-                <Text style={styles.confidenceLabel}>Confidence Score</Text>
-                <Badge label="98.4%" variant="high-impact" />
+                <Text style={styles.confidenceLabel}>AI Test Accuracy</Text>
+                <Badge label="High Accuracy" variant="high-impact" />
               </View>
               <View style={styles.progressBarTrack}>
                 <View style={[styles.progressBarFill, { width: '98.4%' }]} />
@@ -167,8 +187,8 @@ export default function SimulationScreen({ route, navigation }) {
             {/* Current State (Before) */}
             <Card variant="glass" style={styles.beforePanel}>
               <View style={styles.stateHeader}>
-                <Text style={styles.stateTitle}>Current Model</Text>
-                <Badge label="BASELINE" variant="neutral" />
+                <Text style={styles.stateTitle}>Before Change</Text>
+                <Badge label="CURRENT" variant="neutral" />
               </View>
               
               <View style={styles.metricList}>
@@ -177,15 +197,15 @@ export default function SimulationScreen({ route, navigation }) {
                   <Text style={styles.metricVal}>Rs. {simulationResult.beforeState.baseDeliveryFee}</Text>
                 </View>
                 <View style={styles.metricRow}>
-                  <Text style={styles.metricLabel}>Long Dist.</Text>
+                  <Text style={styles.metricLabel}>Long Distance Surcharge</Text>
                   <Text style={styles.metricVal}>Rs. {simulationResult.beforeState.longDistanceSurcharge}</Text>
                 </View>
                 <View style={styles.metricRow}>
-                  <Text style={styles.metricLabel}>Peak Hour</Text>
+                  <Text style={styles.metricLabel}>Peak Hour Surcharge</Text>
                   <Text style={styles.metricVal}>Rs. {simulationResult.beforeState.peakHourSurcharge}</Text>
                 </View>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Total Est.</Text>
+                  <Text style={styles.totalLabel}>Estimated Price</Text>
                   <Text style={styles.totalVal}>Rs. {totalBefore}</Text>
                 </View>
               </View>
@@ -196,8 +216,8 @@ export default function SimulationScreen({ route, navigation }) {
               <View style={styles.glowOrb} />
               
               <View style={styles.stateHeader}>
-                <Text style={[styles.stateTitle, { color: Colors.primary }]}>Simulated Model</Text>
-                <Badge label="OPTIMIZED" variant="success" icon="sparkles" />
+                <Text style={[styles.stateTitle, { color: Colors.primary }]}>After Change</Text>
+                <Badge label="NEW" variant="success" icon="sparkles" />
               </View>
               
               <View style={styles.metricList}>
@@ -206,7 +226,7 @@ export default function SimulationScreen({ route, navigation }) {
                   <Text style={styles.metricVal}>Rs. {simulationResult.afterState.baseDeliveryFee}</Text>
                 </View>
                 <View style={styles.metricRow}>
-                  <Text style={styles.metricLabel}>Long Dist.</Text>
+                  <Text style={styles.metricLabel}>Long Distance Surcharge</Text>
                   <View style={{flexDirection: 'row', alignItems: 'center'}}>
                     {simulationResult.afterState.longDistanceSurcharge > simulationResult.beforeState.longDistanceSurcharge && (
                       <Ionicons name="trending-up" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
@@ -220,7 +240,7 @@ export default function SimulationScreen({ route, navigation }) {
                   </View>
                 </View>
                 <View style={styles.metricRow}>
-                  <Text style={styles.metricLabel}>Peak Hour</Text>
+                  <Text style={styles.metricLabel}>Peak Hour Surcharge</Text>
                   <View style={{flexDirection: 'row', alignItems: 'center'}}>
                     {simulationResult.afterState.peakHourSurcharge > simulationResult.beforeState.peakHourSurcharge && (
                       <Ionicons name="trending-up" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
@@ -234,7 +254,7 @@ export default function SimulationScreen({ route, navigation }) {
                   </View>
                 </View>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Total Est.</Text>
+                  <Text style={styles.totalLabel}>Estimated Price</Text>
                   <Text style={[styles.totalVal, { color: Colors.primary }]}>Rs. {totalAfter}</Text>
                 </View>
               </View>
@@ -248,13 +268,13 @@ export default function SimulationScreen({ route, navigation }) {
           <Card variant="glass" style={styles.impactSummaryPanel}>
             <View style={styles.impactHeader}>
               <View style={styles.impactIconWrap}>
-                <Ionicons name="analytics" size={24} color="#b9c7e0" />
+                <Ionicons name="analytics" size={24} color={Colors.secondary} />
               </View>
               <View style={styles.impactTextWrap}>
-                <Text style={styles.impactTitle}>Projected Margin Recovery</Text>
+                <Text style={styles.impactTitle}>Margin Improvement</Text>
                 <View style={styles.impactValueRow}>
                   <Text style={styles.impactValue}>+{((variance / totalBefore) * 100).toFixed(1)}%</Text>
-                  <Ionicons name="arrow-up" size={20} color="#81c995" />
+                  <Ionicons name="arrow-up" size={20} color={Colors.successBright} />
                 </View>
               </View>
             </View>
@@ -262,17 +282,17 @@ export default function SimulationScreen({ route, navigation }) {
             <View style={styles.actionButtonsRow}>
               <View style={{ flex: 1 }}>
                 <Button
-                  label="Discard"
+                  label="Cancel"
                   variant="outline"
                   onPress={() => navigation.goBack()}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <Button
-                  label="Deploy Model"
+                  label="Apply New Prices"
                   variant="primary"
                   onPress={handleApproveAndDeploy}
-                  icon="rocket"
+                  icon="checkmark-circle"
                 />
               </View>
             </View>
@@ -346,15 +366,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  panelHeaderRowToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   panelTitle: {
     color: Colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
   consoleCard: {
-    backgroundColor: '#0e0e10',
+    backgroundColor: Colors.surfaceContainerLowest,
     borderWidth: 1,
-    borderColor: 'rgba(144, 144, 151, 0.2)',
+    borderColor: Colors.surfaceBorderSubtle,
     borderRadius: 8,
     padding: Spacing.sm,
     minHeight: 120,
@@ -398,7 +423,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(144, 144, 151, 0.2)',
+    borderTopColor: Colors.surfaceBorderSubtle,
   },
   confidenceRow: {
     flexDirection: 'row',
@@ -444,7 +469,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(190, 198, 224, 0.08)',
+    backgroundColor: Colors.primarySubtle,
   },
   stateHeader: {
     flexDirection: 'row',
@@ -466,7 +491,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(144, 144, 151, 0.2)',
+    borderBottomColor: Colors.surfaceBorderSubtle,
     paddingBottom: Spacing.sm,
     marginBottom: Spacing.sm,
   },
@@ -476,8 +501,8 @@ const styles = StyleSheet.create({
   },
   metricVal: {
     color: Colors.textPrimary,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 14,
+    fontWeight: '600',
   },
   totalRow: {
     flexDirection: 'row',
@@ -511,7 +536,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: Colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: 'rgba(144, 144, 151, 0.2)',
+    borderColor: Colors.surfaceBorderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -529,7 +554,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   impactValue: {
-    color: '#81c995',
+    color: Colors.successBright,
     fontSize: 24,
     fontWeight: '700',
     marginRight: 4,

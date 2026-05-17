@@ -12,14 +12,14 @@ export default function ExportScreen({ navigation }) {
 
   const triggerDownload = (fileName, docType) => {
     setDownloadingFile(fileName);
-    setDownloadStatus('Preparing Document Structure...');
+    setDownloadStatus('Creating document structure...');
 
     setTimeout(() => {
-      setDownloadStatus('Compiling Telemetry Metadata...');
+      setDownloadStatus('Gathering decision logs...');
     }, 600);
 
     setTimeout(() => {
-      setDownloadStatus('Encrypting & Packaging Rules...');
+      setDownloadStatus('Finishing up...');
     }, 1200);
 
     setTimeout(() => {
@@ -35,16 +35,16 @@ export default function ExportScreen({ navigation }) {
         
         {/* Stage Header */}
         <View style={styles.stageIndicatorRow}>
-          <Text style={styles.stageTitle}>Registry Deployed → Trace Diagnostics → </Text>
-          <Text style={styles.stageTitleActive}>Documentation Export</Text>
+          <Text style={styles.stageTitle}>Prices Updated → Business Safe → </Text>
+          <Text style={styles.stageTitleActive}>Export Reports</Text>
         </View>
 
         {/* Header Brief */}
         <View style={styles.exportHeaderCard}>
           <Ionicons name="cloud-download-outline" size={24} color={Colors.primary} style={{ marginBottom: 8 }} />
-          <Text style={styles.exportHeaderTitle}>Administrative Report Exports</Text>
+          <Text style={styles.exportHeaderTitle}>Download Business Reports</Text>
           <Text style={styles.exportHeaderSubtitle}>
-            Compile and compile authenticated document files representing the optimized surcharge policies and agent trace execution streams.
+            Download your pricing reports, logs, and decisions to save them locally.
           </Text>
         </View>
 
@@ -52,14 +52,14 @@ export default function ExportScreen({ navigation }) {
         {downloadingFile && (
           <View style={styles.overlayCard}>
             <ActivityIndicator size="large" color={Colors.primary} style={{ marginBottom: 12 }} />
-            <Text style={styles.overlayTitle}>Compiling Ledger File</Text>
+            <Text style={styles.overlayTitle}>Preparing File...</Text>
             <Text style={styles.overlayText}>{downloadingFile}</Text>
             <Text style={styles.overlayStatus}>{downloadStatus}</Text>
           </View>
         )}
 
         {/* Files Grid list */}
-        <Text style={styles.sectionHeader}>Available Assets for Export</Text>
+        <Text style={styles.sectionHeader}>Available Documents</Text>
 
         {/* PDF Option */}
         <TouchableOpacity 
@@ -71,8 +71,8 @@ export default function ExportScreen({ navigation }) {
             <Ionicons name="document-text" size={24} color={Colors.error} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.fileTitle}>Pricing Surcharge Executive Brief</Text>
-            <Text style={styles.fileMeta}>Format: PDF • Contains Pricing Compare & Surcharges</Text>
+            <Text style={styles.fileTitle}>Pricing Surcharge Report</Text>
+            <Text style={styles.fileMeta}>Format: PDF • Contains Pricing Differences & Surcharges</Text>
           </View>
           <Ionicons name="download-outline" size={20} color={Colors.onSurfaceVariant} />
         </TouchableOpacity>
@@ -87,8 +87,8 @@ export default function ExportScreen({ navigation }) {
             <Ionicons name="code-working" size={24} color={Colors.primary} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.fileTitle}>Agent Cognitive Reasoning Trace</Text>
-            <Text style={styles.fileMeta}>Format: JSON • Steps, Timelines & Telemetry Logs</Text>
+            <Text style={styles.fileTitle}>AI Decision Step Log</Text>
+            <Text style={styles.fileMeta}>Format: JSON • Contains AI Steps & Timeline Logs</Text>
           </View>
           <Ionicons name="download-outline" size={20} color={Colors.onSurfaceVariant} />
         </TouchableOpacity>
@@ -103,8 +103,8 @@ export default function ExportScreen({ navigation }) {
             <Ionicons name="analytics" size={24} color={Colors.success} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.fileTitle}>Ingested Operational Signals Ledger</Text>
-            <Text style={styles.fileMeta}>Format: CSV • Fact Signals & Relevance Indices</Text>
+            <Text style={styles.fileTitle}>Extracted News Signals</Text>
+            <Text style={styles.fileMeta}>Format: CSV • Fact Signals & Relevance Scores</Text>
           </View>
           <Ionicons name="download-outline" size={20} color={Colors.onSurfaceVariant} />
         </TouchableOpacity>
@@ -115,9 +115,8 @@ export default function ExportScreen({ navigation }) {
           onPress={() => navigation.navigate('Home')}
         >
           <Ionicons name="home" size={20} color={Colors.onPrimary} style={{ marginRight: 8 }} />
-          <Text style={styles.primaryButtonText}>Return to Command Center</Text>
+          <Text style={styles.primaryButtonText}>Return to Dashboard</Text>
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -224,7 +223,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   overlayCard: {
-    backgroundColor: 'rgba(26, 28, 30, 0.95)',
+    backgroundColor: Colors.modalSurface,
     borderWidth: 1,
     borderColor: Colors.primary,
     borderRadius: 12,

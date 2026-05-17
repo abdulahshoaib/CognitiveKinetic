@@ -53,9 +53,9 @@ export default function InsightsScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <Header
-        title="Insight & Impact Report"
-        subtitle="Executive summary of extracted intelligence and projected business impact."
-        rightComponent={<Badge label="Analysis Complete" variant="success" icon="checkmark-circle" />}
+        title="What This Means"
+        subtitle="A clear summary of what we found and how it affects your business."
+        rightComponent={<Badge label="Finished" variant="success" icon="checkmark-circle" />}
       />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -67,9 +67,9 @@ export default function InsightsScreen({ navigation }) {
             <View style={styles.coreInsightHeader}>
               <View style={styles.titleContainer}>
                 <Ionicons name="bulb" size={20} color={Colors.accent} style={styles.titleIcon} />
-                <Text style={styles.cardTitle}>Core Insight</Text>
+                <Text style={styles.cardTitle}>Main Conclusion</Text>
               </View>
-              <Badge label="Confidence 94%" variant="outline" />
+              <Badge label="Highly Accurate" variant="outline" />
             </View>
             <Text style={styles.coreInsightDescription}>
               {insights[0].description}
@@ -81,8 +81,8 @@ export default function InsightsScreen({ navigation }) {
         <Card variant="glass" style={{ marginBottom: Spacing.md }}>
           <View style={styles.cardHeader}>
             <View style={styles.titleContainer}>
-              <Ionicons name="radar-outline" size={20} color={Colors.tertiary} style={styles.titleIcon} />
-              <Text style={styles.cardTitle}>Extracted Signals</Text>
+              <Ionicons name="eye-outline" size={20} color={Colors.tertiary} style={styles.titleIcon} />
+              <Text style={styles.cardTitle}>Discovered Facts</Text>
             </View>
           </View>
           
@@ -91,8 +91,8 @@ export default function InsightsScreen({ navigation }) {
               {signals.map((sig, index) => (
                 <View key={sig.id} style={[styles.signalItem, index < signals.length - 1 && styles.signalItemBorder]}>
                   <Ionicons 
-                    name={sig.severity === 'high' ? 'trending-up' : sig.severity === 'medium' ? 'warning' : 'megaphone'} 
-                    size={18} 
+                    name={sig.severity === 'high' ? 'arrow-up-circle' : sig.severity === 'medium' ? 'warning' : 'information-circle'} 
+                    size={20} 
                     color={getSeverityColor(sig.severity)} 
                     style={styles.signalIcon}
                   />
@@ -105,7 +105,7 @@ export default function InsightsScreen({ navigation }) {
             </View>
           ) : (
             <View style={styles.emptySubCard}>
-              <Text style={styles.emptySubCardText}>No metric signals parsed from input.</Text>
+              <Text style={styles.emptySubCardText}>No custom facts found in this update.</Text>
             </View>
           )}
         </Card>
@@ -115,19 +115,30 @@ export default function InsightsScreen({ navigation }) {
           <View style={styles.cardHeaderBorderless}>
             <View style={styles.titleContainer}>
               <Ionicons name="locate-outline" size={20} color={Colors.secondary} style={styles.titleIcon} />
-              <Text style={styles.cardTitle}>Profile Relevance</Text>
+              <Text style={styles.cardTitle}>Relevance to Your Business</Text>
+            </View>
+          </View>
+
+          {/* Visual Progress/Match Meter */}
+          <View style={styles.matchMeterContainer}>
+            <View style={styles.matchMeterRow}>
+              <Text style={styles.matchMeterText}>Relevance Match</Text>
+              <Text style={styles.matchMeterValue}>{relevanceScore}%</Text>
+            </View>
+            <View style={styles.matchMeterTrack}>
+              <View style={[styles.matchMeterFill, { width: `${relevanceScore}%` }]} />
             </View>
           </View>
           
           <Text style={styles.relevanceLabel}>
-            Alignment with active operational profile: <Text style={styles.relevancePrimary}>Q3 Margin Protection</Text>
+            Comparing against: <Text style={styles.relevancePrimary}>Your Saved Business Profile</Text>
           </Text>
           
           <View style={styles.relevanceSummaryRow}>
             <Text style={styles.relevanceStatusText}>
               {isRelevant 
-                ? 'Your current logistics contracts are insulated from the fuel price spike for another 45 days. This creates a temporary competitive moat against competitors exposed supply lines.' 
-                : 'Insufficient profile match. Context-to-action bypass triggered.'
+                ? 'Your current business profile matches this update closely. This is highly important to address.' 
+                : 'This news does not closely impact your saved business profile.'
               }
             </Text>
           </View>
@@ -135,7 +146,7 @@ export default function InsightsScreen({ navigation }) {
 
         {/* Action Button to Next Step */}
         <Button
-          label="Model Operational Impacts"
+          label="See Business Impact"
           icon="arrow-forward"
           variant="primary"
           onPress={() => navigation.navigate('Impact')}
@@ -225,7 +236,7 @@ const styles = StyleSheet.create({
   signalMetric: {
     color: Colors.textPrimary,
     fontSize: FontSizes.sm,
-    fontFamily: 'monospace',
+    fontWeight: '600',
     marginBottom: 4,
   },
   signalEvidence: {
@@ -237,6 +248,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginBottom: Spacing.md,
+    marginTop: Spacing.sm,
   },
   relevancePrimary: {
     color: Colors.textPrimary,
@@ -295,5 +307,40 @@ const styles = StyleSheet.create({
   emptySubCardText: {
     color: Colors.textSecondary,
     fontSize: FontSizes.sm,
+  },
+  matchMeterContainer: {
+    marginBottom: Spacing.md,
+    padding: Spacing.sm,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+  },
+  matchMeterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  matchMeterText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  },
+  matchMeterValue: {
+    color: Colors.accent,
+    fontSize: FontSizes.sm,
+    fontWeight: 'bold',
+  },
+  matchMeterTrack: {
+    height: 8,
+    backgroundColor: Colors.surfaceContainer,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  matchMeterFill: {
+    height: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 4,
   },
 });

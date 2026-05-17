@@ -85,17 +85,17 @@ export default function ProfileSettingsScreen({ navigation }) {
         iconColor = Colors.error;
         titleColor = Colors.error;
         borderColor = Colors.error;
-        bgColor = 'rgba(239, 68, 68, 0.1)';
+        bgColor = Colors.dangerSoft;
       } else if (isConservative) {
         iconColor = Colors.accent;
         titleColor = Colors.accent;
         borderColor = Colors.accent;
-        bgColor = 'rgba(59, 130, 246, 0.1)';
+        bgColor = Colors.accentSoft;
       } else {
         iconColor = Colors.accent;
         titleColor = Colors.accent;
         borderColor = Colors.accent;
-        bgColor = 'rgba(59, 130, 246, 0.1)';
+        bgColor = Colors.accentSoft;
       }
     }
 
