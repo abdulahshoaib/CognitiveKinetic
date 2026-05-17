@@ -10,7 +10,6 @@ const defaultPreferences = {
   motion: 'full', // full, reduced, minimal
   homeFocus: 'latest-insight', // latest-insight, current-goal, action-queue, progress-summary
   agentTransparency: 'summary-only', // hidden, summary-only, full-trace
-  density: 'cozy', // compact, cozy, spacious
 };
 
 const PreferencesContext = createContext();

@@ -31,7 +31,7 @@ const DEMO_SAMPLES = [
     icon: 'dollar-sign',
     title: 'New Transport Tax',
     tag: '5% Levy',
-    body: ' mandating a 5% additional tax on all inter-city commercial transport operators starting next quarter.',
+    body: 'mandating a 5% additional tax on all inter-city commercial transport operators starting next quarter.',
   },
   {
     icon: 'truck',
@@ -41,56 +41,17 @@ const DEMO_SAMPLES = [
   }
 ];
 
-const getDensityStyle = (density) => {
-  switch (density) {
-    case 'compact':
-      return {
-        padding: 12,
-        gap: 8,
-        fontSizeTitle: FontSizes.md,
-        fontSizeBody: FontSizes.xs,
-        cardPadding: 12,
-        cardMarginBottom: 10,
-        bannerPadding: 12,
-      };
-    case 'spacious':
-      return {
-        padding: 24,
-        gap: 20,
-        fontSizeTitle: FontSizes.xl,
-        fontSizeBody: FontSizes.md,
-        cardPadding: 20,
-        cardMarginBottom: 24,
-        bannerPadding: 22,
-      };
-    case 'cozy':
-    default:
-      return {
-        padding: 18,
-        gap: 14,
-        fontSizeTitle: FontSizes.lg,
-        fontSizeBody: FontSizes.sm,
-        cardPadding: 16,
-        cardMarginBottom: 16,
-        bannerPadding: 16,
-      };
-  }
-};
-
 export default function NewContentScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { user } = useAuth();
-  const { preferences, activeTheme } = usePreferences();
+  const { activeTheme } = usePreferences();
   const c = activeTheme.colors;
   const { feedItems, analyzeContent, addManualAnalysisItem } = useAnalysis();
   const [profile, setProfile] = useState(null);
   
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-
-  const density = preferences.density || 'cozy';
-  const ds = getDensityStyle(density);
 
   useEffect(() => {
     if (isFocused && user?.uid) {
@@ -148,38 +109,21 @@ export default function NewContentScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen scroll={true}>
-        {/* Banner highlighting active profile context */}
-        <View style={[styles.profileBanner, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: ds.bannerPadding, marginHorizontal: ds.padding, marginTop: ds.padding }]}>
-          <View style={styles.profileBannerHeader}>
-            <View style={styles.profileBannerTitleContainer}>
-              <Feather name="shield" size={16} color={c.accent} />
-              <Text style={[styles.profileBannerTitle, { color: c.textPrimary }]}>Active Business Context</Text>
-            </View>
-            <View style={styles.activePillContainer}>
-              <View style={[styles.activeDot, { backgroundColor: c.success }]} />
-              <Text style={[styles.activeText, { color: c.success }]}>Auto-Loaded</Text>
-            </View>
-          </View>
-          <View style={styles.profileBannerStatsRow}>
-            <View style={[styles.tagBadge, { backgroundColor: c.surfaceContainerHighest }]}>
-              <Text style={[styles.tagBadgeText, { color: c.textSecondary }]}>{profile.domain || 'Logistics'}</Text>
-            </View>
-            <View style={[styles.tagBadge, { backgroundColor: c.surfaceContainerHighest }]}>
-              <Text style={[styles.tagBadgeText, { color: c.textSecondary }]}>{profile.riskSensitivity || 'High'} Risk</Text>
+        {/* Header Display */}
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <Text style={[styles.title, { color: c.textPrimary, fontSize: FontSizes.xl }]}>
+                New Content
+              </Text>
+              <Text style={[styles.subtitle, { color: c.textSecondary, fontSize: FontSizes.sm }]}>
+                Ingest external news, policy updates, and market reports to evaluate against your saved profile.
+              </Text>
             </View>
           </View>
-          <Text style={[styles.profileBannerDesc, { color: c.textSecondary, fontSize: ds.fontSizeBody }]} numberOfLines={2}>
-            Incoming signals will be checked against <Text style={{ color: c.textPrimary, fontWeight: 'bold' }}>{profile.businessName}</Text> operating in <Text style={{ color: c.textPrimary }}>{profile.operatingLocations}</Text>.
-          </Text>
         </View>
 
-        <SectionHeader 
-          title="Manual Ingestion" 
-          subtitle="Paste market reports, policy mandates, or custom operational updates."
-          style={{ paddingHorizontal: ds.padding, marginTop: ds.padding }}
-        />
-
-        <View style={[styles.inputContainer, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, marginHorizontal: ds.padding, marginBottom: ds.padding }]}>
+        <View style={[styles.inputContainer, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
           <TextInput
             style={[styles.titleInput, { color: c.textPrimary, borderBottomColor: c.surfaceBorder }]}
             placeholder="Update Title or Source Headline (Optional)"
@@ -218,13 +162,13 @@ export default function NewContentScreen() {
         <SectionHeader 
           title="Sample Scenarios" 
           subtitle="Select a predefined signal to simulate immediate analysis."
-          style={{ paddingHorizontal: ds.padding }}
+          style={{ paddingHorizontal: 20, marginTop: 20 }}
         />
-        <View style={[styles.scenarioGrid, { paddingHorizontal: ds.padding, gap: ds.gap }]}>
+        <View style={styles.scenarioGrid}>
           {DEMO_SAMPLES.map((demo, idx) => (
             <TouchableOpacity 
               key={idx} 
-              style={[styles.scenarioCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: ds.cardPadding }]}
+              style={[styles.scenarioCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
               onPress={() => loadDemo(demo)}
             >
               <View style={styles.scenarioCardHeader}>
@@ -244,9 +188,9 @@ export default function NewContentScreen() {
         <SectionHeader 
           title="Recent Activity Feed" 
           subtitle="Ingested data points queued for agent analysis."
-          style={{ paddingHorizontal: ds.padding, marginTop: ds.padding * 1.5 }}
+          style={{ paddingHorizontal: 20, marginTop: 32 }}
         />
-        <View style={[styles.feedContainer, { paddingHorizontal: ds.padding, paddingBottom: 120 }]}>
+        <View style={styles.feedContainer}>
           {feedItems.slice(0, 4).map(item => (
             <ContentItemCard 
               key={item.id} 
@@ -264,65 +208,32 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  profileBanner: {
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 12,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 12,
   },
-  profileBannerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  profileBannerTitleContainer: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 14,
   },
-  profileBannerTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
+  headerText: {
+    flex: 1,
   },
-  activePillContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.2)',
-    backgroundColor: 'rgba(34, 197, 94, 0.05)',
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  activeText: {
-    fontSize: FontSizes.xs - 2,
+  title: {
     fontWeight: FontWeights.bold,
   },
-  profileBannerStatsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tagBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  tagBadgeText: {
-    fontSize: FontSizes.xs,
-    fontWeight: FontWeights.medium,
-  },
-  profileBannerDesc: {
-    lineHeight: 18,
+  subtitle: {
+    marginTop: 2,
+    lineHeight: FontSizes.sm * 1.4,
   },
   inputContainer: {
     borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   titleInput: {
     fontSize: FontSizes.md,
@@ -364,10 +275,13 @@ const styles = StyleSheet.create({
   },
   scenarioGrid: {
     flexDirection: 'column',
+    paddingHorizontal: 20,
+    gap: 12,
   },
   scenarioCard: {
     borderRadius: 12,
     borderWidth: 1,
+    padding: 16,
   },
   scenarioCardHeader: {
     flexDirection: 'row',
@@ -401,6 +315,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   feedContainer: {
+    paddingHorizontal: 20,
     gap: 12,
+    paddingBottom: 120,
   },
 });

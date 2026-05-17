@@ -24,45 +24,6 @@ import ThemeSelector from '../components/preferences/ThemeSelector';
 import ThemePreviewCard from '../components/preferences/ThemePreviewCard';
 import SettingRow from '../components/preferences/SettingRow';
 
-const getDensityStyle = (density) => {
-  switch (density) {
-    case 'compact':
-      return {
-        padding: 12,
-        gap: 8,
-        fontSizeTitle: FontSizes.lg,
-        fontSizeSubtitle: FontSizes.xs,
-        fontSizeBody: FontSizes.xs,
-        cardPadding: 12,
-        cardMarginBottom: 10,
-        headerPaddingTop: 16,
-      };
-    case 'spacious':
-      return {
-        padding: 24,
-        gap: 20,
-        fontSizeTitle: FontSizes.xxl,
-        fontSizeSubtitle: FontSizes.md,
-        fontSizeBody: FontSizes.md,
-        cardPadding: 24,
-        cardMarginBottom: 24,
-        headerPaddingTop: 36,
-      };
-    case 'cozy':
-    default:
-      return {
-        padding: 18,
-        gap: 14,
-        fontSizeTitle: FontSizes.xl,
-        fontSizeSubtitle: FontSizes.sm,
-        fontSizeBody: FontSizes.sm,
-        cardPadding: 16,
-        cardMarginBottom: 16,
-        headerPaddingTop: 28,
-      };
-  }
-};
-
 export default function ProfileSettingsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -82,9 +43,6 @@ export default function ProfileSettingsScreen() {
 
   const email = user?.email || '';
   const isDemo = !!user?.isAnonymous;
-
-  const density = preferences.density || 'cozy';
-  const ds = getDensityStyle(density);
 
   useEffect(() => {
     if (user?.uid) {
@@ -172,18 +130,18 @@ export default function ProfileSettingsScreen() {
     >
       <Screen scroll={false}>
         {/* Header Display */}
-        <View style={[styles.header, { paddingTop: ds.headerPaddingTop }]}>
+        <View style={styles.header}>
           <View style={styles.headerRow}>
             {activeTab === 'account' ? (
               <View style={[styles.avatar, { backgroundColor: c.accent }]}>
-                <Feather name="user" size={density === 'compact' ? 20 : 26} color={c.white} />
+                <Feather name="user" size={26} color={c.white} />
               </View>
             ) : null}
             <View style={styles.headerText}>
-              <Text style={[styles.title, { color: c.textPrimary, fontSize: ds.fontSizeTitle }]}>
+              <Text style={[styles.title, { color: c.textPrimary, fontSize: FontSizes.xl }]}>
                 {activeTab === 'account' ? (user?.displayName || 'User Account') : 'Settings'}
               </Text>
-              <Text style={[styles.subtitle, { color: c.textSecondary, fontSize: ds.fontSizeSubtitle }]}>
+              <Text style={[styles.subtitle, { color: c.textSecondary, fontSize: FontSizes.sm }]}>
                 {activeTab === 'account' ? (email || 'Demo session') : 'Tune your personal operating system.'}
               </Text>
             </View>
@@ -196,19 +154,19 @@ export default function ProfileSettingsScreen() {
             style={[styles.tab, activeTab === 'context' && { borderBottomColor: c.accent }]}
             onPress={() => setActiveTab('context')}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'context' ? c.textPrimary : c.textSecondary, fontSize: ds.fontSizeBody }]}>Business Context</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'context' ? c.textPrimary : c.textSecondary, fontSize: FontSizes.sm }]}>Business Context</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'personalization' && { borderBottomColor: c.accent }]}
             onPress={() => setActiveTab('personalization')}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'personalization' ? c.textPrimary : c.textSecondary, fontSize: ds.fontSizeBody }]}>Personalization</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'personalization' ? c.textPrimary : c.textSecondary, fontSize: FontSizes.sm }]}>Personalization</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'account' && { borderBottomColor: c.accent }]}
             onPress={() => setActiveTab('account')}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'account' ? c.textPrimary : c.textSecondary, fontSize: ds.fontSizeBody }]}>Account</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'account' ? c.textPrimary : c.textSecondary, fontSize: FontSizes.sm }]}>Account</Text>
           </TouchableOpacity>
         </View>
 
@@ -236,21 +194,6 @@ export default function ProfileSettingsScreen() {
                 <ThemeSelector 
                   selected={preferences.themeMode}
                   onSelect={(val) => updatePreference('themeMode', val)}
-                />
-              </SettingRow>
-
-              <SettingRow 
-                title="App Density" 
-                description="Adjust padding, layout scale, and spacing dynamically across the entire app."
-              >
-                <SegmentedControl 
-                  options={[
-                    { label: 'Compact', value: 'compact' },
-                    { label: 'Cozy', value: 'cozy' },
-                    { label: 'Spacious', value: 'spacious' }
-                  ]}
-                  selected={preferences.density || 'cozy'}
-                  onSelect={(val) => updatePreference('density', val)}
                 />
               </SettingRow>
 
@@ -320,8 +263,8 @@ export default function ProfileSettingsScreen() {
 
           {activeTab === 'account' && (
             <View style={styles.accountContainer}>
-              <Text style={[styles.sectionTitle, { color: c.textPrimary, fontSize: ds.fontSizeTitle - 2 }]}>Identity</Text>
-              <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: ds.cardPadding, marginBottom: ds.cardMarginBottom }]}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary, fontSize: FontSizes.lg }]}>Identity</Text>
+              <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: 16, marginBottom: 16 }]}>
                 <View style={styles.inputGroup}>
                   <Text style={[styles.label, { color: c.textSecondary }]}>Display name</Text>
                   <TextInput
@@ -349,15 +292,15 @@ export default function ProfileSettingsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={[styles.sectionTitle, { color: c.textPrimary, fontSize: ds.fontSizeTitle - 2 }]}>Security</Text>
-              <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: ds.cardPadding, marginBottom: ds.cardMarginBottom }]}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary, fontSize: FontSizes.lg }]}>Security</Text>
+              <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: 16, marginBottom: 16 }]}>
                 <View style={styles.actionRow}>
                   <View style={[styles.actionIcon, { backgroundColor: c.primarySubtle }]}>
                     <Feather name="key" size={18} color={c.primary} />
                   </View>
                   <View style={styles.actionText}>
                     <Text style={[styles.actionTitle, { color: c.textPrimary }]}>Change password</Text>
-                    <Text style={[styles.actionSubtitle, { color: c.textSecondary, fontSize: ds.fontSizeBody }]}>
+                    <Text style={[styles.actionSubtitle, { color: c.textSecondary, fontSize: FontSizes.sm }]}>
                       {isDemo ? 'Password changes are unavailable for demo sessions.' : 'Send a secure password reset link to your email.'}
                     </Text>
                   </View>
@@ -376,16 +319,16 @@ export default function ProfileSettingsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={[styles.sectionTitle, { color: c.textPrimary, fontSize: ds.fontSizeTitle - 2 }]}>Session Info</Text>
-              <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: ds.cardPadding, marginBottom: ds.cardMarginBottom }]}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary, fontSize: FontSizes.lg }]}>Session Info</Text>
+              <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, padding: 16, marginBottom: 16 }]}>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: c.textSecondary, fontSize: ds.fontSizeBody }]}>Account Type</Text>
-                  <Text style={[styles.detailValue, { color: c.textPrimary, fontSize: ds.fontSizeBody }]}>{isDemo ? 'Demo Session' : 'Registered Account'}</Text>
+                  <Text style={[styles.detailLabel, { color: c.textSecondary, fontSize: FontSizes.sm }]}>Account Type</Text>
+                  <Text style={[styles.detailValue, { color: c.textPrimary, fontSize: FontSizes.sm }]}>{isDemo ? 'Demo Session' : 'Registered Account'}</Text>
                 </View>
                 <View style={[styles.divider, { backgroundColor: c.surfaceBorder }]} />
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: c.textSecondary, fontSize: ds.fontSizeBody }]}>Email</Text>
-                  <Text style={[styles.detailValue, { color: c.textPrimary, fontSize: ds.fontSizeBody }]}>{email || 'Not connected'}</Text>
+                  <Text style={[styles.detailLabel, { color: c.textSecondary, fontSize: FontSizes.sm }]}>Email</Text>
+                  <Text style={[styles.detailValue, { color: c.textPrimary, fontSize: FontSizes.sm }]}>{email || 'Not connected'}</Text>
                 </View>
               </View>
 
@@ -407,6 +350,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
+    paddingTop: 28,
     paddingBottom: 12,
   },
   headerRow: {
