@@ -42,7 +42,5 @@ yarn-error.*
 /android
 
 # Stitch previews and mockups
-stitch_onboarding.html
-dashboard.html
-dashboard.png
+stitch/
 
