@@ -1,444 +1,240 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { FontSizes, FontWeights } from '../constants/typography';
-import { Spacing, BorderRadius } from '../constants/layout';
+import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { saveProfile, getProfile } from '../services/profileService';
-import Colors from '../constants/colors';
+import { usePreferences } from '../context/PreferencesContext';
+import { getProfile, saveProfile } from '../services/profileService';
+import { FontSizes, FontWeights } from '../constants/typography';
+import Screen from '../components/common/Screen';
+import ProfileForm from '../components/common/ProfileForm';
+import SegmentedControl from '../components/preferences/SegmentedControl';
+import ThemePreviewCard from '../components/preferences/ThemePreviewCard';
+import SettingRow from '../components/preferences/SettingRow';
 
-export default function ProfileSettingsScreen({ navigation }) {
+export default function ProfileSettingsScreen() {
+  const navigation = useNavigation();
   const { user } = useAuth();
+  const { preferences, updatePreference, activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   
-  // Profile Form State
-  const [businessName, setBusinessName] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [locations, setLocations] = useState('');
-  const [customers, setCustomers] = useState('');
-  const [goals, setGoals] = useState('');
-  const [concerns, setConcerns] = useState('');
-  const [risks, setRisks] = useState('');
-  const [riskSensitivity, setRiskSensitivity] = useState('balanced');
-  
-  const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('context'); // 'context' | 'personalization'
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        const loadedProfile = await getProfile(user.uid);
-        if (loadedProfile) {
-          setBusinessName(loadedProfile.businessName || '');
-          setIndustry(loadedProfile.industry || '');
-          setLocations(loadedProfile.locations || '');
-          setCustomers(loadedProfile.customers || '');
-          setGoals(loadedProfile.goals || '');
-          setConcerns(loadedProfile.concerns || '');
-          setRisks(loadedProfile.risks || '');
-          setRiskSensitivity(loadedProfile.riskSensitivity || 'balanced');
-        }
-      } catch (error) {
-        console.error('Failed to fetch profile in settings:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProfile();
-  }, [user]);
+    if (user?.uid) {
+      loadProfile();
+    }
+  }, [user?.uid]);
 
-  const handleSave = async () => {
-    if (!user) return;
+  const loadProfile = async () => {
+    try {
+      const activeProfile = await getProfile(user.uid);
+      setProfile(activeProfile || {});
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSaveProfile = async (profileData) => {
+    if (!user?.uid) return;
+
     setIsSaving(true);
     try {
-      await saveProfile(user.uid, {
-        businessName,
-        industry,
-        locations,
-        customers,
-        goals,
-        concerns,
-        risks,
-        riskSensitivity,
-      });
-      navigation.goBack(); // Return to previous screen
-    } catch (error) {
-      console.error('Failed to save profile:', error);
+      await saveProfile(user.uid, profileData);
+      Alert.alert('Success', 'Profile updated successfully.');
+      navigation.goBack();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to update profile.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const OptionCard = ({ value, icon, title, description }) => {
-    const isSelected = riskSensitivity === value;
-    const isAggressive = value === 'aggressive';
-    const isConservative = value === 'conservative';
-
-    let iconColor = Colors.textSecondary;
-    let titleColor = Colors.textPrimary;
-    let borderColor = Colors.surfaceBorder;
-    let bgColor = Colors.surfaceContainerLow;
-
-    if (isSelected) {
-      if (isAggressive) {
-        iconColor = Colors.error;
-        titleColor = Colors.error;
-        borderColor = Colors.error;
-        bgColor = Colors.dangerSoft;
-      } else if (isConservative) {
-        iconColor = Colors.accent;
-        titleColor = Colors.accent;
-        borderColor = Colors.accent;
-        bgColor = Colors.accentSoft;
-      } else {
-        iconColor = Colors.accent;
-        titleColor = Colors.accent;
-        borderColor = Colors.accent;
-        bgColor = Colors.accentSoft;
-      }
-    }
-
-    return (
-      <TouchableOpacity 
-        style={[styles.radioCard, { borderColor, backgroundColor: bgColor }]}
-        onPress={() => setRiskSensitivity(value)}
-      >
-        <Ionicons name={icon} size={24} color={iconColor} style={{ marginBottom: 8 }} />
-        <Text style={[styles.radioTitle, { color: titleColor }]}>{title}</Text>
-        <Text style={styles.radioDesc}>{description}</Text>
-      </TouchableOpacity>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <View style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={Colors.accent} />
-      </View>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
-          {/* Title Area */}
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>Update Profile Settings</Text>
-            <Text style={styles.subtitle}>
-              Adjust the foundational parameters for your agent. These parameters are used automatically during content ingestion to evaluate operational impact.
-            </Text>
-          </View>
+    <KeyboardAvoidingView 
+      style={[styles.keyboardView, { backgroundColor: c.background }]} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <Screen scroll={false}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: c.textPrimary }]}>Settings</Text>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+            Tune your personal operating system.
+          </Text>
+        </View>
 
-          {/* Section: Identity & Scope */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Identity & Scope</Text>
-            </View>
-            
-            <View style={styles.row}>
-              <View style={styles.inputContainerHalf}>
-                <Text style={styles.label}>BUSINESS ENTITY NAME</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="business-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
-                  <TextInput 
-                    style={styles.input} 
-                    placeholder="e.g., Nexus Dynamics Corp" 
-                    placeholderTextColor={Colors.outlineVariant}
-                    value={businessName}
-                    onChangeText={setBusinessName}
-                  />
-                </View>
-              </View>
+        {/* Tab Selector */}
+        <View style={[styles.tabContainer, { borderBottomColor: c.surfaceBorderSubtle }]}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'context' && { borderBottomColor: c.accent }]}
+            onPress={() => setActiveTab('context')}
+          >
+            <Text style={[styles.tabText, { color: activeTab === 'context' ? c.textPrimary : c.textSecondary }]}>Business Context</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'personalization' && { borderBottomColor: c.accent }]}
+            onPress={() => setActiveTab('personalization')}
+          >
+            <Text style={[styles.tabText, { color: activeTab === 'personalization' ? c.textPrimary : c.textSecondary }]}>Personalization</Text>
+          </TouchableOpacity>
+        </View>
 
-              <View style={styles.inputContainerHalf}>
-                <Text style={styles.label}>PRIMARY INDUSTRY</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="construct-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
-                  <TextInput 
-                    style={styles.input} 
-                    placeholder="e.g., Manufacturing" 
-                    placeholderTextColor={Colors.outlineVariant}
-                    value={industry}
-                    onChangeText={setIndustry}
-                  />
-                </View>
-              </View>
-            </View>
+        <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollPadding}>
+          {activeTab === 'context' ? (
+            profile ? (
+              <ProfileForm 
+                initialData={profile} 
+                onSave={handleSaveProfile} 
+                isSaving={isSaving} 
+              />
+            ) : null
+          ) : (
+            <View style={styles.personalizationContainer}>
+              <ThemePreviewCard />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>OPERATING JURISDICTIONS</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="globe-outline" size={18} color={Colors.textSecondary} style={[styles.inputIcon, { top: 12, transform: [{ translateY: 0 }] }]} />
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholder="List key regions or countries of operation..." 
-                  placeholderTextColor={Colors.outlineVariant}
-                  multiline
-                  numberOfLines={2}
-                  value={locations}
-                  onChangeText={setLocations}
+              <SettingRow 
+                title="Theme Mode" 
+                description="Choose the visual aesthetic of your workspace. Changes here require an app restart to apply to all screens fully."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Ember Carbon', value: 'ember-carbon' },
+                    { label: 'Graphite Copper', value: 'graphite-copper' },
+                    { label: 'Plum Clay', value: 'plum-clay' }
+                  ]}
+                  selected={preferences.themeMode}
+                  onSelect={(val) => updatePreference('themeMode', val)}
                 />
-              </View>
-            </View>
-          </View>
+              </SettingRow>
 
-          {/* Section: Strategic Parameters */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Strategic Parameters</Text>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>TARGET DEMOGRAPHIC</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="people-outline" size={18} color={Colors.textSecondary} style={[styles.inputIcon, { top: 12, transform: [{ translateY: 0 }] }]} />
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholder="Define primary customer segments or B2B profiles..." 
-                  placeholderTextColor={Colors.outlineVariant}
-                  multiline
-                  numberOfLines={2}
-                  value={customers}
-                  onChangeText={setCustomers}
+              <SettingRow 
+                title="App Density" 
+                description="Control how compact lists and cards appear."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Comfortable', value: 'comfortable' },
+                    { label: 'Compact', value: 'compact' },
+                    { label: 'Dense', value: 'data-dense' }
+                  ]}
+                  selected={preferences.density}
+                  onSelect={(val) => updatePreference('density', val)}
                 />
-              </View>
-            </View>
+              </SettingRow>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>PRIMARY OBJECTIVES</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="flag-outline" size={18} color={Colors.textSecondary} style={[styles.inputIcon, { top: 12, transform: [{ translateY: 0 }] }]} />
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholder="Detail the immediate and long-term goals for agent optimization..." 
-                  placeholderTextColor={Colors.outlineVariant}
-                  multiline
-                  numberOfLines={3}
-                  value={goals}
-                  onChangeText={setGoals}
+              <SettingRow 
+                title="Insight Style" 
+                description="How agent insights are presented to you."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Simple', value: 'simple' },
+                    { label: 'Detailed', value: 'detailed' },
+                    { label: 'Technical', value: 'technical' }
+                  ]}
+                  selected={preferences.insightStyle}
+                  onSelect={(val) => updatePreference('insightStyle', val)}
                 />
-              </View>
-            </View>
-          </View>
+              </SettingRow>
 
-          {/* Section: Risk & Constraints */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Risk & Constraints</Text>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>OPERATIONAL CONCERNS</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="warning-outline" size={18} color={Colors.textSecondary} style={[styles.inputIcon, { top: 12, transform: [{ translateY: 0 }] }]} />
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholder="Identify immediate operational hurdles or bottlenecks..." 
-                  placeholderTextColor={Colors.outlineVariant}
-                  multiline
-                  numberOfLines={2}
-                  value={concerns}
-                  onChangeText={setConcerns}
+              <SettingRow 
+                title="Motion & Feedback" 
+                description="Control the speed and presence of UI animations."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Full', value: 'full' },
+                    { label: 'Reduced', value: 'reduced' },
+                    { label: 'Minimal', value: 'minimal' }
+                  ]}
+                  selected={preferences.motion}
+                  onSelect={(val) => updatePreference('motion', val)}
                 />
-              </View>
+              </SettingRow>
+              
+              <SettingRow 
+                title="Home Screen Focus" 
+                description="What the dashboard prioritizes on load."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Latest Insight', value: 'latest-insight' },
+                    { label: 'Action Queue', value: 'action-queue' },
+                    { label: 'Progress', value: 'progress-summary' }
+                  ]}
+                  selected={preferences.homeFocus}
+                  onSelect={(val) => updatePreference('homeFocus', val)}
+                />
+              </SettingRow>
+              
+              <SettingRow 
+                title="Agent Transparency" 
+                description="How much background processing is visible."
+              >
+                <SegmentedControl 
+                  options={[
+                    { label: 'Hidden', value: 'hidden' },
+                    { label: 'Summary Only', value: 'summary-only' },
+                    { label: 'Full Trace', value: 'full-trace' }
+                  ]}
+                  selected={preferences.agentTransparency}
+                  onSelect={(val) => updatePreference('agentTransparency', val)}
+                />
+              </SettingRow>
+              
+              <View style={{height: 40}} />
             </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>CRITICAL COSTS & RISKS</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="trending-down-outline" size={18} color={Colors.textSecondary} style={[styles.inputIcon, { top: 12, transform: [{ translateY: 0 }] }]} />
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholder="Outline specific financial or compliance risks..." 
-                  placeholderTextColor={Colors.outlineVariant}
-                  multiline
-                  numberOfLines={2}
-                  value={risks}
-                  onChangeText={setRisks}
-                />
-              </View>
-            </View>
-
-            <View style={[styles.inputContainer, { marginTop: Spacing.sm }]}>
-              <Text style={styles.label}>AGENT AUTONOMY / RISK THRESHOLD</Text>
-              <View style={styles.radioGroup}>
-                <OptionCard 
-                  value="conservative" 
-                  icon="shield-checkmark-outline" 
-                  title="Conservative" 
-                  description="Requires explicit approval for execution." 
-                />
-                <OptionCard 
-                  value="balanced" 
-                  icon="scale-outline" 
-                  title="Balanced" 
-                  description="Autonomous within established parameters." 
-                />
-                <OptionCard 
-                  value="aggressive" 
-                  icon="flash-outline" 
-                  title="Aggressive" 
-                  description="Prioritizes speed; auto-executes high-variance tasks." 
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Action Area */}
-          <View style={styles.footer}>
-            <TouchableOpacity 
-              style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} 
-              onPress={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator color={Colors.textPrimary} />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={20} color={Colors.textPrimary} style={{ marginRight: 8 }} />
-                  <Text style={styles.saveBtnText}>Update Settings</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-
+          )}
         </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  keyboardView: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
-  scrollContent: {
-    padding: Spacing.xl,
-    paddingBottom: 100,
-  },
-  titleSection: {
-    marginBottom: Spacing.xl,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 16,
   },
   title: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes['2xl'],
+    fontSize: FontSizes.xl,
     fontWeight: FontWeights.bold,
-    marginBottom: Spacing.sm,
-    letterSpacing: -1,
+    marginBottom: 8,
   },
   subtitle: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.base,
-    lineHeight: 24,
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
   },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  sectionHeader: {
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.surfaceBorder,
-    paddingBottom: Spacing.xs,
-    marginBottom: Spacing.md,
+    marginBottom: 16,
   },
-  sectionTitle: {
-    color: Colors.accent,
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.semibold,
+  tab: {
+    paddingVertical: 12,
+    marginRight: 24,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+  tabText: {
+    fontSize: FontSizes.md,
+    fontWeight: '600',
   },
-  inputContainer: {
-    marginBottom: Spacing.md,
-  },
-  inputContainerHalf: {
-    width: '48%',
-  },
-  label: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: FontWeights.semibold,
-    marginBottom: Spacing.xs,
-    letterSpacing: 1,
-  },
-  inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: Spacing.md,
-    top: '50%',
-    transform: [{ translateY: -9 }],
-    zIndex: 1,
-  },
-  input: {
-    backgroundColor: Colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
-    borderRadius: BorderRadius.md,
-    color: Colors.textPrimary,
-    fontSize: FontSizes.base,
-    paddingVertical: Spacing.sm + 2,
-    paddingRight: Spacing.sm,
-    paddingLeft: 40,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  radioGroup: {
-    flexDirection: 'column',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  radioCard: {
+  scrollContent: {
     flex: 1,
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
   },
-  radioTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    marginBottom: Spacing.xs,
+  scrollPadding: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  radioDesc: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  footer: {
-    marginTop: Spacing.xl,
-    paddingTop: Spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: Colors.surfaceBorder,
-    alignItems: 'flex-end',
-  },
-  saveBtn: {
-    backgroundColor: Colors.accent,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm + 4,
-    borderRadius: BorderRadius.md,
-    elevation: 3,
-  },
-  saveBtnText: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
+  personalizationContainer: {
+    flex: 1,
   }
 });

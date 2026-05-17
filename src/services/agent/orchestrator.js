@@ -5,7 +5,15 @@
  */
 
 export async function runPipeline(rawContent, profile) {
-  const contentLower = rawContent.toLowerCase();
+  const toText = (value) => {
+    if (Array.isArray(value)) return value.filter(Boolean).join(', ');
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return Object.values(value).filter(Boolean).join(', ');
+    return String(value);
+  };
+
+  const contentText = toText(rawContent);
+  const contentLower = contentText.toLowerCase();
   
   // Attempt to match input to a known feed item ID for status updates
   let feedItemId = null;
@@ -28,8 +36,8 @@ export async function runPipeline(rawContent, profile) {
     riskSensitivity: 'balanced'
   };
 
-  const concernsText = activeProfile.concerns || activeProfile.goals || '';
-  const locationsText = activeProfile.locations || '';
+  const concernsText = toText(activeProfile.concerns || activeProfile.goals);
+  const locationsText = toText(activeProfile.locations);
   const concernsList = concernsText.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
   const locationsList = locationsText.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
 
@@ -44,7 +52,7 @@ export async function runPipeline(rawContent, profile) {
   const signals = [];
   
   // Check for numbers and percentages
-  const pctMatches = rawContent.match(/\d+%/g);
+  const pctMatches = contentText.match(/\d+%/g);
   if (pctMatches) {
     pctMatches.forEach(metric => {
       signals.push({
@@ -107,7 +115,7 @@ export async function runPipeline(rawContent, profile) {
     addTrace('Content relevance score is below 30%. Flagged as low relevance. Insights skipped.', 'relevance', 'warning');
     return {
       feedItemId,
-      rawContent,
+      rawContent: contentText,
       relevanceScore,
       isRelevant: false,
       signals: [{
@@ -299,7 +307,7 @@ export async function runPipeline(rawContent, profile) {
 
   return {
     feedItemId,
-    rawContent,
+    rawContent: contentText,
     relevanceScore,
     isRelevant: true,
     signals,

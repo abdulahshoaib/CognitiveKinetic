@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -71,102 +71,108 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.logoBox}>
-            <MaterialIcons name="memory" size={32} color={Colors.accent} />
-          </View>
-          <Text style={styles.title}>Cognitive Kinetic</Text>
-          <Text style={styles.subtitle}>Log in to your workspace</Text>
-        </View>
-        
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>WORKSPACE EMAIL</Text>
-            <View style={styles.inputWrapper}>
-              <MaterialIcons name="mail" size={20} color={Colors.slateText} style={styles.inputIcon} />
-              <TextInput 
-                style={styles.input} 
-                placeholder="name@company.com" 
-                placeholderTextColor={Colors.placeholder}
-                value={email} 
-                onChangeText={setEmail} 
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <View style={styles.logoBox}>
+                <MaterialIcons name="memory" size={32} color={Colors.accent} />
+              </View>
+              <Text style={styles.title}>Cognitive Kinetic</Text>
+              <Text style={styles.subtitle}>Log in to your workspace</Text>
             </View>
-          </View>
+            
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>WORKSPACE EMAIL</Text>
+                <View style={styles.inputWrapper}>
+                  <MaterialIcons name="mail" size={20} color={Colors.slateText} style={styles.inputIcon} />
+                  <TextInput 
+                    style={styles.input} 
+                    placeholder="name@company.com" 
+                    placeholderTextColor={Colors.placeholder}
+                    value={email} 
+                    onChangeText={setEmail} 
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
+              </View>
 
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>ACCESS SECRET</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-                <Text style={styles.forgotText}>FORGOT PASSWORD?</Text>
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>ACCESS SECRET</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                    <Text style={styles.forgotText}>FORGOT PASSWORD?</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <MaterialIcons name="lock" size={20} color={Colors.slateText} style={styles.inputIcon} />
+                  <TextInput 
+                    style={styles.input} 
+                    placeholder="Password" 
+                    placeholderTextColor={Colors.placeholder}
+                    value={password} 
+                    onChangeText={setPassword} 
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                    <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color={Colors.slateText} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+                {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Log in</Text>}
               </TouchableOpacity>
             </View>
-            <View style={styles.inputWrapper}>
-              <MaterialIcons name="lock" size={20} color={Colors.slateText} style={styles.inputIcon} />
-              <TextInput 
-                style={styles.input} 
-                placeholder="••••••••••••" 
-                placeholderTextColor={Colors.placeholder}
-                value={password} 
-                onChangeText={setPassword} 
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color={Colors.slateText} />
+
+            <View style={styles.dividerContainer}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.divider} />
+            </View>
+
+            <View style={styles.socialButtons}>
+              <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={loading}>
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.demoButton} onPress={handleDemoLogin} disabled={loading}>
+                <Text style={styles.demoButtonText}>Demo Login</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                <Text style={styles.signupText}>Sign up</Text>
               </TouchableOpacity>
             </View>
           </View>
-          
-          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Log in</Text>}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.divider} />
-        </View>
-
-        <View style={styles.socialButtons}>
-          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={loading}>
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.demoButton} onPress={handleDemoLogin} disabled={loading}>
-            <Text style={styles.demoButtonText}>Demo Login</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.signupText}>Sign up</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, paddingHorizontal: 32, justifyContent: 'center', backgroundColor: Colors.background, alignItems: 'center' },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
+  container: { paddingHorizontal: 24, paddingVertical: 32, justifyContent: 'center', backgroundColor: Colors.background, alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
   logoBox: { width: 56, height: 56, backgroundColor: Colors.l1Surface, borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: Colors.white, letterSpacing: -0.5, marginBottom: 4 },
+  title: { fontSize: 24, fontWeight: '700', color: Colors.white, marginBottom: 4, textAlign: 'center' },
   subtitle: { fontSize: 14, color: Colors.slateText },
   form: { width: '100%', maxWidth: 420 },
   inputGroup: { marginBottom: 16 },
-  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, paddingHorizontal: 4 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 4, paddingHorizontal: 4 },
   label: { fontSize: 11, fontWeight: '600', color: Colors.slateText, letterSpacing: 0.5, marginBottom: 4, paddingHorizontal: 4 },
-  forgotText: { fontSize: 11, fontWeight: '600', color: Colors.accent },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, backgroundColor: Colors.l1Surface, paddingHorizontal: 16, height: 48 },
+  forgotText: { fontSize: 11, fontWeight: '600', color: Colors.accent, textAlign: 'right' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, backgroundColor: Colors.l1Surface, paddingHorizontal: 16, minHeight: 48 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, color: Colors.white, fontSize: 16 },
+  input: { flex: 1, color: Colors.white, fontSize: 16, paddingVertical: 12 },
   eyeIcon: { padding: 4 },
   button: { backgroundColor: Colors.accent, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 24 },
   buttonText: { color: Colors.white, fontWeight: '700', fontSize: 16 },

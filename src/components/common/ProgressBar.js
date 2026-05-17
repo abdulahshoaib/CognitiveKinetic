@@ -2,16 +2,19 @@ import { StyleSheet, View, Text } from 'react-native';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import { Spacing } from '../../constants/layout';
+import { usePreferences } from '../../context/PreferencesContext';
 
 export default function ProgressBar({ progress = 0, showLabel = true }) {
+  const { activeTheme } = usePreferences();
+  const c = activeTheme.colors;
   const pct = Math.min(Math.max(progress, 0), 100);
 
   return (
     <View style={styles.container}>
-      <View style={styles.barBg}>
-        <View style={[styles.barFill, { width: `${pct}%` }]} />
+      <View style={[styles.barBg, { backgroundColor: c.l1Border }]}>
+        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: c.accent }]} />
       </View>
-      {showLabel && <Text style={styles.label}>{Math.round(pct)}%</Text>}
+      {showLabel && <Text style={[styles.label, { color: c.slateText }]}>{Math.round(pct)}%</Text>}
     </View>
   );
 }
