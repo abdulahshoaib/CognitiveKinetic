@@ -3,13 +3,13 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
 
@@ -17,15 +17,16 @@ import { useAnalysis } from '../context/AnalysisContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import ProgressBar from '../components/common/ProgressBar';
+import Colors from '../constants/colors';
 
 const PIPELINE_STAGES = [
-  { key: 'loading_profile', label: 'Load Saved Context', icon: 'shield' },
-  { key: 'ingesting', label: 'Ingest Content Source', icon: 'cloud-upload' },
-  { key: 'signals', label: 'Extract Threat Signals', icon: 'finger-print' },
-  { key: 'relevance', label: 'Evaluate Saved Relevance', icon: 'git-compare' },
-  { key: 'insights', label: 'Formulate Core Insights', icon: 'bulb' },
-  { key: 'impact', label: 'Model Operational Impacts', icon: 'trending-down' },
-  { key: 'actions', label: 'Design Strategy Actions', icon: 'flash' }
+  { key: 'loading_profile', label: 'Loading Profile', desc: 'Parameters retrieved and verified.', icon: 'shield-checkmark' },
+  { key: 'ingesting', label: 'Ingesting Content', desc: 'Market reports and live news parsed.', icon: 'cloud-download' },
+  { key: 'signals', label: 'Extracting Signals', desc: 'Identifying key entities and metrics.', icon: 'hardware-chip' },
+  { key: 'relevance', label: 'Checking Relevance', desc: 'Awaiting extracted signals.', icon: 'git-compare' },
+  { key: 'insights', label: 'Formulate Core Insights', desc: 'Structuring qualitative implications.', icon: 'bulb' },
+  { key: 'impact', label: 'Analyzing Impact', desc: 'Awaiting relevance check.', icon: 'analytics' },
+  { key: 'actions', label: 'Generating Recommendations', desc: 'Final output compilation.', icon: 'flash' }
 ];
 
 export default function UnderstandingScreen({ navigation }) {
@@ -58,16 +59,36 @@ export default function UnderstandingScreen({ navigation }) {
 
   const renderLogItem = ({ item }) => {
     const getLevelColor = (level) => {
-      if (level === 'success') return '#10b981';
-      if (level === 'error') return '#ef4444';
-      if (level === 'warning') return '#F59E0B';
-      return '#ffffff';
+      if (level === 'success') return Colors.success; // emerald-500
+      if (level === 'error') return Colors.error; // error
+      if (level === 'warning') return Colors.warning; // warning
+      if (level === 'important') return Colors.primary; // primary-fixed-dim
+      return Colors.textPrimary; // on-surface
+    };
+    
+    const getLevelIcon = (level) => {
+      if (level === 'success') return 'checkmark-circle';
+      if (level === 'error') return 'close-circle';
+      if (level === 'warning') return 'warning';
+      if (level === 'important') return 'flash';
+      return 'information-circle';
     };
 
+    const isImportant = item.level === 'important';
+
     return (
-      <View style={styles.logLineRow}>
+      <View style={[
+        styles.logLineRow,
+        isImportant && styles.logLineImportant
+      ]}>
         <Text style={styles.logTime}>{item.timestamp}</Text>
-        <Text style={[styles.logMessage, { color: getLevelColor(item.level) }]}>
+        <Ionicons 
+          name={getLevelIcon(item.level)} 
+          size={16} 
+          color={getLevelColor(item.level)} 
+          style={{ marginRight: 8, marginTop: 1 }}
+        />
+        <Text style={[styles.logMessage, { color: getLevelColor(item.level), fontWeight: isImportant ? '700' : '400' }]}>
           {item.message}
         </Text>
       </View>
@@ -79,30 +100,27 @@ export default function UnderstandingScreen({ navigation }) {
       <View style={styles.headerSpacer} />
       
       {/* Progress Track Section */}
-      <Card variant="surface" style={{ marginBottom: 16 }}>
+      <View style={{ marginBottom: 24, paddingHorizontal: 4 }}>
         <View style={styles.progressHeaderRow}>
-          <Text style={styles.progressTitle}>Pipeline Orchestrator</Text>
-          {isAnalyzing ? (
-            <ActivityIndicator size="small" color="#3B82F6" />
-          ) : (
-            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-          )}
-        </View>
-        
-        {/* Simple Progress Bar */}
-        <View style={{ marginBottom: 20 }}>
-          <ProgressBar 
-            progress={Math.round(Math.max(10, ((currentStageIndex + 1) / PIPELINE_STAGES.length) * 100))} 
-            showLabel={true}
-          />
+          <Text style={styles.progressTitle}>Execution Sequence</Text>
+          <Text style={styles.progressSubtitle}>Agent #CK-89A is processing data streams.</Text>
         </View>
 
         {/* Vertical Stages List */}
         <View style={styles.stagesContainer}>
+          {/* Vertical Line Background */}
+          <View style={styles.absoluteVerticalLine} />
+          
           {PIPELINE_STAGES.map((stage, idx) => {
             const status = getStageStatus(idx);
             return (
-              <View key={stage.key} style={styles.stageRow}>
+              <View 
+                key={stage.key} 
+                style={[
+                  styles.stageRow,
+                  status === 'pending' && { opacity: 0.5 }
+                ]}
+              >
                 <View style={styles.stageIndicatorCol}>
                   <View style={[
                     styles.stageBullet,
@@ -110,48 +128,42 @@ export default function UnderstandingScreen({ navigation }) {
                     status === 'active' && styles.bulletActive
                   ]}>
                     {status === 'completed' ? (
-                      <Ionicons name="checkmark" size={12} color="#131315" />
+                      <Ionicons name="checkmark" size={16} color={Colors.accent} />
                     ) : status === 'active' ? (
-                      <View style={styles.pulseDot} />
-                    ) : null}
+                      <ActivityIndicator size="small" color={Colors.accent} style={{ transform: [{ scale: 0.7 }] }} />
+                    ) : (
+                      <Ionicons name={stage.icon} size={14} color={Colors.textSecondary} />
+                    )}
                   </View>
-                  {idx < PIPELINE_STAGES.length - 1 && (
-                    <View style={[
-                      styles.stageLine,
-                      status === 'completed' && styles.lineCompleted
-                    ]} />
-                  )}
                 </View>
                 
-                <Ionicons 
-                  name={stage.icon} 
-                  size={16} 
-                  color={status === 'completed' ? '#10b981' : status === 'active' ? '#3B82F6' : '#909097'} 
-                  style={{ marginHorizontal: 10 }}
-                />
-                
-                <Text style={[
-                  styles.stageLabelText,
-                  status === 'completed' && styles.textCompleted,
-                  status === 'active' && styles.textActive
-                ]}>
-                  {stage.label}
-                </Text>
+                <View style={styles.stageTextContainer}>
+                  <Text style={[
+                    styles.stageLabelText,
+                    status === 'completed' && styles.textCompleted,
+                    status === 'active' && styles.textActive
+                  ]}>
+                    {stage.label}
+                  </Text>
+                  <Text style={styles.stageDescText}>{stage.desc}</Text>
+                </View>
               </View>
             );
           })}
         </View>
-      </Card>
+      </View>
 
       {/* Terminal Log Console */}
       <View style={styles.consoleCard}>
         <View style={styles.consoleHeader}>
-          <View style={styles.terminalControls}>
-            <View style={[styles.controlDot, { backgroundColor: '#FF5F56' }]} />
-            <View style={[styles.controlDot, { backgroundColor: '#FFBD2E' }]} />
-            <View style={[styles.controlDot, { backgroundColor: '#27C93F' }]} />
+          <View style={styles.consoleHeaderLeft}>
+            <Ionicons name="terminal" size={16} color={Colors.accent} style={{ marginRight: 8 }} />
+            <Text style={styles.consoleHeaderText}>LIVE AGENT TRACE</Text>
           </View>
-          <Text style={styles.consoleHeaderText}>agent-trace-logs.log</Text>
+          <View style={styles.liveIndicator}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>Live</Text>
+          </View>
         </View>
         
         <FlatList
@@ -161,12 +173,16 @@ export default function UnderstandingScreen({ navigation }) {
           keyExtractor={item => item.id}
           style={styles.logsList}
           contentContainerStyle={styles.logsListContent}
+          showsVerticalScrollIndicator={true}
           ListEmptyComponent={
             <View style={styles.emptyLogsContainer}>
               <Text style={styles.emptyLogsText}>Initializing log stream...</Text>
             </View>
           }
         />
+        
+        {/* Fake Gradient overlay at bottom to suggest scrolling */}
+        <View style={styles.consoleBottomGradient} />
       </View>
 
       {/* Footer Navigation Trigger */}
@@ -188,116 +204,145 @@ export default function UnderstandingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: Colors.background,
     padding: 16,
   },
   headerSpacer: {
     height: 8,
   },
   progressHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    flexDirection: 'column',
+    marginBottom: 20,
+    backgroundColor: Colors.surfaceBorder,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
   },
   progressTitle: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: Colors.textPrimary,
+    fontSize: 20,
     fontWeight: '700',
+  },
+  progressSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
   },
   stagesContainer: {
     paddingLeft: 8,
+    position: 'relative',
+  },
+  absoluteVerticalLine: {
+    position: 'absolute',
+    left: 23,
+    top: 16,
+    bottom: 24,
+    width: 2,
+    backgroundColor: Colors.surfaceBorder, // Outline variant
   },
   stageRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    height: 38,
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    zIndex: 10,
   },
   stageIndicatorCol: {
     alignItems: 'center',
-    width: 20,
-    height: '100%',
-    justifyContent: 'center',
+    width: 32,
+    marginRight: 12,
   },
   stageBullet: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#909097', // Colors.outline
-    backgroundColor: '#0F172A', // Colors.surface (Navy L1)
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant, // Outline variant
+    backgroundColor: Colors.primaryContainer, // Surface
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 2,
   },
   bulletCompleted: {
-    borderColor: '#10b981', // Colors.success
-    backgroundColor: '#10b981',
+    borderColor: Colors.outlineVariant,
+    backgroundColor: Colors.primaryContainer,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   bulletActive: {
-    borderColor: '#3B82F6', // Colors.primary
-    backgroundColor: '#0F172A',
+    borderColor: Colors.accent, // Primary
+    backgroundColor: Colors.surfaceBorder, // Primary container approx
+    borderWidth: 2,
   },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#3B82F6',
-  },
-  stageLine: {
-    position: 'absolute',
-    top: 26,
-    width: 2,
-    height: 24,
-    backgroundColor: '#1E293B', // Slate 1px border
-    zIndex: 1,
-  },
-  lineCompleted: {
-    backgroundColor: '#10b981',
+  stageTextContainer: {
+    flex: 1,
+    paddingTop: 2,
   },
   stageLabelText: {
-    color: '#909097',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  textCompleted: {
-    color: '#ffffff',
+    color: Colors.textPrimary,
+    fontSize: 16,
     fontWeight: '600',
   },
+  stageDescText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  textCompleted: {
+    color: Colors.textPrimary,
+  },
   textActive: {
-    color: '#3B82F6',
-    fontWeight: '700',
+    color: Colors.accent,
   },
   consoleCard: {
     flex: 1,
-    backgroundColor: '#020617', // Deep Navy L0
+    minHeight: 300,
+    backgroundColor: Colors.surfaceContainerLowest, // Slightly darker than surface for terminal
     borderWidth: 1,
-    borderColor: '#1E293B', // Slate border
+    borderColor: Colors.surfaceBorder, // Outline variant
     borderRadius: 12,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   consoleHeader: {
-    height: 32,
-    backgroundColor: '#0F172A', // Navy L1 surface
+    height: 44,
+    backgroundColor: Colors.surfaceContainerLowTranslucent, // Surface container low
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: Colors.surfaceBorder,
   },
-  terminalControls: {
+  consoleHeaderLeft: {
     flexDirection: 'row',
-    marginRight: 16,
+    alignItems: 'center',
   },
-  controlDot: {
+  consoleHeaderText: {
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 4,
+    backgroundColor: Colors.success, // Emerald 500
+    marginRight: 6,
   },
-  consoleHeaderText: {
-    color: '#94a3b8',
-    fontSize: 11,
+  liveText: {
+    color: Colors.success,
+    fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   logsList: {
@@ -305,32 +350,50 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   logsListContent: {
-    paddingBottom: 24,
+    paddingBottom: 40,
   },
   logLineRow: {
     flexDirection: 'row',
-    marginBottom: 6,
+    marginBottom: 8,
     alignItems: 'flex-start',
+    padding: 4,
+    borderRadius: 4,
+  },
+  logLineImportant: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)', // Primary container
+    borderLeftWidth: 2,
+    borderLeftColor: Colors.accent, // Primary
+    paddingLeft: 8,
   },
   logTime: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: Colors.outline, // Outline
+    fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    marginRight: 8,
-    width: 65,
+    marginRight: 12,
+    width: 75,
   },
   logMessage: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    lineHeight: 16,
+    lineHeight: 18,
+  },
+  consoleBottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 32,
+    backgroundColor: 'transparent',
+    // We would use a LinearGradient here ideally, but for now we'll just omit it or use a translucent view
+    backgroundColor: 'rgba(11, 15, 25, 0.7)',
   },
   emptyLogsContainer: {
     padding: 24,
     alignItems: 'center',
   },
   emptyLogsText: {
-    color: '#909097',
+    color: Colors.outline,
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },

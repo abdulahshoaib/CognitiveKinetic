@@ -3,15 +3,20 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   FlatList,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
+import Colors from '../constants/colors';
+import { Spacing } from '../constants/layout';
+import Card from '../components/common/Card';
+import Badge from '../components/common/Badge';
+import Button from '../components/common/Button';
+import Header from '../components/common/Header';
 
 export default function SimulationScreen({ route, navigation }) {
   const { action } = route.params || {};
@@ -45,18 +50,16 @@ export default function SimulationScreen({ route, navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
           <View style={styles.iconCircle}>
-            <Ionicons name="flask" size={48} color="#94a3b8" />
+            <Ionicons name="flask" size={48} color={Colors.textSecondary} />
           </View>
           <Text style={styles.emptyTitle}>No Action Selected</Text>
           <Text style={styles.emptySubtitle}>
             Select a recommended operational strategy to run in the simulation sandbox.
           </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
+          <Button
+            label="View Recommendations"
             onPress={() => navigation.navigate('Actions')}
-          >
-            <Text style={styles.emptyButtonText}>View Recommendations</Text>
-          </TouchableOpacity>
+          />
         </View>
       </SafeAreaView>
     );
@@ -76,8 +79,8 @@ export default function SimulationScreen({ route, navigation }) {
         <Text style={styles.logTime}>{item.timestamp}</Text>
         <Text style={[
           styles.logMessage, 
-          isSuccess && { color: '#10b981', fontWeight: '700' },
-          isTool && { color: '#3B82F6' }
+          isSuccess && { color: '#81c995', fontWeight: '700' },
+          isTool && { color: Colors.primary }
         ]}>
           {item.message}
         </Text>
@@ -85,84 +88,199 @@ export default function SimulationScreen({ route, navigation }) {
     );
   };
 
+  const handleApproveAndDeploy = () => {
+    navigation.navigate('Home', { showToast: true, toastMsg: 'New pricing configuration deployed live!' });
+  };
+
+  let totalBefore = 0;
+  let totalAfter = 0;
+  let variance = 0;
+
+  if (simulationResult && simulationResult.beforeState && simulationResult.afterState) {
+    const { beforeState, afterState } = simulationResult;
+    totalBefore = beforeState.baseDeliveryFee + beforeState.longDistanceSurcharge + beforeState.peakHourSurcharge;
+    totalAfter = afterState.baseDeliveryFee + afterState.longDistanceSurcharge + afterState.peakHourSurcharge;
+    variance = totalAfter - totalBefore;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      
-      {/* Stage Header */}
-      <View style={styles.stageIndicatorRow}>
-        <Text style={styles.stageTitle}>Ingestion → Insights → Impact → Actions → </Text>
-        <Text style={styles.stageTitleActive}>Simulation Sandbox</Text>
-      </View>
-
-      {/* Action Target Details */}
-      <View style={styles.actionDetailsCard}>
-        <View style={styles.actionHeader}>
-          <Text style={styles.targetLabel}>SANDBOX TARGET ENVIRONMENT</Text>
-          <Text style={styles.targetVal}>{action.targetSystem}</Text>
-        </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        <Text style={styles.actionTitle}>{action.title}</Text>
-        <Text style={styles.actionDesc}>{action.description}</Text>
-      </View>
-
-      {/* Live Sandbox Execution Status */}
-      <View style={styles.sandboxCard}>
-        <View style={styles.sandboxHeader}>
-          <Text style={styles.sandboxTitle}>Sandbox Dispatch Engine</Text>
-          <View style={styles.statusRow}>
-            {isRunning ? (
-              <>
-                <ActivityIndicator size="small" color="#3B82F6" style={{ marginRight: 6 }} />
-                <Text style={[styles.statusText, { color: '#3B82F6' }]}>Executing Code Hooks...</Text>
-              </>
-            ) : (
-              <>
-                <View style={[styles.pulseDot, { backgroundColor: '#10b981' }]} />
-                <Text style={[styles.statusText, { color: '#10b981' }]}>Simulation Finalized</Text>
-              </>
-            )}
-          </View>
+        {/* Header Section */}
+        <View style={styles.headerSection}>
+          <Badge 
+            label={isRunning ? 'SIMULATION RUNNING' : 'SIMULATION COMPLETE'} 
+            variant={isRunning ? 'active' : 'success'} 
+            icon={isRunning ? 'pulse-outline' : 'checkmark-circle'}
+            style={{ marginBottom: Spacing.sm }}
+          />
+          <Text style={styles.headerTitle}>{action.title}</Text>
+          <Text style={styles.headerSubtitle}>
+            {isRunning 
+              ? 'The agent is currently simulating the updated dynamic model within the sandbox.'
+              : 'The agent has successfully simulated the updated dynamic model. Projected margin recovery calculated based on real-time data.'}
+          </Text>
         </View>
-        
-        {/* Terminal Screen */}
-        <View style={styles.consoleCard}>
-          <View style={styles.consoleHeader}>
-            <View style={styles.terminalControls}>
-              <View style={[styles.controlDot, { backgroundColor: '#FF5F56' }]} />
-              <View style={[styles.controlDot, { backgroundColor: '#FFBD2E' }]} />
-              <View style={[styles.controlDot, { backgroundColor: '#27C93F' }]} />
-            </View>
-            <Text style={styles.consoleHeaderText}>sandbox-execution.sh</Text>
+
+        {/* Execution Status Panel */}
+        <Card variant="glass" style={{ marginBottom: Spacing.md }}>
+          <View style={styles.panelHeaderRow}>
+            <Ionicons name="hardware-chip-outline" size={20} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+            <Text style={styles.panelTitle}>Execution Trace</Text>
           </View>
           
-          <FlatList
-            ref={logListRef}
-            data={simLogs}
-            renderItem={renderLogItem}
-            keyExtractor={item => item.id}
-            style={styles.logsList}
-            contentContainerStyle={styles.logsListContent}
-            ListEmptyComponent={
-              <View style={styles.emptyLogsContainer}>
-                <Text style={styles.emptyLogsText}>Initializing isolated environment...</Text>
+          <View style={styles.consoleCard}>
+            <FlatList
+              ref={logListRef}
+              data={simLogs}
+              renderItem={renderLogItem}
+              keyExtractor={item => item.id}
+              style={styles.logsList}
+              contentContainerStyle={styles.logsListContent}
+              scrollEnabled={false}
+              ListEmptyComponent={
+                <View style={styles.emptyLogsContainer}>
+                  <Text style={styles.emptyLogsText}>Initializing isolated environment...</Text>
+                </View>
+              }
+            />
+          </View>
+
+          {!isRunning && (
+            <View style={styles.confidenceSection}>
+              <View style={styles.confidenceRow}>
+                <Text style={styles.confidenceLabel}>Confidence Score</Text>
+                <Badge label="98.4%" variant="high-impact" />
               </View>
-            }
-          />
-        </View>
-      </View>
+              <View style={styles.progressBarTrack}>
+                <View style={[styles.progressBarFill, { width: '98.4%' }]} />
+              </View>
+            </View>
+          )}
+        </Card>
 
-      {/* Completion & Comparison Forward CTA */}
-      {!isRunning && simulationResult && (
-        <TouchableOpacity
-          style={styles.compareButton}
-          onPress={() => navigation.navigate('Comparison')}
-        >
-          <Text style={styles.compareButtonText}>Compare Before vs After State</Text>
-          <Ionicons name="git-compare" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
-        </TouchableOpacity>
-      )}
+        {/* Before/After Comparison */}
+        {!isRunning && simulationResult && (
+          <View style={styles.comparisonContainer}>
+            
+            {/* Current State (Before) */}
+            <Card variant="glass" style={styles.beforePanel}>
+              <View style={styles.stateHeader}>
+                <Text style={styles.stateTitle}>Current Model</Text>
+                <Badge label="BASELINE" variant="neutral" />
+              </View>
+              
+              <View style={styles.metricList}>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Base Fee</Text>
+                  <Text style={styles.metricVal}>Rs. {simulationResult.beforeState.baseDeliveryFee}</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Long Dist.</Text>
+                  <Text style={styles.metricVal}>Rs. {simulationResult.beforeState.longDistanceSurcharge}</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Peak Hour</Text>
+                  <Text style={styles.metricVal}>Rs. {simulationResult.beforeState.peakHourSurcharge}</Text>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total Est.</Text>
+                  <Text style={styles.totalVal}>Rs. {totalBefore}</Text>
+                </View>
+              </View>
+            </Card>
 
-      <View style={{ height: 20 }} />
+            {/* Simulated State (After) */}
+            <Card variant="glass" style={styles.afterPanel}>
+              <View style={styles.glowOrb} />
+              
+              <View style={styles.stateHeader}>
+                <Text style={[styles.stateTitle, { color: Colors.primary }]}>Simulated Model</Text>
+                <Badge label="OPTIMIZED" variant="success" icon="sparkles" />
+              </View>
+              
+              <View style={styles.metricList}>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Base Fee</Text>
+                  <Text style={styles.metricVal}>Rs. {simulationResult.afterState.baseDeliveryFee}</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Long Dist.</Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    {simulationResult.afterState.longDistanceSurcharge > simulationResult.beforeState.longDistanceSurcharge && (
+                      <Ionicons name="trending-up" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
+                    )}
+                    <Text style={[
+                      styles.metricVal,
+                      simulationResult.afterState.longDistanceSurcharge !== simulationResult.beforeState.longDistanceSurcharge && { color: Colors.primary }
+                    ]}>
+                      Rs. {simulationResult.afterState.longDistanceSurcharge}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Peak Hour</Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    {simulationResult.afterState.peakHourSurcharge > simulationResult.beforeState.peakHourSurcharge && (
+                      <Ionicons name="trending-up" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
+                    )}
+                    <Text style={[
+                      styles.metricVal,
+                      simulationResult.afterState.peakHourSurcharge !== simulationResult.beforeState.peakHourSurcharge && { color: Colors.primary }
+                    ]}>
+                      Rs. {simulationResult.afterState.peakHourSurcharge}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total Est.</Text>
+                  <Text style={[styles.totalVal, { color: Colors.primary }]}>Rs. {totalAfter}</Text>
+                </View>
+              </View>
+            </Card>
+            
+          </View>
+        )}
+
+        {/* Impact Summary & Actions */}
+        {!isRunning && simulationResult && (
+          <Card variant="glass" style={styles.impactSummaryPanel}>
+            <View style={styles.impactHeader}>
+              <View style={styles.impactIconWrap}>
+                <Ionicons name="analytics" size={24} color="#b9c7e0" />
+              </View>
+              <View style={styles.impactTextWrap}>
+                <Text style={styles.impactTitle}>Projected Margin Recovery</Text>
+                <View style={styles.impactValueRow}>
+                  <Text style={styles.impactValue}>+{((variance / totalBefore) * 100).toFixed(1)}%</Text>
+                  <Ionicons name="arrow-up" size={20} color="#81c995" />
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.actionButtonsRow}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Discard"
+                  variant="outline"
+                  onPress={() => navigation.goBack()}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Deploy Model"
+                  variant="primary"
+                  onPress={handleApproveAndDeploy}
+                  icon="rocket"
+                />
+              </View>
+            </View>
+          </Card>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -170,174 +288,83 @@ export default function SimulationScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617', // Base canvas L0
-    padding: 16,
+    backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    padding: Spacing.md,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: Spacing.xl,
+    marginTop: 100,
   },
   iconCircle: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#0F172A', // Navy L1 surface
+    backgroundColor: Colors.surfaceContainer,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: '#1E293B', // Slate border
+    borderColor: Colors.outlineVariant,
   },
   emptyTitle: {
-    color: '#ffffff',
+    color: Colors.textPrimary,
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: Spacing.xs,
   },
   emptySubtitle: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
-  emptyButton: {
-    backgroundColor: '#3B82F6', // Solid Electric Blue
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  
+  headerSection: {
+    marginBottom: Spacing.xl,
   },
-  emptyButtonText: {
-    color: '#ffffff',
+  headerTitle: {
+    color: Colors.textPrimary,
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+    lineHeight: 32,
+  },
+  headerSubtitle: {
+    color: Colors.textSecondary,
     fontSize: 14,
+    lineHeight: 22,
+  },
+
+  panelHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  panelTitle: {
+    color: Colors.textPrimary,
+    fontSize: 16,
     fontWeight: '600',
   },
-  stageIndicatorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  stageTitle: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  stageTitleActive: {
-    color: '#3B82F6',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  actionDetailsCard: {
-    backgroundColor: '#0F172A', // Navy L1 surface
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  actionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  targetLabel: {
-    color: '#94a3b8',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  targetVal: {
-    color: '#3B82F6',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  actionTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  actionDesc: {
-    color: '#c6c6cd',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  sandboxCard: {
-    flex: 1,
-    backgroundColor: '#0F172A', // Navy L1 surface
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  sandboxHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sandboxTitle: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  pulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
   consoleCard: {
-    flex: 1,
-    backgroundColor: '#020617', // Deep Navy L0
+    backgroundColor: '#0e0e10',
     borderWidth: 1,
-    borderColor: '#1E293B', // Slate border
+    borderColor: 'rgba(144, 144, 151, 0.2)',
     borderRadius: 8,
-    overflow: 'hidden',
-  },
-  consoleHeader: {
-    height: 32,
-    backgroundColor: '#0F172A', // Navy L1 Surface
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-  },
-  terminalControls: {
-    flexDirection: 'row',
-    marginRight: 16,
-  },
-  controlDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  consoleHeaderText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    padding: Spacing.sm,
+    minHeight: 120,
+    maxHeight: 240,
   },
   logsList: {
-    flex: 1,
-    padding: 12,
+    flexGrow: 0,
   },
   logsListContent: {
-    paddingBottom: 24,
+    paddingBottom: 4,
   },
   logLineRow: {
     flexDirection: 'row',
@@ -345,44 +372,170 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   logTime: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: Colors.outline,
+    fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    marginRight: 8,
+    marginRight: Spacing.xs,
     width: 65,
   },
   logMessage: {
     flex: 1,
-    color: '#ffffff',
-    fontSize: 12,
+    color: Colors.textSecondary,
+    fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    lineHeight: 16,
+    lineHeight: 18,
   },
   emptyLogsContainer: {
-    padding: 24,
     alignItems: 'center',
+    paddingVertical: Spacing.sm,
   },
   emptyLogsText: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  compareButton: {
-    backgroundColor: '#3B82F6', // Solid Electric Blue
-    paddingVertical: 14,
-    borderRadius: 8,
+  confidenceSection: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(144, 144, 151, 0.2)',
+  },
+  confidenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  confidenceLabel: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
+  },
+
+  comparisonContainer: {
+    flexDirection: 'column',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  beforePanel: {
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.outlineVariant,
+    opacity: 0.9,
+  },
+  afterPanel: {
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+    overflow: 'hidden',
+  },
+  glowOrb: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(190, 198, 224, 0.08)',
+  },
+  stateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    zIndex: 2,
+  },
+  stateTitle: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  metricList: {
+    zIndex: 2,
+  },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(144, 144, 151, 0.2)',
+    paddingBottom: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  metricLabel: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  metricVal: {
+    color: Colors.textPrimary,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 14,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingTop: Spacing.sm,
+  },
+  totalLabel: {
+    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  totalVal: {
+    color: Colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+
+  impactSummaryPanel: {
+    flexDirection: 'column',
+    marginTop: Spacing.xs,
+  },
+  impactHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: Spacing.lg,
   },
-  compareButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
+  impactIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: 'rgba(144, 144, 151, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  impactTextWrap: {
+    flex: 1,
+  },
+  impactTitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  impactValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  impactValue: {
+    color: '#81c995',
+    fontSize: 24,
     fontWeight: '700',
+    marginRight: 4,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
   },
 });
