@@ -128,6 +128,9 @@ export default function ImpactReportScreen() {
             if (actions.length === 0) {
               navigation.navigate('Home', { screen: 'Dashboard' });
             } else {
+              try {
+                navigation.popToTop();
+              } catch (e) {}
               navigation.navigate('ActionsTab');
             }
           }}
