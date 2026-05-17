@@ -1,77 +1,109 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useRef, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import Colors from '../constants/colors';
 import { FontSizes, FontWeights } from '../constants/typography';
 import { Spacing, BorderRadius } from '../constants/layout';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen({ navigation }) {
+  const { user, logout } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 800,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
         tension: 50,
-        friction: 7,
+        friction: 8,
         useNativeDriver: true,
       })
     ]).start();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
+      
+      {/* Top Header */}
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.greeting}>Agent Command Center</Text>
+          <Text style={styles.userEmail}>{user?.displayName || 'Anonymous Session'}</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[styles.headerContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <Text style={styles.greeting}>Welcome back,</Text>
           <Text style={styles.title}>Cognitive<Text style={styles.titleAccent}>Kinetic</Text></Text>
         </Animated.View>
 
         <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Daily Progress</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Active</Text>
-            </View>
+            <Text style={styles.cardTitle}>System Status</Text>
           </View>
-          <Text style={styles.cardSubtitle}>You're on a 5-day streak! Keep it up.</Text>
+          <Text style={styles.cardSubtitle}>Agent is idling. Ready for data ingestion and trace analysis.</Text>
           
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBarBg}>
-              <View style={styles.progressBarFill} />
+          <View style={styles.metricRow}>
+            <View style={styles.metricBox}>
+              <Text style={styles.metricValue}>100%</Text>
+              <Text style={styles.metricLabel}>Uptime</Text>
             </View>
-            <Text style={styles.progressText}>75%</Text>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricBox}>
+              <Text style={styles.metricValue}>0ms</Text>
+              <Text style={styles.metricLabel}>Latency</Text>
+            </View>
           </View>
         </Animated.View>
 
         <Animated.View style={[styles.actionsGrid, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <TouchableOpacity style={styles.actionButton} onPress={() => navigation?.navigate('Ingestion')}>
-            <View style={[styles.iconPlaceholder, { backgroundColor: Colors.danger }]} />
-            <Text style={styles.actionText}>Ingest</Text>
+            <View style={styles.iconContainer}>
+              <Ionicons name="cloud-upload-outline" size={24} color={Colors.accent} />
+            </View>
+            <Text style={styles.actionText}>Ingest Data</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={() => navigation?.navigate('Insights')}>
-            <View style={[styles.iconPlaceholder, { backgroundColor: Colors.teal }]} />
+            <View style={styles.iconContainer}>
+              <Ionicons name="bulb-outline" size={24} color={Colors.success} />
+            </View>
             <Text style={styles.actionText}>Insights</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={() => navigation?.navigate('AgentTrace')}>
-            <View style={[styles.iconPlaceholder, { backgroundColor: Colors.info }]} />
-            <Text style={styles.actionText}>Agent</Text>
+            <View style={styles.iconContainer}>
+              <Ionicons name="git-network-outline" size={24} color={Colors.info} />
+            </View>
+            <Text style={styles.actionText}>Agent Trace</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={() => navigation?.navigate('Demo')}>
-            <View style={[styles.iconPlaceholder, { backgroundColor: Colors.warning }]} />
-            <Text style={styles.actionText}>Demo</Text>
+            <View style={styles.iconContainer}>
+              <Ionicons name="play-circle-outline" size={24} color={Colors.warning} />
+            </View>
+            <Text style={styles.actionText}>Run Demo</Text>
           </TouchableOpacity>
         </Animated.View>
 
         <TouchableOpacity style={styles.mainCta} onPress={() => navigation?.navigate('Ingestion')}>
-          <Text style={styles.mainCtaText}>Start Session</Text>
+          <Text style={styles.mainCtaText}>Initialize Pipeline</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -83,41 +115,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  scrollContent: {
-    padding: Spacing['2xl'],
-    paddingTop: Spacing['5xl'],
-  },
-  headerContainer: {
-    marginBottom: Spacing['4xl'],
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing['4xl'],
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.surfaceBorder,
+    backgroundColor: Colors.background,
   },
   greeting: {
     color: Colors.textSecondary,
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
-    marginBottom: Spacing.xs,
     letterSpacing: 0.5,
+  },
+  userEmail: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.xs,
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  logoutButton: {
+    padding: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+  },
+  scrollContent: {
+    padding: Spacing.xl,
+  },
+  headerContainer: {
+    marginBottom: Spacing['3xl'],
+    marginTop: Spacing.lg,
   },
   title: {
     color: Colors.textPrimary,
-    fontSize: FontSizes['4xl'],
+    fontSize: FontSizes['3xl'],
     fontWeight: FontWeights.extrabold,
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   titleAccent: {
     color: Colors.accent,
   },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing['2xl'],
+    borderRadius: BorderRadius.xl, // 12px per DESIGN.md
+    padding: Spacing.xl,
     marginBottom: Spacing['3xl'],
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 5,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -127,95 +182,119 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: Colors.textPrimary,
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
   },
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.successBg,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm / 1.5,
-    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full, // pill shaped
     borderWidth: 1,
     borderColor: Colors.successBorder,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.success,
+    marginRight: 6,
+    shadowColor: Colors.success,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   badgeText: {
     color: Colors.success,
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.bold,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   cardSubtitle: {
     color: Colors.textSecondary,
-    fontSize: FontSizes.md,
-    lineHeight: 22,
-    marginBottom: Spacing['2xl'],
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
   },
-  progressContainer: {
+  metricRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
   },
-  progressBarBg: {
+  metricBox: {
     flex: 1,
-    height: 8,
-    backgroundColor: Colors.surfaceBorder,
-    borderRadius: 4,
-    marginRight: Spacing.lg,
-    overflow: 'hidden',
+    alignItems: 'center',
   },
-  progressBarFill: {
-    width: '75%',
-    height: '100%',
-    backgroundColor: Colors.accent,
-    borderRadius: 4,
-  },
-  progressText: {
+  metricValue: {
     color: Colors.textPrimary,
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
+    fontFamily: 'monospace',
+  },
+  metricLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSizes.xs,
+    marginTop: Spacing.xs,
+    textTransform: 'uppercase',
+  },
+  metricDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: Colors.surfaceBorder,
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: Spacing['4xl'],
+    marginBottom: Spacing['3xl'],
   },
   actionButton: {
-    width: '47%',
+    width: '48%',
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
   },
-  iconPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginBottom: Spacing.lg,
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
   },
   actionText: {
-    color: '#E2E8F0',
-    fontSize: FontSizes.base,
+    color: Colors.textPrimary,
+    fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
   },
   mainCta: {
     backgroundColor: Colors.accent,
-    borderRadius: BorderRadius.xl,
-    paddingVertical: Spacing.lg + 2,
+    borderRadius: BorderRadius.lg, // 8px per DESIGN.md
+    paddingVertical: Spacing.lg,
     alignItems: 'center',
     shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
   mainCtaText: {
-    color: Colors.background,
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.extrabold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    color: '#FFFFFF', // White text on Primary button
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+    letterSpacing: 0.5,
   },
 });

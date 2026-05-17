@@ -4,35 +4,36 @@
  */
 
 export const Colors = {
-  // Backgrounds
-  background: '#131315',
-  surface: '#1f1f21', // surface-container
-  surfaceBorder: '#45464d', // outline-variant
-
+  // L0 Base
+  background: '#020617', // Deep Navy
+  // L1 Surfaces
+  surface: '#0F172A', // Navy
+  surfaceBorder: '#1E293B',
+  // L2 Overlays/Modals
+  overlay: '#1E293B', // Slate-800
+  
   // Text
-  textPrimary: '#e4e2e4', // on-surface
-  textSecondary: '#c6c6cd', // on-surface-variant
-  textMuted: '#798098', // on-primary-container
+  textPrimary: '#F8FAFC', // Slate-50
+  textSecondary: '#94A3B8', // Slate-400
+  textMuted: '#64748B', // Slate-500
 
-  // Accent
-  accent: '#bec6e0',
-  accentGlow: 'rgba(190, 198, 224, 0.4)',
-
-  // Brand / Primary
-  primary: '#bec6e0',
-  primaryText: '#283044', // on-primary
+  // Accent / Primary
+  accent: '#3B82F6', // Electric Blue
+  accentGlow: 'rgba(59, 130, 246, 0.2)',
+  primary: '#3B82F6',
+  primaryText: '#FFFFFF',
 
   // Status
-  success: '#34D399',
-  successBg: 'rgba(52, 211, 153, 0.1)',
-  successBorder: 'rgba(52, 211, 153, 0.3)',
-  warning: '#dec29a', // tertiary
-  danger: '#ffb4ab', // error
-  info: '#d5e3fd', // secondary-fixed
-  teal: '#4ECDC4',
+  success: '#10B981', // Emerald Green
+  successBg: 'rgba(16, 185, 129, 0.1)',
+  successBorder: 'rgba(16, 185, 129, 0.3)',
+  warning: '#F59E0B', // Amber
+  warningBg: 'rgba(245, 158, 11, 0.1)',
+  danger: '#EF4444', 
+  info: '#3B82F6',
 
   // Shadows
-  shadow: '#000',
+  shadow: '#000000',
 };
 
 export default Colors;
