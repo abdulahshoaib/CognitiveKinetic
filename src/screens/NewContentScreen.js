@@ -1,49 +1,33 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Modal, FlatList, ScrollView, Animated
+  KeyboardAvoidingView, Platform, Modal, ScrollView, Animated, RefreshControl
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
+import { useIntegrations } from '../context/IntegrationsContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { getProfile } from '../services/profileService';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
 import SectionHeader from '../components/common/SectionHeader';
-
-// ── Aggregator registry ──
-const AGGREGATOR_OPTIONS = [
-  // International
-  { id: 'google_news', name: 'Google News', icon: 'globe', desc: 'Google News RSS feeds', category: 'International' },
-  { id: 'newsapi', name: 'NewsAPI', icon: 'server', desc: 'newsapi.org — API key required', category: 'International', needsKey: true },
-  { id: 'bing_news', name: 'Bing News', icon: 'search', desc: 'Microsoft Bing News — API key required', category: 'International', needsKey: true },
-  { id: 'reddit', name: 'Reddit', icon: 'message-circle', desc: 'Subreddit feeds — no key needed', category: 'International' },
-  { id: 'hackernews', name: 'Hacker News', icon: 'terminal', desc: 'YC Hacker News top stories', category: 'International' },
-  // Pakistani
-  { id: 'dawn', name: 'Dawn News', icon: 'file-text', desc: 'dawn.com RSS — no key needed', category: 'Pakistan' },
-  { id: 'geo', name: 'Geo News', icon: 'file-text', desc: 'geo.tv RSS — no key needed', category: 'Pakistan' },
-  { id: 'express_tribune', name: 'Express Tribune', icon: 'file-text', desc: 'tribune.com.pk RSS — no key needed', category: 'Pakistan' },
-  { id: 'ary', name: 'ARY News', icon: 'file-text', desc: 'arynews.tv RSS — no key needed', category: 'Pakistan' },
-  { id: 'business_recorder', name: 'Business Recorder', icon: 'trending-up', desc: 'brecorder.com RSS — no key needed', category: 'Pakistan' },
-  // Custom
-  { id: 'rss_custom', name: 'Custom RSS', icon: 'rss', desc: 'Any RSS / Atom feed URL', category: 'Custom', needsUrl: true },
-];
+import { newsSourcesToAggregatorSetup } from '../components/settings/NewsAggregatorModal';
 
 // ── Mock data ──
 const MOCK_AGGREGATOR_NEWS = [
-  { id: 'agg_1', sourceType: 'news', sourceName: 'Google News', title: 'Global supply chain disruption deepens amid port strikes', body: 'Major ports across Europe face prolonged strikes, causing cascading delays for importers. Analysts project a 15-20% increase in shipping costs over the next quarter.', timestamp: '25 mins ago', relevanceStatus: 'pending', detectedTopics: ['Supply Chain', 'Shipping', 'Trade'] },
-  { id: 'agg_2', sourceType: 'news', sourceName: 'Reuters via NewsAPI', title: 'Central bank signals aggressive rate hikes through Q3', body: 'The State Bank announced potential rate hikes of up to 200 basis points citing inflationary pressures from energy imports and food supply constraints.', timestamp: '1 hour ago', relevanceStatus: 'pending', detectedTopics: ['Finance', 'Interest Rates', 'Economy'] },
-  { id: 'agg_3', sourceType: 'news', sourceName: 'Reddit', title: 'Diesel shortage reported across Punjab distribution network', body: 'Multiple trucking companies report fuel shortages at key distribution hubs in Lahore, Faisalabad, and Multan regions.', timestamp: '3 hours ago', relevanceStatus: 'pending', detectedTopics: ['Fuel', 'Logistics', 'Punjab'] },
-  { id: 'agg_4', sourceType: 'news', sourceName: 'Hacker News', title: 'AI route optimization cuts fleet costs by 18%', body: 'New study shows ML-based route planning reduces fuel consumption and idle time significantly for mid-size delivery fleets.', timestamp: '5 hours ago', relevanceStatus: 'pending', detectedTopics: ['AI', 'Fleet Management', 'Cost Reduction'] },
+  { id: 'agg_1', sourceType: 'news', sourceKey: 'google_news', sourceName: 'Google News', title: 'Global supply chain disruption deepens amid port strikes', body: 'Major ports across Europe face prolonged strikes, causing cascading delays for importers. Analysts project a 15-20% increase in shipping costs over the next quarter.', timestamp: '25 mins ago', relevanceStatus: 'pending', detectedTopics: ['Supply Chain', 'Shipping', 'Trade'], url: 'https://news.google.com/search?q=supply+chain+port+strikes', sourceUrl: 'https://news.google.com/rss/search?q=supply+chain+port+strikes' },
+  { id: 'agg_2', sourceType: 'news', sourceKey: 'newsapi', sourceName: 'NewsAPI', title: 'Central bank signals aggressive rate hikes through Q3', body: 'The State Bank announced potential rate hikes of up to 200 basis points citing inflationary pressures from energy imports and food supply constraints.', timestamp: '1 hour ago', relevanceStatus: 'pending', detectedTopics: ['Finance', 'Interest Rates', 'Economy'], url: 'https://newsapi.org/', sourceUrl: 'https://newsapi.org/v2/everything?q=central+bank+rates' },
+  { id: 'agg_3', sourceType: 'news', sourceKey: 'reddit', sourceName: 'Reddit', title: 'Diesel shortage reported across Punjab distribution network', body: 'Multiple trucking companies report fuel shortages at key distribution hubs in Lahore, Faisalabad, and Multan regions.', timestamp: '3 hours ago', relevanceStatus: 'pending', detectedTopics: ['Fuel', 'Logistics', 'Punjab'], url: 'https://www.reddit.com/search/?q=diesel%20shortage%20punjab', sourceUrl: 'https://www.reddit.com/search.rss?q=diesel%20shortage%20punjab' },
+  { id: 'agg_4', sourceType: 'news', sourceKey: 'hackernews', sourceName: 'Hacker News', title: 'AI route optimization cuts fleet costs by 18%', body: 'New study shows ML-based route planning reduces fuel consumption and idle time significantly for mid-size delivery fleets.', timestamp: '5 hours ago', relevanceStatus: 'pending', detectedTopics: ['AI', 'Fleet Management', 'Cost Reduction'], url: 'https://news.ycombinator.com/', sourceUrl: 'https://hnrss.org/frontpage' },
 ];
 
 const MOCK_AGENT_NEWS = [
-  { id: 'agent_1', sourceType: 'alert', sourceName: 'CK Agent', title: 'Fuel prices increased by 12% effective immediately', body: 'The Ministry of Energy has announced a sudden 12% hike in base fuel and diesel prices, effective midnight. Transportation networks and heavy haulers are advised to brace for severe margin pressures.', timestamp: '15 mins ago', relevanceStatus: 'pending', detectedTopics: ['Fuel Costs', 'Logistics', 'Operational Costs'] },
-  { id: 'agent_2', sourceType: 'alert', sourceName: 'CK Agent', title: 'Commercial vehicle restrictions on Mall Road Lahore', body: 'Heavy cargo vehicles and delivery vans face strict access hours on Mall Road due to environmental smog control. Operations restricted 8 AM – 8 PM.', timestamp: '2 hours ago', relevanceStatus: 'pending', detectedTopics: ['Lahore Operations', 'Regulatory'] },
-  { id: 'agent_3', sourceType: 'news', sourceName: 'CK Agent', title: 'New 5% inter-city transport levy proposed', body: 'Draft legislation mandates a 5% additional tax on all inter-city commercial transport operators starting next quarter.', timestamp: '5 hours ago', relevanceStatus: 'pending', detectedTopics: ['Tax', 'Transport Policy'] },
+  { id: 'agent_1', sourceType: 'alert', sourceName: 'CK Agent', title: 'Fuel prices increased by 12% effective immediately', body: 'The Ministry of Energy has announced a sudden 12% hike in base fuel and diesel prices, effective midnight. Transportation networks and heavy haulers are advised to brace for severe margin pressures.', timestamp: '15 mins ago', relevanceStatus: 'pending', detectedTopics: ['Fuel Costs', 'Logistics', 'Operational Costs'], url: 'https://example.com/ck-agent/fuel-price-alert', sourceUrl: 'ck-agent://fuel-price-alert' },
+  { id: 'agent_2', sourceType: 'alert', sourceName: 'CK Agent', title: 'Commercial vehicle restrictions on Mall Road Lahore', body: 'Heavy cargo vehicles and delivery vans face strict access hours on Mall Road due to environmental smog control. Operations restricted 8 AM - 8 PM.', timestamp: '2 hours ago', relevanceStatus: 'pending', detectedTopics: ['Lahore Operations', 'Regulatory'], url: 'https://example.com/ck-agent/lahore-vehicle-restrictions', sourceUrl: 'ck-agent://lahore-vehicle-restrictions' },
+  { id: 'agent_3', sourceType: 'news', sourceName: 'CK Agent', title: 'New 5% inter-city transport levy proposed', body: 'Draft legislation mandates a 5% additional tax on all inter-city commercial transport operators starting next quarter.', timestamp: '5 hours ago', relevanceStatus: 'pending', detectedTopics: ['Tax', 'Transport Policy'], url: 'https://example.com/ck-agent/inter-city-transport-levy', sourceUrl: 'ck-agent://transport-levy' },
 ];
 
 const ANALYZED_NEWS_STORAGE_KEY = '@cognitive_kinetic_analyzed_news_';
@@ -54,6 +38,69 @@ const normalizeNewsText = (value) =>
 const getNewsAnalysisKey = (item) =>
   `${normalizeNewsText(item?.title)}::${normalizeNewsText(item?.body)}`;
 
+const getSafeUrl = (value, fallback = '') => String(value || fallback || '').trim();
+
+const sourceMatchesItem = (source, item) => {
+  const sourceName = normalizeNewsText(source?.name);
+  const itemSourceName = normalizeNewsText(item?.sourceName);
+  return (
+    source?.id === item?.sourceConfigId ||
+    source?.type === item?.sourceKey ||
+    (sourceName && sourceName === itemSourceName) ||
+    (source?.type === 'newsapi' && itemSourceName.includes('newsapi')) ||
+    (source?.type === 'hackernews' && itemSourceName.includes('hacker news'))
+  );
+};
+
+const createSourceRefreshItem = (source, cycle, index) => {
+  const keywords = Array.isArray(source.keywords) && source.keywords.length
+    ? source.keywords
+    : ['Operations', 'Market'];
+  const primaryKeyword = keywords[0] || 'Operations';
+
+  return {
+    id: `agg_refresh_${cycle}_${source.id}_${index}`,
+    sourceType: 'news',
+    sourceKey: source.type,
+    sourceConfigId: source.id,
+    sourceName: source.name,
+    title: `Fresh ${primaryKeyword} update #${cycle} from ${source.name}`,
+    body: `${source.name} surfaced refresh batch ${cycle} with a new ${primaryKeyword.toLowerCase()} update for review. Agent should validate relevance against the saved profile before any action is simulated.`,
+    timestamp: 'Just now',
+    relevanceStatus: 'pending',
+    detectedTopics: keywords.slice(0, 3),
+    url: getSafeUrl(source.sourceUrl, `https://example.com/news/${source.id}`),
+    sourceUrl: getSafeUrl(source.sourceUrl, `https://example.com/news/${source.id}`),
+  };
+};
+
+const createAgentRefreshItem = (cycle) => ({
+  id: `agent_refresh_${cycle}`,
+  sourceType: 'alert',
+  sourceName: 'CK Agent',
+  title: cycle % 3 === 0
+    ? `Competitor delivery discounts #${cycle} detected in Karachi`
+    : `Fresh operating cost signal #${cycle} detected by CK Agent`,
+  body: cycle % 3 === 0
+    ? `The agent detected refresh batch ${cycle}: competitor promotions in Karachi that may pressure customer retention and delivery margins.`
+    : `The agent found refresh batch ${cycle}: a new operating cost signal from monitored sources. Review impact before committing changes to pricing or routing.`,
+  timestamp: 'Just now',
+  relevanceStatus: 'pending',
+  detectedTopics: cycle % 3 === 0 ? ['Customer Churn', 'Karachi', 'Pricing'] : ['Operating Cost', 'Agent Alert'],
+  url: `https://example.com/ck-agent/refresh-${cycle}`,
+  sourceUrl: `ck-agent://refresh-${cycle}`,
+});
+
+const getSourceIcon = (sourceKey, sourceName) => {
+  const name = String(sourceName || sourceKey || '').toLowerCase();
+  if (name.includes('google')) return 'globe';
+  if (name.includes('reddit')) return 'message-square';
+  if (name.includes('hacker') || name.includes('ycombinator')) return 'terminal';
+  if (name.includes('newsapi') || name.includes('api')) return 'server';
+  if (name.includes('agent') || name.includes('ck')) return 'cpu';
+  return 'rss';
+};
+
 export default function NewContentScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -61,26 +108,26 @@ export default function NewContentScreen() {
   const { activeTheme } = usePreferences();
   const c = activeTheme.colors;
   const { analyzeContent, addManualAnalysisItem } = useAnalysis();
+  const { newsAggregators, newsSystemPrompt, setNewsAggregators, updateNewsSystemPrompt, syncLogs, addSyncLog } = useIntegrations();
   const [profile, setProfile] = useState(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [agentNews, setAgentNews] = useState(MOCK_AGENT_NEWS);
+  const [aggregatorNews, setAggregatorNews] = useState(MOCK_AGGREGATOR_NEWS);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState(null);
+  const [analyzedSectionExpanded, setAnalyzedSectionExpanded] = useState(false);
+  const [logsSectionExpanded, setLogsSectionExpanded] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState(null);
 
-  // Multi-select aggregators
   const [selectedAggregators, setSelectedAggregators] = useState([]);
-  const [aggregatorModalVisible, setAggregatorModalVisible] = useState(false);
-  const [apiKeys, setApiKeys] = useState({}); // { aggregatorId: 'key string' }
-
-  // Business keywords for aggregator filtering
-  const [businessKeywords, setBusinessKeywords] = useState([]);
-  const [keywordInput, setKeywordInput] = useState('');
-
-  // Keyword filter for aggregator news
+  const [sourceSettingsModalVisible, setSourceSettingsModalVisible] = useState(false);
   const [aggKeywordFilter, setAggKeywordFilter] = useState('');
 
   // Agent prompt modal
   const [agentPromptModalVisible, setAgentPromptModalVisible] = useState(false);
   const [agentSystemPrompt, setAgentSystemPrompt] = useState(
-    'You are a news collection agent. Gather news relevant to:\n• Fuel prices and energy policy\n• Transport and logistics regulation\n• Trade and supply chain disruptions\n• Tax policy changes affecting commercial operations\n\nPrioritize breaking alerts and policy changes over general market commentary.'
+    newsSystemPrompt
   );
 
   // News detail modal
@@ -91,11 +138,26 @@ export default function NewContentScreen() {
   const [dismissedIds, setDismissedIds] = useState([]);
   const [undoItem, setUndoItem] = useState(null);
   const undoTimer = useRef(null);
+  const refreshTimer = useRef(null);
+  const refreshCycle = useRef(0);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isFocused && user?.uid) loadProfile();
   }, [isFocused, user?.uid]);
+
+  useEffect(() => () => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const setup = newsSourcesToAggregatorSetup(newsAggregators.filter(source => source.enabled !== false));
+    setSelectedAggregators(setup.selectedAggregators);
+  }, [newsAggregators]);
+
+  useEffect(() => {
+    setAgentSystemPrompt(newsSystemPrompt);
+  }, [newsSystemPrompt]);
 
   useEffect(() => {
     let mounted = true;
@@ -142,7 +204,7 @@ export default function NewContentScreen() {
     if (!body.trim() || !profile) return;
     const content = title.trim() ? `${title}\n\n${body}` : body;
     const newItem = addManualAnalysisItem(title || 'Manual Input', body);
-    analyzeContent(content, profile, newItem.id);
+    analyzeContent(content, profile, newItem.id, newItem);
     navigation.navigate('AnalysisRun');
     setTitle('');
     setBody('');
@@ -176,7 +238,7 @@ export default function NewContentScreen() {
   const handleFeedItemSelect = (item) => {
     if (!profile || isNewsAnalyzed(item)) return;
     markNewsAnalyzed(item);
-    analyzeContent(`${item.title}\n\n${item.body}`, profile, item.id);
+    analyzeContent(`${item.title}\n\n${item.body}`, profile, item.id, item);
     navigation.navigate('AnalysisRun');
     setDetailItem(null);
   };
@@ -228,204 +290,115 @@ export default function NewContentScreen() {
     });
   };
 
-  // Toggle aggregator in multi-select
-  const toggleAggregator = (agg) => {
-    setSelectedAggregators(prev =>
-      prev.find(a => a.id === agg.id)
-        ? prev.filter(a => a.id !== agg.id)
-        : [...prev, agg]
-    );
+  const toggleNewsSource = (source) => {
+    setNewsAggregators(newsAggregators.map(item => (
+      item.id === source.id ? { ...item, enabled: item.enabled === false } : item
+    )));
+  };
+
+  const openControlNewsSources = () => {
+    setSourceSettingsModalVisible(false);
+    setAgentPromptModalVisible(false);
+    navigation.getParent()?.navigate('ProfileTab', {
+      screen: 'SettingsMain',
+      params: { tab: 'news' },
+    });
+  };
+
+  const enabledNewsSources = useMemo(
+    () => newsAggregators.filter(source => source.enabled !== false),
+    [newsAggregators]
+  );
+
+  const configuredAggNews = useMemo(() => (
+    aggregatorNews
+      .map(item => {
+        const source = enabledNewsSources.find(activeSource => sourceMatchesItem(activeSource, item));
+        if (!source) return null;
+        return {
+          ...item,
+          sourceName: source.name || item.sourceName,
+          sourceConfigId: source.id,
+          sourceKey: source.type || item.sourceKey,
+          url: getSafeUrl(item.url, source.sourceUrl),
+          sourceUrl: getSafeUrl(item.sourceUrl, source.sourceUrl),
+        };
+      })
+      .filter(Boolean)
+  ), [aggregatorNews, enabledNewsSources]);
+
+  const handleRefresh = () => {
+    if (isRefreshing) return;
+
+    setIsRefreshing(true);
+    setRefreshStatus(null);
+    setAnalyzedSectionExpanded(false);
+
+    const nextCycle = refreshCycle.current + 1;
+    refreshCycle.current = nextCycle;
+
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => {
+      const shouldAddNews = nextCycle % 2 === 1;
+      const nextAgentNews = shouldAddNews ? [createAgentRefreshItem(nextCycle)] : [];
+      const nextSourceNews = shouldAddNews
+        ? enabledNewsSources.slice(0, 4).map((source, index) => createSourceRefreshItem(source, nextCycle, index))
+        : [];
+
+      if (nextAgentNews.length) {
+        setAgentNews(prev => [...nextAgentNews, ...prev]);
+        addSyncLog({
+          type: 'pull',
+          sourceName: 'CK Agent Monitor',
+          status: 'success',
+          message: 'HTTP 200 OK. Synced 1 fresh automated alert.',
+          reason: 'Autonomous CK Agent successfully pulled active signals from target monitoring stream. Relevance evaluation complete.'
+        });
+      }
+      if (nextSourceNews.length) {
+        setAggregatorNews(prev => [...nextSourceNews, ...prev]);
+        addSyncLog({
+          type: 'pull',
+          sourceName: 'Google News Logistics',
+          status: 'success',
+          message: 'HTTP 200 OK. Synced 3 feed articles.',
+          reason: 'Parsed Google News RSS aggregator feed successfully. Relevant keywords found: fuel, logistics, tax.'
+        });
+        addSyncLog({
+          type: 'pull',
+          sourceName: 'NewsAPI Logistics',
+          status: 'failed',
+          errorType: 'Rate Limited (429)',
+          message: 'HTTP response code: 429 Too Many Requests.',
+          reason: 'The free tier for NewsAPI has hit its daily rate limit. To prevent further API sync failures, please add a valid personal apiKey under Profile > Settings > News Sources or wait until tomorrow.'
+        });
+      } else {
+        addSyncLog({
+          type: 'pull',
+          sourceName: 'Global Aggregators',
+          status: 'success',
+          message: 'No new feed signals found in monitored channels.',
+          reason: 'RSS Feeds and REST Endpoints parsed correctly. No new articles detected since the last check.'
+        });
+      }
+
+      setRefreshStatus(nextAgentNews.length || nextSourceNews.length ? 'added' : 'empty');
+      setIsRefreshing(false);
+    }, 650);
   };
 
   // Filter aggregator news by keyword
   const filteredAggNews = useMemo(() => {
-    if (!aggKeywordFilter.trim()) return MOCK_AGGREGATOR_NEWS;
+    if (!aggKeywordFilter.trim()) return configuredAggNews;
     const kw = aggKeywordFilter.toLowerCase();
-    return MOCK_AGGREGATOR_NEWS.filter(item =>
+    return configuredAggNews.filter(item =>
       item.title.toLowerCase().includes(kw) ||
       item.body.toLowerCase().includes(kw) ||
-      item.detectedTopics.some(t => t.toLowerCase().includes(kw))
+      (item.detectedTopics || []).some(t => t.toLowerCase().includes(kw))
     );
-  }, [aggKeywordFilter]);
-
-  // Group aggregators by category for display — must be before early return
-  const aggCategories = useMemo(() => {
-    const cats = [];
-    let lastCat = '';
-    AGGREGATOR_OPTIONS.forEach(a => {
-      if (a.category !== lastCat) {
-        cats.push({ type: 'header', category: a.category, id: `cat_${a.category}` });
-        lastCat = a.category;
-      }
-      cats.push({ type: 'item', ...a });
-    });
-    return cats;
-  }, []);
+  }, [aggKeywordFilter, configuredAggNews]);
 
   if (!profile) return <Screen style={{ backgroundColor: c.background }} />;
-
-  const addKeyword = () => {
-    const kw = keywordInput.trim();
-    if (kw && !businessKeywords.includes(kw)) {
-      setBusinessKeywords(prev => [...prev, kw]);
-    }
-    setKeywordInput('');
-  };
-
-  const removeKeyword = (kw) => {
-    setBusinessKeywords(prev => prev.filter(k => k !== kw));
-  };
-
-  // ── Aggregator Modal (multi-select + keywords) ──
-  const renderAggregatorModal = () => (
-    <Modal visible={aggregatorModalVisible} animationType="slide" transparent onRequestClose={() => setAggregatorModalVisible(false)}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalBox, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
-          <View style={[styles.modalHead, { borderBottomColor: c.surfaceBorder }]}>
-            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>News Aggregators</Text>
-            <TouchableOpacity onPress={() => setAggregatorModalVisible(false)}>
-              <Feather name="x" size={22} color={c.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            data={aggCategories}
-            keyExtractor={i => i.id}
-            style={styles.aggList}
-            ListHeaderComponent={
-              <Text style={[styles.modalDesc, { color: c.textSecondary }]}>
-                Select one or more sources. Pakistani sources use free RSS feeds.
-              </Text>
-            }
-            renderItem={({ item }) => {
-              if (item.type === 'header') {
-                return (
-                  <Text style={[styles.catHeader, { color: c.textSecondary }]}>{item.category}</Text>
-                );
-              }
-              const on = !!selectedAggregators.find(a => a.id === item.id);
-              const needsExtra = (item.needsKey || item.needsUrl) && on;
-              const extraMissing = needsExtra && !apiKeys[item.id]?.trim();
-              return (
-                <View>
-                  <TouchableOpacity
-                    style={[styles.aggRow, { backgroundColor: on ? c.primarySubtle : c.surfaceContainerLowest, borderColor: on ? c.primary : c.surfaceBorder, marginBottom: needsExtra ? 0 : 8, borderBottomLeftRadius: needsExtra ? 0 : 12, borderBottomRightRadius: needsExtra ? 0 : 12 }]}
-                    onPress={() => toggleAggregator(item)}
-                  >
-                    <View style={[styles.aggIcon, { backgroundColor: on ? c.primary : c.surfaceVariant }]}>
-                      <Feather name={item.icon} size={16} color={on ? c.white : c.textSecondary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.aggName, { color: c.textPrimary }]}>{item.name}</Text>
-                      <Text style={[styles.aggDesc, { color: c.textSecondary }]}>{item.desc}</Text>
-                    </View>
-                    <Feather name={on ? 'check-square' : 'square'} size={20} color={on ? c.primary : c.textSecondary} />
-                  </TouchableOpacity>
-                  {needsExtra && (
-                    <View style={[styles.apiKeyRow, { borderColor: extraMissing ? c.error || '#ef4444' : c.surfaceBorder, backgroundColor: c.surfaceContainerLowest }]}>
-                      <Feather name={item.needsUrl ? 'link' : 'key'} size={14} color={extraMissing ? c.error || '#ef4444' : c.textSecondary} />
-                      <TextInput
-                        style={[styles.apiKeyInput, { color: c.textPrimary }]}
-                        placeholder={item.needsUrl ? 'https://example.com/feed.xml' : `Enter ${item.name} API key`}
-                        placeholderTextColor={c.placeholder}
-                        value={apiKeys[item.id] || ''}
-                        onChangeText={v => setApiKeys(prev => ({ ...prev, [item.id]: v }))}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType={item.needsUrl ? 'url' : 'default'}
-                      />
-                    </View>
-                  )}
-                </View>
-              );
-            }}
-            ListFooterComponent={
-              <>
-                {/* Business Keywords Section */}
-                <View style={[styles.kwSection, { borderTopColor: c.surfaceBorder }]}>
-                  <Text style={[styles.kwTitle, { color: c.textPrimary }]}>Business Keywords</Text>
-                  <Text style={[styles.kwSubtitle, { color: c.textSecondary }]}>
-                    Add keywords so only news relevant to your business appears.
-                  </Text>
-                  <View style={[styles.kwInputRow, { borderColor: c.surfaceBorder, backgroundColor: c.surfaceContainerLowest }]}>
-                    <TextInput
-                      style={[styles.kwInput, { color: c.textPrimary }]}
-                      placeholder="e.g. fuel, logistics, tax..."
-                      placeholderTextColor={c.placeholder}
-                      value={keywordInput}
-                      onChangeText={setKeywordInput}
-                      onSubmitEditing={addKeyword}
-                      returnKeyType="done"
-                    />
-                    <TouchableOpacity onPress={addKeyword} style={[styles.kwAddBtn, { backgroundColor: c.primary }]}>
-                      <Feather name="plus" size={16} color={c.white} />
-                    </TouchableOpacity>
-                  </View>
-                  {businessKeywords.length > 0 && (
-                    <View style={styles.kwChips}>
-                      {businessKeywords.map(kw => (
-                        <View key={kw} style={[styles.chip, { backgroundColor: c.accentSubtle }]}>
-                          <Text style={[styles.chipText, { color: c.accent }]}>{kw}</Text>
-                          <TouchableOpacity onPress={() => removeKeyword(kw)}>
-                            <Feather name="x" size={12} color={c.accent} />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                {/* Selected summary */}
-                {selectedAggregators.length > 0 && (
-                  <View style={[styles.selectedSummary, { borderTopColor: c.surfaceBorder }]}>
-                    <Text style={[styles.selectedCount, { color: c.textSecondary }]}>
-                      {selectedAggregators.length} source{selectedAggregators.length > 1 ? 's' : ''} selected
-                    </Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                      {selectedAggregators.map(a => (
-                        <View key={a.id} style={[styles.chip, { backgroundColor: c.primarySubtle }]}>
-                          <Text style={[styles.chipText, { color: c.primary }]}>{a.name}</Text>
-                          <TouchableOpacity onPress={() => toggleAggregator(a)}>
-                            <Feather name="x" size={12} color={c.primary} />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-              </>
-            }
-          />
-
-          {(() => {
-            const hasKeywords = businessKeywords.length > 0;
-            const reqAggs = selectedAggregators.filter(a => a.needsKey || a.needsUrl);
-            const allInputsProvided = reqAggs.every(a => apiKeys[a.id]?.trim());
-            const canSave = hasKeywords && allInputsProvided;
-            const reason = !hasKeywords ? 'Add business keywords' : !allInputsProvided ? 'Provide API keys / URLs for selected sources' : '';
-            return (
-              <View>
-                {!canSave && reason ? (
-                  <View style={styles.validationRow}>
-                    <Feather name="alert-circle" size={14} color={c.error || '#ef4444'} />
-                    <Text style={[styles.validationText, { color: c.error || '#ef4444' }]}>{reason}</Text>
-                  </View>
-                ) : null}
-                <TouchableOpacity
-                  style={[styles.modalSaveBtn, { backgroundColor: canSave ? c.accent : c.surfaceVariant }]}
-                  onPress={() => setAggregatorModalVisible(false)}
-                  disabled={!canSave}
-                >
-                  <Feather name="check" size={16} color={c.white} />
-                  <Text style={[styles.modalSaveBtnText, { color: c.white }]}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })()}
-        </View>
-      </View>
-    </Modal>
-  );
 
   // ── Agent Prompt Modal ──
   const renderAgentPromptModal = () => (
@@ -454,7 +427,10 @@ export default function NewContentScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.modalSaveBtn, { backgroundColor: c.accent }]}
-            onPress={() => setAgentPromptModalVisible(false)}
+            onPress={() => {
+              updateNewsSystemPrompt(agentSystemPrompt);
+              setAgentPromptModalVisible(false);
+            }}
           >
             <Feather name="cpu" size={16} color={c.white} />
             <Text style={[styles.modalSaveBtnText, { color: c.white }]}>Save Agent Instructions</Text>
@@ -464,11 +440,82 @@ export default function NewContentScreen() {
     </Modal>
   );
 
+  const renderSourceSettingsModal = () => (
+    <Modal visible={sourceSettingsModalVisible} animationType="slide" transparent onRequestClose={() => setSourceSettingsModalVisible(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalBox, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <View style={[styles.modalHead, { borderBottomColor: c.surfaceBorder }]}>
+            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>News Sources</Text>
+            <TouchableOpacity onPress={() => setSourceSettingsModalVisible(false)}>
+              <Feather name="x" size={22} color={c.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.modalDesc, { color: c.textSecondary }]}>
+            Toggle configured sources to show or hide them from this feed.
+          </Text>
+
+          <ScrollView style={styles.sourceList} contentContainerStyle={styles.sourceListContent}>
+            {newsAggregators.length ? (
+              newsAggregators.map(source => {
+                const enabled = source.enabled !== false;
+                return (
+                  <TouchableOpacity
+                    key={source.id}
+                    style={[styles.sourceRow, { backgroundColor: c.surfaceContainerLowest, borderColor: enabled ? c.accentBorder : c.surfaceBorder, opacity: enabled ? 1 : 0.68 }]}
+                    onPress={() => toggleNewsSource(source)}
+                  >
+                    <View style={[styles.sourceRowIcon, { backgroundColor: enabled ? c.accentSoft : c.surfaceVariant }]}>
+                      <Feather name="rss" size={16} color={enabled ? c.accent : c.textSecondary} />
+                    </View>
+                    <View style={styles.sourceRowText}>
+                      <Text style={[styles.sourceRowTitle, { color: c.textPrimary }]} numberOfLines={1}>{source.name}</Text>
+                      <Text style={[styles.sourceRowUrl, { color: c.textSecondary }]} numberOfLines={1}>{source.sourceUrl || source.type}</Text>
+                    </View>
+                    <View style={[styles.sourceSwitchTrack, { backgroundColor: enabled ? c.successSoft : c.surfaceVariant, borderColor: enabled ? c.successBorder : c.surfaceBorder }]}>
+                      <View style={[styles.sourceSwitchKnob, { backgroundColor: enabled ? c.success : c.textSecondary, alignSelf: enabled ? 'flex-end' : 'flex-start' }]} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View style={[styles.sourceEmpty, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder }]}>
+                <Feather name="rss" size={18} color={c.textSecondary} />
+                <Text style={[styles.sourceEmptyText, { color: c.textSecondary }]}>No configured news sources yet.</Text>
+              </View>
+            )}
+          </ScrollView>
+
+          <TouchableOpacity style={[styles.modalSaveBtn, { backgroundColor: c.accent }]} onPress={openControlNewsSources}>
+            <Feather name="settings" size={16} color={c.white} />
+            <Text style={[styles.modalSaveBtnText, { color: c.white }]}>Configure Sources</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const detailAlreadyAnalyzed = isNewsAnalyzed(detailItem);
+  const visibleAgentNews = agentNews.filter(item => !dismissedIds.includes(item.id) && !isNewsAnalyzed(item));
+  const visibleAggregatorNews = filteredAggNews.filter(item => !dismissedIds.includes(item.id) && !isNewsAnalyzed(item));
+  const analyzedArchiveItems = [...agentNews, ...configuredAggNews, ...aggregatorNews]
+    .filter(item => isNewsAnalyzed(item))
+    .filter((item, index, self) => self.findIndex(other => other.id === item.id) === index);
 
   return (
     <KeyboardAvoidingView style={[styles.flex, { backgroundColor: c.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen scroll>
+      <Screen
+        scroll
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={c.accent}
+            colors={[c.accent]}
+            progressBackgroundColor={c.surfaceContainerLow}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.screenTitle, { color: c.textPrimary }]}>New Content</Text>
@@ -498,18 +545,32 @@ export default function NewContentScreen() {
               style={[styles.analyzeBtn, { backgroundColor: body.trim() ? c.accent : c.surfaceVariant }]}
               onPress={handleAnalyze} disabled={!body.trim()}
             >
-              <Text style={[styles.analyzeBtnText, { color: c.white }]}>Analyze Using Profile</Text>
+              <Text style={[styles.analyzeBtnText, { color: c.white }]}>Analyze Using Saved Profile</Text>
               <Feather name="zap" size={14} color={c.white} />
             </TouchableOpacity>
           </View>
         </View>
+
+        {refreshStatus === 'empty' && (
+          <View style={[styles.refreshPlaceholder, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <View style={[styles.refreshIcon, { backgroundColor: c.surfaceVariant }]}>
+              <Feather name="inbox" size={18} color={c.textSecondary} />
+            </View>
+            <View style={styles.refreshTextBlock}>
+              <Text style={[styles.refreshTitle, { color: c.textPrimary }]}>No new news found</Text>
+              <Text style={[styles.refreshDesc, { color: c.textSecondary }]}>
+                Analyzed items stay hidden in the archive below.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* ── Section 1: Agent Collected (TOP) ── */}
         <SectionHeader
           title="Agent Collected"
           subtitle="News and signals automatically gathered by your CK agent."
           rightElement={
-            <TouchableOpacity style={[styles.secBtn, { backgroundColor: c.accentSubtle }]} onPress={() => setAgentPromptModalVisible(true)}>
+            <TouchableOpacity style={[styles.secBtn, { backgroundColor: c.accentSubtle }]} onPress={openControlNewsSources}>
               <Feather name="cpu" size={14} color={c.accent} />
               <Text style={[styles.secBtnText, { color: c.accent }]}>Edit Prompt</Text>
             </TouchableOpacity>
@@ -517,28 +578,29 @@ export default function NewContentScreen() {
           style={{ paddingHorizontal: 20, marginTop: 20 }}
         />
         <View style={styles.feed}>
-          {MOCK_AGENT_NEWS.filter(i => !dismissedIds.includes(i.id)).map(item => {
-            const alreadyAnalyzed = isNewsAnalyzed(item);
-            return (
+          {visibleAgentNews.length > 0 ? (
+            visibleAgentNews.map(item => (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.compactCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, opacity: alreadyAnalyzed ? 0.72 : 1 }]}
+                style={[styles.compactCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
                 onPress={() => setDetailItem(item)}
               >
                 <View style={styles.compactLeft}>
+                  <View style={[styles.sourceMiniBadge, { backgroundColor: c.surfaceVariant, marginRight: 2 }]}>
+                    <Feather name={getSourceIcon(item.sourceId, item.sourceName)} size={10} color={c.textSecondary} />
+                  </View>
                   <Text style={[styles.compactSource, { color: c.textSecondary }]}>{item.sourceName}</Text>
                   <Text style={[styles.compactTime, { color: c.textSecondary }]}>{item.timestamp}</Text>
-                  {alreadyAnalyzed && (
-                    <View style={[styles.analyzedBadge, { backgroundColor: c.successSoft, borderColor: c.successBorder }]}>
-                      <Feather name="check-circle" size={11} color={c.success} />
-                      <Text style={[styles.analyzedBadgeText, { color: c.success }]}>Analyzed</Text>
-                    </View>
-                  )}
                 </View>
                 <Text style={[styles.compactTitle, { color: c.textPrimary }]} numberOfLines={1}>{item.title}</Text>
               </TouchableOpacity>
-            );
-          })}
+            ))
+          ) : (
+            <View style={[styles.emptyCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+              <Feather name="check-circle" size={20} color={c.textSecondary} />
+              <Text style={[styles.emptyText, { color: c.textSecondary }]}>No new agent-collected items.</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Section 2: News Aggregator Feed ── */}
@@ -546,10 +608,10 @@ export default function NewContentScreen() {
           title="News Aggregator"
           subtitle={selectedAggregators.length ? `Pulling from ${selectedAggregators.map(a => a.name).join(', ')}` : 'Connect external news sources to pull content.'}
           rightElement={
-            <TouchableOpacity style={[styles.secBtn, { backgroundColor: c.primarySubtle }]} onPress={() => setAggregatorModalVisible(true)}>
+            <TouchableOpacity style={[styles.secBtn, { backgroundColor: c.primarySubtle }]} onPress={() => setSourceSettingsModalVisible(true)}>
               <Feather name="settings" size={14} color={c.primary} />
               <Text style={[styles.secBtnText, { color: c.primary }]}>
-                {selectedAggregators.length ? `${selectedAggregators.length} Sources` : 'Connect'}
+                {selectedAggregators.length ? `${selectedAggregators.length} Visible` : 'Sources'}
               </Text>
             </TouchableOpacity>
           }
@@ -575,41 +637,37 @@ export default function NewContentScreen() {
           </View>
         )}
 
-        <View style={[styles.feed, { paddingBottom: 120 }]}>
+        <View style={styles.feed}>
           {selectedAggregators.length > 0 ? (
-            filteredAggNews.filter(i => !dismissedIds.includes(i.id)).length > 0 ? (
-              filteredAggNews.filter(i => !dismissedIds.includes(i.id)).map(item => {
-                const alreadyAnalyzed = isNewsAnalyzed(item);
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[styles.compactCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, opacity: alreadyAnalyzed ? 0.72 : 1 }]}
-                    onPress={() => setDetailItem(item)}
-                  >
-                    <View style={styles.compactLeft}>
-                      <Text style={[styles.compactSource, { color: c.textSecondary }]}>{item.sourceName}</Text>
-                      <Text style={[styles.compactTime, { color: c.textSecondary }]}>{item.timestamp}</Text>
-                      {alreadyAnalyzed && (
-                        <View style={[styles.analyzedBadge, { backgroundColor: c.successSoft, borderColor: c.successBorder }]}>
-                          <Feather name="check-circle" size={11} color={c.success} />
-                          <Text style={[styles.analyzedBadgeText, { color: c.success }]}>Analyzed</Text>
-                        </View>
-                      )}
+            visibleAggregatorNews.length > 0 ? (
+              visibleAggregatorNews.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.compactCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
+                  onPress={() => setDetailItem(item)}
+                >
+                  <View style={styles.compactLeft}>
+                    <View style={[styles.sourceMiniBadge, { backgroundColor: c.surfaceVariant, marginRight: 2 }]}>
+                      <Feather name={getSourceIcon(item.sourceId, item.sourceName)} size={10} color={c.textSecondary} />
                     </View>
-                    <Text style={[styles.compactTitle, { color: c.textPrimary }]} numberOfLines={1}>{item.title}</Text>
-                  </TouchableOpacity>
-                );
-              })
+                    <Text style={[styles.compactSource, { color: c.textSecondary }]}>{item.sourceName}</Text>
+                    <Text style={[styles.compactTime, { color: c.textSecondary }]}>{item.timestamp}</Text>
+                  </View>
+                  <Text style={[styles.compactTitle, { color: c.textPrimary }]} numberOfLines={1}>{item.title}</Text>
+                </TouchableOpacity>
+              ))
             ) : (
               <View style={[styles.emptyCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
                 <Feather name="search" size={20} color={c.textSecondary} />
-                <Text style={[styles.emptyText, { color: c.textSecondary }]}>No news matching "{aggKeywordFilter}"</Text>
+                <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+                  {aggKeywordFilter ? `No news matching "${aggKeywordFilter}"` : 'No new configured-source items.'}
+                </Text>
               </View>
             )
           ) : (
             <TouchableOpacity
               style={[styles.emptyCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, borderStyle: 'dashed' }]}
-              onPress={() => setAggregatorModalVisible(true)}
+              onPress={() => setSourceSettingsModalVisible(true)}
             >
               <View style={[styles.emptyIcon, { backgroundColor: c.primarySubtle }]}>
                 <Feather name="rss" size={24} color={c.primary} />
@@ -625,9 +683,54 @@ export default function NewContentScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        <View style={styles.archiveWrap}>
+          {analyzedArchiveItems.length > 0 ? (
+            <View style={[styles.archiveBox, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+              <TouchableOpacity
+                style={styles.archiveHeader}
+                onPress={() => setAnalyzedSectionExpanded(prev => !prev)}
+              >
+                <View style={[styles.archiveIcon, { backgroundColor: c.successSoft }]}>
+                  <Feather name="check-circle" size={16} color={c.success} />
+                </View>
+                <View style={styles.archiveTitleBlock}>
+                  <Text style={[styles.archiveTitle, { color: c.textPrimary }]}>Analyzed Archive</Text>
+                  <Text style={[styles.archiveDesc, { color: c.textSecondary }]}>
+                    {analyzedArchiveItems.length} hidden item{analyzedArchiveItems.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <Feather name={analyzedSectionExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={c.textSecondary} />
+              </TouchableOpacity>
+
+              {analyzedSectionExpanded && (
+                <View style={[styles.archiveList, { borderTopColor: c.surfaceBorder }]}>
+                  {analyzedArchiveItems.map(item => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.archiveRow, { borderColor: c.surfaceBorderSubtle, backgroundColor: c.surfaceContainerLowest }]}
+                      onPress={() => setDetailItem(item)}
+                    >
+                      <View style={styles.archiveRowMeta}>
+                        <View style={[styles.sourceMiniBadge, { backgroundColor: c.surfaceVariant, marginRight: 2 }]}>
+                          <Feather name={getSourceIcon(item.sourceId, item.sourceName)} size={10} color={c.textSecondary} />
+                        </View>
+                        <Text style={[styles.compactSource, { color: c.textSecondary }]}>{item.sourceName}</Text>
+                        <Text style={[styles.compactTime, { color: c.textSecondary }]}>{item.timestamp}</Text>
+                      </View>
+                      <Text style={[styles.compactTitle, { color: c.textPrimary }]} numberOfLines={2}>{item.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.bottomSpacer} />
+          )}
+        </View>
       </Screen>
 
-      {renderAggregatorModal()}
+      {renderSourceSettingsModal()}
       {renderAgentPromptModal()}
 
       {/* News Detail Modal */}
@@ -642,7 +745,7 @@ export default function NewContentScreen() {
             </View>
             <ScrollView style={{ paddingHorizontal: 20, paddingTop: 14, maxHeight: 400 }}>
               <View style={styles.detailMeta}>
-                <Feather name="globe" size={14} color={c.textSecondary} />
+                <Feather name={getSourceIcon(detailItem?.sourceId, detailItem?.sourceName)} size={14} color={c.textSecondary} />
                 <Text style={[styles.detailSource, { color: c.textSecondary }]}>{detailItem?.sourceName}</Text>
                 <Text style={[styles.detailTime, { color: c.textSecondary }]}>{detailItem?.timestamp}</Text>
               </View>
@@ -714,8 +817,8 @@ const styles = StyleSheet.create({
   bodyInput: { fontSize: FontSizes.md, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, minHeight: 110 },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   charCount: { fontSize: FontSizes.xs },
-  analyzeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8 },
-  analyzeBtnText: { fontWeight: FontWeights.bold, fontSize: FontSizes.sm },
+  analyzeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8, flexShrink: 1 },
+  analyzeBtnText: { fontWeight: FontWeights.bold, fontSize: FontSizes.sm, flexShrink: 1 },
 
   secBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   secBtnText: { fontSize: FontSizes.xs, fontWeight: FontWeights.bold },
@@ -733,6 +836,11 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: FontSizes.sm, marginTop: 8 },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   emptyBtnText: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold },
+  refreshPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 20, marginBottom: 18, borderWidth: 1, borderRadius: 12, padding: 14 },
+  refreshIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  refreshTextBlock: { flex: 1 },
+  refreshTitle: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, lineHeight: 19 },
+  refreshDesc: { fontSize: FontSizes.xs, lineHeight: 17, marginTop: 2 },
 
   // Modal shared
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
@@ -742,10 +850,21 @@ const styles = StyleSheet.create({
   modalDesc: { fontSize: FontSizes.sm, lineHeight: 20, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10 },
   modalSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 20, marginTop: 18, paddingVertical: 14, borderRadius: 12 },
   modalSaveBtnText: { fontSize: FontSizes.md, fontWeight: FontWeights.bold },
+  sourceList: { paddingHorizontal: 20, flexGrow: 0 },
+  sourceListContent: { gap: 10 },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 12, padding: 12 },
+  sourceRowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  sourceRowText: { flex: 1 },
+  sourceRowTitle: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, lineHeight: 19 },
+  sourceRowUrl: { fontSize: FontSizes.xs, lineHeight: 17, marginTop: 2 },
+  sourceSwitchTrack: { width: 44, height: 24, borderRadius: 12, borderWidth: 1, padding: 3 },
+  sourceSwitchKnob: { width: 16, height: 16, borderRadius: 8 },
+  sourceEmpty: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 14 },
+  sourceEmptyText: { flex: 1, fontSize: FontSizes.sm },
 
   // Aggregator list
   aggList: { paddingHorizontal: 20, flexGrow: 0 },
-  catHeader: { fontSize: FontSizes.xs, fontWeight: FontWeights.bold, textTransform: 'uppercase', letterSpacing: 1, marginTop: 14, marginBottom: 8 },
+  catHeader: { fontSize: FontSizes.xs, fontWeight: FontWeights.bold, textTransform: 'uppercase', letterSpacing: 0, marginTop: 14, marginBottom: 8 },
   aggRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
   aggIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   aggName: { fontSize: FontSizes.md, fontWeight: FontWeights.bold },
@@ -779,13 +898,25 @@ const styles = StyleSheet.create({
   validationText: { fontSize: FontSizes.xs, fontWeight: FontWeights.medium },
 
   // Compact news card
+  sourceMiniBadge: { width: 18, height: 18, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   compactCard: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
-  compactLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  compactLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
   compactSource: { fontSize: FontSizes.xs, fontWeight: FontWeights.medium },
   compactTime: { fontSize: FontSizes.xs - 1 },
   compactTitle: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, lineHeight: 20 },
   analyzedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
   analyzedBadgeText: { fontSize: FontSizes.xs - 1, fontWeight: FontWeights.bold, textTransform: 'uppercase' },
+  archiveWrap: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 },
+  archiveBox: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  archiveHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  archiveIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  archiveTitleBlock: { flex: 1 },
+  archiveTitle: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, lineHeight: 19 },
+  archiveDesc: { fontSize: FontSizes.xs, lineHeight: 17, marginTop: 2 },
+  archiveList: { borderTopWidth: 1, padding: 10, gap: 8 },
+  archiveRow: { borderWidth: 1, borderRadius: 10, padding: 12 },
+  archiveRowMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  bottomSpacer: { height: 104 },
 
   // Detail modal
   detailMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },

@@ -76,7 +76,9 @@ function ActionsStackScreen() {
   return (
     <ActionsStack.Navigator screenOptions={subStackScreenOptions(c)}>
       <ActionsStack.Screen name="ActionsMain" component={ActionsScreen} options={{ headerShown: false }} />
+      <ActionsStack.Screen name="ImpactReport" component={ImpactReportScreen} options={{ title: 'Impact Report' }} />
       <ActionsStack.Screen name="SimulationResult" component={SimulationResultScreen} options={{ title: 'Simulation Result' }} />
+      <ActionsStack.Screen name="AgentTrace" component={AgentTraceScreen} options={{ title: 'Agent Trace' }} />
     </ActionsStack.Navigator>
   );
 }
@@ -110,7 +112,7 @@ function BottomTabNavigator() {
           } else if (route.name === 'ActionsTab') {
             iconName = 'zap';
           } else if (route.name === 'ProfileTab') {
-            iconName = 'sliders';
+            iconName = 'settings';
           }
 
           return <Feather name={iconName} size={20} color={color} />;
@@ -123,25 +125,25 @@ function BottomTabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="Dashboard" 
-        component={DashboardStackScreen} 
-        options={{ tabBarLabel: 'Dashboard' }} 
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardStackScreen}
+        options={{ tabBarLabel: 'Dashboard' }}
       />
-      <Tab.Screen 
-        name="IngestionTab" 
-        component={IngestionStackScreen} 
-        options={{ tabBarLabel: 'New Content' }} 
+      <Tab.Screen
+        name="IngestionTab"
+        component={IngestionStackScreen}
+        options={{ tabBarLabel: 'New Content' }}
       />
-      <Tab.Screen 
-        name="ActionsTab" 
-        component={ActionsStackScreen} 
-        options={{ tabBarLabel: 'Actions' }} 
+      <Tab.Screen
+        name="ActionsTab"
+        component={ActionsStackScreen}
+        options={{ tabBarLabel: 'Actions' }}
       />
-      <Tab.Screen 
-        name="ProfileTab" 
-        component={SettingsStackScreen} 
-        options={{ tabBarLabel: 'Settings' }} 
+      <Tab.Screen
+        name="ProfileTab"
+        component={SettingsStackScreen}
+        options={{ tabBarLabel: 'Control' }}
       />
     </Tab.Navigator>
   );
@@ -170,7 +172,7 @@ export default function MainNavigator() {
     >
       {/* Tab bar is mounted as the default "Home" route */}
       <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
-      
+
       {/* Onboarding doesn't show tab bar and has no header */}
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
     </Stack.Navigator>

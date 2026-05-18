@@ -3,6 +3,7 @@ import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { AnalysisProvider } from './src/context/AnalysisContext';
+import { IntegrationsProvider } from './src/context/IntegrationsContext';
 import { PreferencesProvider, usePreferences } from './src/context/PreferencesContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -24,11 +25,13 @@ function AppShell() {
 
   return (
     <AuthProvider>
-      <AnalysisProvider>
-        <NavigationContainer theme={navigationTheme}>
-          <AppNavigator />
-        </NavigationContainer>
-      </AnalysisProvider>
+      <IntegrationsProvider>
+        <AnalysisProvider>
+          <NavigationContainer theme={navigationTheme}>
+            <AppNavigator />
+          </NavigationContainer>
+        </AnalysisProvider>
+      </IntegrationsProvider>
     </AuthProvider>
   );
 }

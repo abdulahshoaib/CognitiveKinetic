@@ -17,28 +17,20 @@ export default function AnalysisRunScreen() {
 
   const isCompleted = currentStage === 'completed';
 
-  const handleFinishReport = () => {
-    navigation.navigate('ImpactReport');
+  const handleViewReport = () => {
+    navigation.navigate('ActionsTab', { screen: 'ImpactReport' });
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'IngestionMain' }],
+    });
   };
 
-  const handleSimulateActions = () => {
-    navigation.popToTop();
-    navigation.navigate('ActionsTab', { screen: 'ActionsMain' });
-  };
-
-  const actionsCount = analysisResult?.actions?.length || 3;
+  const actionsCount = analysisResult?.recommendedActions?.length || 0;
   const threatLevel = analysisResult?.impactMatrix?.overallRisk || 'Moderate';
 
   return (
     <Screen scroll={true} style={{ backgroundColor: c.background }}>
       <View style={[styles.header]}>
-        <View style={[styles.headerIconContainer, { backgroundColor: isCompleted ? 'rgba(34, 197, 94, 0.1)' : c.primarySubtle }]}>
-          <Feather 
-            name={isCompleted ? "shield-check" : "compass"} 
-            size={28} 
-            color={isCompleted ? c.success || '#22C55E' : c.primary} 
-          />
-        </View>
         <Text style={[styles.title, { color: c.textPrimary }]}>
           {isCompleted ? 'Pipeline Finalized' : 'Agent In Progress'}
         </Text>
@@ -91,37 +83,18 @@ export default function AnalysisRunScreen() {
 
       <View style={[styles.actionsContainer]}>
         {isCompleted ? (
-          <View style={styles.completionButtonsRow}>
-            <TouchableOpacity 
-              style={[styles.primaryBtn, { backgroundColor: c.accent, flex: 1 }]} 
-              onPress={handleFinishReport}
-            >
-              <Text style={[styles.primaryBtnText, { color: c.white }]}>View Impact</Text>
-              <Feather name="bar-chart-2" size={16} color={c.white} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.successBtn, { backgroundColor: c.success || '#22C55E', flex: 1 }]} 
-              onPress={handleSimulateActions}
-            >
-              <Text style={[styles.primaryBtnText, { color: c.white }]}>Simulate Change</Text>
-              <Feather name="zap" size={16} color={c.white} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.primaryBtn, { backgroundColor: c.accent }]}
+            onPress={handleViewReport}
+          >
+            <Feather name="file-text" size={18} color={c.white} />
+            <Text style={[styles.primaryBtnText, { color: c.white }]}>View Impact Report</Text>
+          </TouchableOpacity>
         ) : (
           <View style={[styles.processingBtn, { backgroundColor: c.surfaceVariant }]}>
             <ActivityIndicator size="small" color={c.textSecondary} style={{ marginRight: 8 }} />
             <Text style={[styles.processingText, { color: c.textSecondary }]}>Evaluating Profile Context...</Text>
           </View>
-        )}
-        
-        {preferences.agentTransparency !== 'hidden' && (
-          <TouchableOpacity 
-            style={styles.secondaryBtn} 
-            onPress={() => navigation.navigate('AgentTrace')}
-          >
-            <Text style={[styles.secondaryBtnText, { color: c.accent }]}>Examine Complete Agent Log Stack</Text>
-          </TouchableOpacity>
         )}
       </View>
     </Screen>
@@ -131,27 +104,18 @@ export default function AnalysisRunScreen() {
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 28,
+    marginBottom: 24,
+    paddingTop: 12,
   },
-  headerIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
+
   title: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.xxl,
     fontWeight: FontWeights.bold,
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: 0,
   },
   subtitle: {
     fontSize: FontSizes.sm,
-    textAlign: 'center',
     lineHeight: 20,
   },
   progressCard: {
@@ -215,37 +179,24 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   actionsContainer: {
     gap: 12,
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  completionButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    gap: 8,
-  },
-  successBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 10,
   },
   primaryBtnText: {
     fontWeight: FontWeights.bold,
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.md,
   },
   processingBtn: {
     flexDirection: 'row',
@@ -257,14 +208,5 @@ const styles = StyleSheet.create({
   processingText: {
     fontWeight: FontWeights.bold,
     fontSize: FontSizes.md,
-  },
-  secondaryBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  secondaryBtnText: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
   },
 });
