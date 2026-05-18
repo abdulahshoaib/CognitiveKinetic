@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import BrandIcon from './BrandIcon';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import StatusPill from './StatusPill';
@@ -31,7 +32,9 @@ export default function ContentItemCard({ item, onPress, style }) {
     >
       <View style={styles.header}>
         <View style={styles.sourceInfo}>
-          <Feather name={getSourceIcon(item.sourceType)} size={14} color={c.textSecondary} />
+          <View style={{ width: 18, height: 18, marginRight: 2 }}>
+            <BrandIcon type={item.sourceId || item.sourceType} name={item.sourceName} size={10} enabled={true} style={{ borderRadius: 4 }} />
+          </View>
           <Text style={[styles.sourceName, { color: c.textSecondary }]}>{item.sourceName}</Text>
         </View>
         <Text style={[styles.timestamp, { color: c.textSecondary }]}>{item.timestamp}</Text>

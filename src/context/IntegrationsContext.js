@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { listenNewsFeedSettings, saveNewsFeedSettings } from '../services/feedService';
 
 const STORAGE_KEY = '@cognitive_kinetic_integrations_';
 
@@ -26,11 +27,8 @@ const defaultIntegrations = {
   newsAggregators: [
     {
       id: 'google_news_default',
-      name: 'Google News Logistics',
+      name: 'Google News',
       type: 'google_news',
-      sourceUrl: 'https://news.google.com/rss/search?q=fuel+logistics+pakistan',
-      apiKey: '',
-      keywords: ['fuel', 'logistics', 'tax'],
       enabled: true,
     },
   ],
@@ -44,11 +42,11 @@ const defaultSyncLogs = [
     id: 'log_1',
     timestamp: 'Just now',
     type: 'pull',
-    sourceName: 'NewsAPI Logistics',
+    sourceName: 'Custom RSS',
     status: 'failed',
-    errorType: 'API Key Missing',
-    message: 'Request rejected with status 401 Unauthorized.',
-    reason: 'NewsAPI requires a valid, registered developer key. By default, the app uses an empty token. To fix this, obtain a key from newsapi.org and paste it in Profile Settings > News Sources.',
+    errorType: 'Feed Unreachable',
+    message: 'RSS endpoint returned an invalid response.',
+    reason: 'Custom RSS sources must expose a valid RSS or Atom feed. The agent will skip failed sources and only show selected relevant items from successful sources.',
   },
   {
     id: 'log_2',
@@ -107,6 +105,7 @@ export function IntegrationsProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let unsubscribeSettings = null;
 
     const load = async () => {
       if (!user?.uid) {
@@ -119,24 +118,42 @@ export function IntegrationsProvider({ children }) {
         if (!mounted) return;
         if (!stored) {
           setState(defaultIntegrations);
-          return;
+        } else {
+          const parsed = JSON.parse(stored);
+          setState({
+            actionApis: Array.isArray(parsed.actionApis) ? parsed.actionApis : defaultIntegrations.actionApis,
+            newsAggregators: Array.isArray(parsed.newsAggregators) ? parsed.newsAggregators : defaultIntegrations.newsAggregators,
+            newsSystemPrompt: parsed.newsSystemPrompt || DEFAULT_NEWS_PROMPT,
+          });
         }
-        const parsed = JSON.parse(stored);
-        setState({
-          actionApis: Array.isArray(parsed.actionApis) ? parsed.actionApis : defaultIntegrations.actionApis,
-          newsAggregators: Array.isArray(parsed.newsAggregators) ? parsed.newsAggregators : defaultIntegrations.newsAggregators,
-          newsSystemPrompt: parsed.newsSystemPrompt || DEFAULT_NEWS_PROMPT,
-        });
       } catch (error) {
         console.warn('Unable to load integration settings:', error);
         setState(defaultIntegrations);
       }
+
+      unsubscribeSettings = listenNewsFeedSettings(user.uid, async (settings) => {
+        if (!mounted || !settings) return;
+        setState(prev => {
+          const nextState = {
+            ...prev,
+            newsAggregators: Array.isArray(settings.sources) ? settings.sources : prev.newsAggregators,
+            newsSystemPrompt: settings.systemPrompt || prev.newsSystemPrompt || DEFAULT_NEWS_PROMPT,
+          };
+          AsyncStorage.setItem(`${STORAGE_KEY}${user.uid}`, JSON.stringify(nextState)).catch((error) => {
+            console.warn('Unable to mirror news feed settings locally:', error);
+          });
+          return nextState;
+        });
+      }, (error) => {
+        console.warn('Unable to listen for news feed settings:', error);
+      });
     };
 
     load();
 
     return () => {
       mounted = false;
+      if (unsubscribeSettings) unsubscribeSettings();
     };
   }, [user?.uid]);
 
@@ -147,6 +164,15 @@ export function IntegrationsProvider({ children }) {
       await AsyncStorage.setItem(`${STORAGE_KEY}${user.uid}`, JSON.stringify(nextState));
     } catch (error) {
       console.warn('Unable to save integration settings:', error);
+    }
+
+    try {
+      await saveNewsFeedSettings(user.uid, {
+        systemPrompt: nextState.newsSystemPrompt,
+        sources: nextState.newsAggregators,
+      });
+    } catch (error) {
+      console.warn('Unable to save news feed settings:', error);
     }
   }, [user?.uid]);
 

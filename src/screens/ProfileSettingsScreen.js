@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import BrandIcon from '../components/common/BrandIcon';
 import { useAuth } from '../context/AuthContext';
 import { useIntegrations } from '../context/IntegrationsContext';
 import { usePreferences } from '../context/PreferencesContext';
@@ -60,12 +61,26 @@ const getTabMeta = (id) => TABS.find(tab => tab.id === id) || TABS[0];
 
 const getSourceIcon = (sourceKey, sourceName) => {
   const name = String(sourceName || sourceKey || '').toLowerCase();
+  const type = String(sourceKey || '').toLowerCase();
   if (name.includes('google')) return 'globe';
   if (name.includes('reddit')) return 'message-square';
   if (name.includes('hacker') || name.includes('ycombinator')) return 'terminal';
   if (name.includes('newsapi') || name.includes('api')) return 'server';
   if (name.includes('agent') || name.includes('ck')) return 'cpu';
+  if (type === 'business_recorder' || name.includes('recorder')) return 'trending-up';
+  if (['dawn', 'geo', 'express', 'ary', 'tribune'].some(x => type.includes(x) || name.includes(x))) return 'file-text';
   return 'rss';
+};
+
+const getSourceDescription = (source) => {
+  if (['dawn', 'geo', 'express_tribune', 'ary', 'business_recorder'].includes(source.type)) {
+    return '';
+  }
+  if (source.subreddit) return `r/${source.subreddit}`;
+  if (source.sourceUrl) return source.sourceUrl;
+  if (['google_news', 'bing_news'].includes(source.type)) return 'Profile-driven query';
+  if (source.type === 'hackernews') return 'Provider URL resolved by backend';
+  return source.type;
 };
 
 export default function ProfileSettingsScreen() {
@@ -404,39 +419,54 @@ export default function ProfileSettingsScreen() {
 
       {newsAggregators.map(source => {
         const enabled = source.enabled !== false;
+        const isEditableModal = source.type === 'custom_rss' || source.type === 'custom_api';
+        const iconName = getSourceIcon(source.type, source.name);
+        
         return (
         <View
           key={source.id}
-          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, opacity: enabled ? 1 : 0.68 }]}
+          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorderSubtle, opacity: enabled ? 1 : 0.7, paddingHorizontal: 12, paddingVertical: 10 }]}
         >
           <View style={styles.cardTopRow}>
-            <TouchableOpacity style={styles.sourceMainButton} onPress={() => openNewsDetails(source)}>
-              <View style={[styles.cardIcon, { backgroundColor: enabled ? c.accentSoft : c.surfaceVariant }]}>
-                <Feather name="rss" size={18} color={enabled ? c.accent : c.textSecondary} />
+            {isEditableModal ? (
+              <TouchableOpacity style={styles.sourceMainButton} onPress={() => openNewsDetails(source)}>
+                <View style={styles.cardIcon}>
+                  <BrandIcon type={source.type} name={source.name} size={18} enabled={enabled} />
+                </View>
+                <View style={styles.cardText}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.cardTitle, { color: c.textPrimary }]} numberOfLines={1}>{source.name}</Text>
+                    <Feather name="edit-2" size={11} color={c.textSecondary} />
+                  </View>
+                  {!!source.sourceUrl && (
+                    <Text style={{ fontSize: 11, color: c.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                      {source.sourceUrl}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.sourceMainButton}>
+                <View style={styles.cardIcon}>
+                  <BrandIcon type={source.type} name={source.name} size={18} enabled={enabled} />
+                </View>
+                <View style={styles.cardText}>
+                  <Text style={[styles.cardTitle, { color: c.textPrimary }]} numberOfLines={1}>{source.name}</Text>
+                </View>
               </View>
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: c.textPrimary }]} numberOfLines={1}>{source.name}</Text>
-                <Text style={[styles.cardUrl, { color: c.textSecondary }]} numberOfLines={1}>
-                  {source.sourceUrl || source.type}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            {renderSwitch(enabled, () => toggleNewsSource(source))}
-          </View>
-          {source.keywords?.length > 0 && (
-            <View style={styles.cardMetaRow}>
-              {source.keywords.slice(0, 4).map(keyword => (
-                <Text key={keyword} style={[styles.metaChip, { color: c.textSecondary, backgroundColor: c.surfaceContainerLowest }]}>
-                  {keyword}
-                </Text>
-              ))}
-              {source.keywords.length > 4 && (
-                <Text style={[styles.metaChip, { color: c.textSecondary, backgroundColor: c.surfaceContainerLowest }]}>
-                  +{source.keywords.length - 4}
-                </Text>
-              )}
+            )}
+            
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {renderSwitch(enabled, () => toggleNewsSource(source))}
+              
+              <TouchableOpacity 
+                style={[styles.cardDeleteIconBtn, { backgroundColor: c.errorSoft }]}
+                onPress={() => deleteNewsSource(source.id)}
+              >
+                <Feather name="trash-2" size={15} color={c.error} />
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
         </View>
       );
       })}
@@ -678,8 +708,8 @@ export default function ProfileSettingsScreen() {
                 >
                   <View style={styles.logRowTop}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                      <View style={[styles.cardIcon, { backgroundColor: c.errorSoft, width: 32, height: 32 }]}>
-                        <Feather name={getSourceIcon('', log.sourceName)} size={15} color={c.error} />
+                      <View style={{ width: 32, height: 32 }}>
+                        <BrandIcon type="" name={log.sourceName} size={15} enabled={true} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.logRowHeader, { color: c.textPrimary }]} numberOfLines={1}>
@@ -866,7 +896,7 @@ export default function ProfileSettingsScreen() {
         onClose={closeNewsModal}
         onApply={saveNewsSetup}
         title="News Aggregator Setup"
-        description="Same source picker used by New Content. Configure URLs, APIs, keys, and source-specific keywords."
+        description="Choose sources. The agent filters fetched items using the saved profile and prompt."
         saveLabel="Save Sources"
       />
       <NewsSourceDetailModal
@@ -1029,6 +1059,13 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
+  },
+  cardDeleteIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   promptCard: {
     borderRadius: 12,
