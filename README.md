@@ -41,7 +41,9 @@ Users initialize their profile during onboarding. This profile is persisted loca
 ### Phase 2: Unstructured Content Ingestion
 The system ingests unstructured text through:
 - **Pasted Strategic Content**: Manual entry of market reports or operational alerts.
-- **Multi-Source Mock Feed**: Real-time simulated feed items representing fuel reviews, traffic regulatory bans, sports news, or cultural festivals.
+- **Multi-Source Agent Feed**: User-configured Google News, Reddit, Pakistan provider, and custom RSS sources are fetched server-side and filtered against the saved profile before appearing in the app.
+
+The feed is user-scoped. Source setup is stored at `users/{uid}/settings/newsFeed`, active selected items live under `users/{uid}/feedItems`, and aged idle items move to `users/{uid}/archivedFeedItems`. There is no shared top-level feed cache. Dismissed items are deleted immediately, idle unanalyzed items archive after two days, and archived items are removed after roughly one month. Only analysis runs are treated as permanent history, and each feed-triggered analysis stores an article snapshot with the report.
 
 ### Phase 3: Facts & Signals Extraction (`src/services/understanding.js`)
 The agent scans the content to extract core data structures:
@@ -50,9 +52,9 @@ The agent scans the content to extract core data structures:
 - **Severity Rating**: Classifies signals as Low, Medium, or High based on impact indicators.
 
 ### Phase 4: Relevance Checks (`src/services/agent/orchestrator.js`)
-To avoid analyzing irrelevant noise (like standard celebrity news or local social events), a semantic matcher scores the article:
-- **High-Impact Scores**: Core operating keywords (e.g., fuel, surcharge, smog, route bans) generate high relevance.
-- **Low Relevance Bypass**: If relevance falls below a 30% threshold, deep insights are skipped, saving computing cycles, and the item is marked as "ignored".
+To avoid analyzing irrelevant noise (like standard celebrity news or local social events), the agent evaluates collected articles against the saved profile and feed prompt:
+- **Agent Selection**: Backend functions collect source items, then hand them to the feed-selection agent contract.
+- **Low Relevance Bypass**: Items not selected by the agent never reach the frontend feed.
 
 ### Phase 5: Severity Insights & Impact Modeling (`src/services/impact.js`)
 If relevant, the agent formulates structural impact grids:
@@ -123,7 +125,7 @@ The navigation system is divided into four highly focused operational tabs:
     *   *Recent Logs Preview*: Displays a live chronological log of agent background traces.
 2.  **New Content Ingestion Screen (`src/screens/NewContentScreen.js`)**:
     *   Allows operators to paste raw text or select items from the multi-source feed.
-    *   Supports single-tap loading of sample scenarios to speed up demonstrations.
+    *   Shows only agent-selected relevant feed items and provides direct access to archived feed cache items.
 3.  **Actions & Simulation Screen (`src/screens/SimulationResultScreen.js`)**:
     *   Presents a card deck of recommended actions categorized by urgency.
     *   Hosts the **Interactive Simulation Sandbox** featuring side-by-side state grids (Before vs. After) and terminal-like execution traces.
