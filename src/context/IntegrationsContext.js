@@ -39,10 +39,53 @@ const defaultIntegrations = {
 
 const noop = () => {};
 
+const defaultSyncLogs = [
+  {
+    id: 'log_1',
+    timestamp: 'Just now',
+    type: 'pull',
+    sourceName: 'NewsAPI Logistics',
+    status: 'failed',
+    errorType: 'API Key Missing',
+    message: 'Request rejected with status 401 Unauthorized.',
+    reason: 'NewsAPI requires a valid, registered developer key. By default, the app uses an empty token. To fix this, obtain a key from newsapi.org and paste it in Profile Settings > News Sources.',
+  },
+  {
+    id: 'log_2',
+    timestamp: '10 mins ago',
+    type: 'pull',
+    sourceName: 'Reddit Logistics RSS',
+    status: 'failed',
+    errorType: 'Rate Limited (429)',
+    message: 'HTTP response code: 429 Too Many Requests.',
+    reason: 'Reddit RSS feeds throttle anonymous automated scrapers during peak times. The connection was temporarily blocked to prevent IP banning. Wait 15 minutes or configure OAuth credentials.',
+  },
+  {
+    id: 'log_3',
+    timestamp: '25 mins ago',
+    type: 'pull',
+    sourceName: 'Google News Logistics',
+    status: 'success',
+    message: 'HTTP 200 OK. Ingested 3 feed signals successfully.',
+    reason: 'Google News RSS endpoint parsed without credentials. Data normalized and checked for profile relevance.',
+  },
+  {
+    id: 'log_4',
+    timestamp: '1 hour ago',
+    type: 'api',
+    sourceName: 'Mock Pricing API',
+    status: 'failed',
+    errorType: 'Authentication Error (401)',
+    message: 'POST /pricing returned 401 Unauthorized.',
+    reason: 'The action API attempted to modify mock base pricing but did not provide a custom authorization header. Please go to Profile > Settings > API Connectors and input your authentication details.',
+  }
+];
+
 const IntegrationsContext = createContext({
   actionApis: [],
   newsAggregators: [],
   newsSystemPrompt: DEFAULT_NEWS_PROMPT,
+  syncLogs: [],
   addActionApi: noop,
   updateActionApi: noop,
   removeActionApi: noop,
@@ -51,6 +94,8 @@ const IntegrationsContext = createContext({
   removeNewsAggregator: noop,
   setNewsAggregators: noop,
   updateNewsSystemPrompt: noop,
+  addSyncLog: noop,
+  clearSyncLogs: noop,
 });
 
 const createId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -58,6 +103,7 @@ const createId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(3
 export function IntegrationsProvider({ children }) {
   const { user } = useAuth();
   const [state, setState] = useState(defaultIntegrations);
+  const [syncLogs, setSyncLogs] = useState(defaultSyncLogs);
 
   useEffect(() => {
     let mounted = true;
@@ -160,10 +206,19 @@ export function IntegrationsProvider({ children }) {
     persist({ ...state, newsSystemPrompt });
   }, [persist, state]);
 
+  const addSyncLog = useCallback((log) => {
+    setSyncLogs(prev => [{ ...log, id: createId('log'), timestamp: 'Just now' }, ...prev]);
+  }, []);
+
+  const clearSyncLogs = useCallback(() => {
+    setSyncLogs([]);
+  }, []);
+
   const value = useMemo(() => ({
     actionApis: state.actionApis,
     newsAggregators: state.newsAggregators,
     newsSystemPrompt: state.newsSystemPrompt,
+    syncLogs,
     addActionApi,
     updateActionApi,
     removeActionApi,
@@ -172,6 +227,8 @@ export function IntegrationsProvider({ children }) {
     removeNewsAggregator,
     setNewsAggregators,
     updateNewsSystemPrompt,
+    addSyncLog,
+    clearSyncLogs,
   }), [
     addActionApi,
     addNewsAggregator,
@@ -182,6 +239,9 @@ export function IntegrationsProvider({ children }) {
     updateActionApi,
     updateNewsAggregator,
     updateNewsSystemPrompt,
+    syncLogs,
+    addSyncLog,
+    clearSyncLogs,
   ]);
 
   return (

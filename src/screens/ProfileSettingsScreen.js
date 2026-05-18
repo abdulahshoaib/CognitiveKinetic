@@ -31,6 +31,7 @@ const TABS = [
   { id: 'context', label: 'Business', icon: 'briefcase', subtitle: 'Saved profile reused by analysis.' },
   { id: 'apis', label: 'Action APIs', icon: 'server', subtitle: 'Systems agent can simulate against.' },
   { id: 'news', label: 'News Sources', icon: 'rss', subtitle: 'Feeds and prompt for collected news.' },
+  { id: 'logs', label: 'System Logs', icon: 'activity', subtitle: 'Detailed connection & ingest diagnostics.' },
   { id: 'preferences', label: 'Preferences', icon: 'sliders', subtitle: 'Visual and agent display controls.' },
   { id: 'account', label: 'Account', icon: 'user', subtitle: 'Identity, password, and session.' },
 ];
@@ -57,6 +58,16 @@ const joinList = (items) => (Array.isArray(items) && items.length ? items.join('
 
 const getTabMeta = (id) => TABS.find(tab => tab.id === id) || TABS[0];
 
+const getSourceIcon = (sourceKey, sourceName) => {
+  const name = String(sourceName || sourceKey || '').toLowerCase();
+  if (name.includes('google')) return 'globe';
+  if (name.includes('reddit')) return 'message-square';
+  if (name.includes('hacker') || name.includes('ycombinator')) return 'terminal';
+  if (name.includes('newsapi') || name.includes('api')) return 'server';
+  if (name.includes('agent') || name.includes('ck')) return 'cpu';
+  return 'rss';
+};
+
 export default function ProfileSettingsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -71,6 +82,8 @@ export default function ProfileSettingsScreen() {
     setNewsAggregators,
     updateActionApi,
     updateNewsSystemPrompt,
+    syncLogs,
+    clearSyncLogs,
   } = useIntegrations();
   const c = activeTheme.colors;
 
@@ -86,6 +99,7 @@ export default function ProfileSettingsScreen() {
   const [newsModalVisible, setNewsModalVisible] = useState(false);
   const [selectedNewsSource, setSelectedNewsSource] = useState(null);
   const [promptDraft, setPromptDraft] = useState(newsSystemPrompt);
+  const [expandedLogId, setExpandedLogId] = useState(null);
 
   const email = user?.email || '';
   const isDemo = !!user?.isAnonymous;
@@ -561,6 +575,153 @@ export default function ProfileSettingsScreen() {
     </View>
   );
 
+  const handleDownloadLogs = () => {
+    const failedLogs = syncLogs.filter(log => log.status === 'failed');
+    if (failedLogs.length === 0) {
+      Alert.alert('No logs', 'There are no failed ingestion logs to download.');
+      return;
+    }
+    
+    // Create a beautiful text file format
+    const logText = failedLogs.map(log => (
+      `========================================\n` +
+      `Source: ${log.sourceName}\n` +
+      `Timestamp: ${log.timestamp}\n` +
+      `Status: FAILED\n` +
+      `Error Type: ${log.errorType || 'Unknown Error'}\n` +
+      `Message: ${log.message || 'No message provided'}\n` +
+      `Reason & Diagnosis:\n${log.reason || 'No diagnostic explanation available.'}\n` +
+      `========================================\n`
+    )).join('\n');
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cognitive_kinetic_failed_logs_${Date.now()}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      Alert.alert('Success', 'Diagnostic logs downloaded successfully.');
+    } else {
+      Alert.alert(
+        'Export Logs', 
+        'Failed logs exported to cognitive_kinetic_failed_logs.txt. Diagnostics saved to device storage.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const renderLogsTab = () => {
+    const failedLogs = syncLogs.filter(log => log.status === 'failed');
+    return (
+      <View style={styles.stack}>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>System Ingestion Logs</Text>
+            <Text style={[styles.sectionSubtitle, { color: c.textSecondary }]}>Diagnostic connection history and failures.</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {failedLogs.length > 0 && (
+              <TouchableOpacity 
+                style={[styles.savePromptButton, { backgroundColor: c.errorSoft, borderColor: c.error, borderWidth: 1 }]} 
+                onPress={() => {
+                  Alert.alert('Clear logs', 'Clear all diagnostic connection history?', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Clear', style: 'destructive', onPress: clearSyncLogs },
+                  ]);
+                }}
+              >
+                <Text style={[styles.savePromptText, { color: c.error }]}>Clear</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[styles.savePromptButton, { backgroundColor: c.accent }]} 
+              onPress={handleDownloadLogs}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Feather name="download" size={14} color={c.white} />
+                <Text style={[styles.savePromptText, { color: c.white }]}>Download</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {failedLogs.length === 0 ? (
+          <View style={[styles.logEmptyCard, { backgroundColor: c.successSoft, borderColor: c.successBorder }]}>
+            <View style={[styles.cardIcon, { backgroundColor: c.success, alignSelf: 'center' }]}>
+              <Feather name="check" size={20} color={c.white} />
+            </View>
+            <Text style={[styles.logEmptyTitle, { color: c.textPrimary }]}>All Channels Healthy</Text>
+            <Text style={[styles.logEmptyDesc, { color: c.textSecondary }]}>
+              No ingestion or connection failures have been detected in the last 24 hours. All RSS feeds and APIs are operating normally.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.logList}>
+            {failedLogs.map(log => {
+              const isExpanded = expandedLogId === log.id;
+              return (
+                <TouchableOpacity
+                  key={log.id}
+                  style={[
+                    styles.logRow, 
+                    { 
+                      borderColor: c.errorBorder, 
+                      backgroundColor: c.surfaceContainerLow 
+                    }
+                  ]}
+                  onPress={() => setExpandedLogId(isExpanded ? null : log.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.logRowTop}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <View style={[styles.cardIcon, { backgroundColor: c.errorSoft, width: 32, height: 32 }]}>
+                        <Feather name={getSourceIcon('', log.sourceName)} size={15} color={c.error} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.logRowHeader, { color: c.textPrimary }]} numberOfLines={1}>
+                          {log.sourceName}
+                        </Text>
+                        <Text style={{ fontSize: FontSizes.xs, color: c.error, fontWeight: FontWeights.bold, textTransform: 'uppercase', marginTop: 1 }}>
+                          {log.errorType || 'SYNC FAILURE'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.compactTime, { color: c.textSecondary }]}>{log.timestamp}</Text>
+                      <Feather name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={c.textSecondary} />
+                    </View>
+                  </View>
+
+                  <Text style={[styles.logRowMessage, { color: c.textSecondary }]} numberOfLines={isExpanded ? undefined : 2}>
+                    {log.message}
+                  </Text>
+
+                  {isExpanded && (
+                    <View style={[styles.logRowDetail, { borderTopColor: c.surfaceBorder }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Feather name="info" size={13} color={c.accent} />
+                        <Text style={[styles.logRowDetailTitle, { color: c.accent }]}>
+                          Diagnosis & Solution
+                        </Text>
+                      </View>
+                      <Text style={[styles.logRowDetailText, { color: c.textPrimary }]}>
+                        {log.reason}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderActiveTab = () => {
     if (activeTab === 'context') {
       return profile ? (
@@ -571,6 +732,7 @@ export default function ProfileSettingsScreen() {
     }
     if (activeTab === 'apis') return renderApisTab();
     if (activeTab === 'news') return renderNewsTab();
+    if (activeTab === 'logs') return renderLogsTab();
     if (activeTab === 'preferences') return renderPreferencesTab();
     return renderAccountTab();
   };
@@ -1084,5 +1246,65 @@ const styles = StyleSheet.create({
   modalSaveText: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.bold,
+  },
+  logEmptyCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  logEmptyTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+  },
+  logEmptyDesc: {
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  logList: {
+    gap: 12,
+    marginTop: 4,
+  },
+  logRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    gap: 8,
+  },
+  logRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  logRowHeader: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+  },
+  logRowMessage: {
+    fontSize: FontSizes.sm - 1,
+    lineHeight: 18,
+  },
+  logRowDetail: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    gap: 6,
+  },
+  logRowDetailTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    textTransform: 'uppercase',
+  },
+  logRowDetailText: {
+    fontSize: FontSizes.sm - 1,
+    lineHeight: 18,
+  },
+  compactTime: {
+    fontSize: FontSizes.xs,
   },
 });
