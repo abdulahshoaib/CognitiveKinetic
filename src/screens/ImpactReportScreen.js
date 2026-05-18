@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Linking } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Linking, BackHandler } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -24,6 +24,35 @@ export default function ImpactReportScreen() {
   // Logs modal
   const [logsModalAction, setLogsModalAction] = useState(null);
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate('ActionsTab', { screen: 'ActionsMain' });
+          }}
+          style={{ marginRight: 16 }}
+        >
+          <Feather name="arrow-left" size={24} color={c.textPrimary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, c]);
+
+  React.useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('ActionsTab', { screen: 'ActionsMain' });
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
 
   if (!analysisResult) {
     return (

@@ -115,7 +115,7 @@ export default function DashboardScreen() {
   const openReport = (report) => {
     if (!report) return;
     viewAnalysis(report);
-    navigation.navigate('ImpactReport');
+    navigation.navigate('ActionsTab', { screen: 'ImpactReport' });
   };
 
   const handleSimulateNextAction = async () => {
@@ -124,7 +124,7 @@ export default function DashboardScreen() {
     viewAnalysis(analysis);
     const isManual = action.simulationSupported === false || action.actionType === 'manual_review';
     if (isManual) {
-      navigation.navigate('ImpactReport');
+      navigation.navigate('ActionsTab', { screen: 'ImpactReport' });
       return;
     }
     await executeSimulation(action, analysis.id);
