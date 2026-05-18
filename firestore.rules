@@ -3,6 +3,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // users/{uid}
+    //   Auth-owned account metadata. Owner only.
+    //
+    // users/{uid}/profile/main
+    //   Saved business profile used by analysis and feed selection.
+    //
+    // users/{uid}/settings/newsFeed
+    //   User-controlled feed prompt and source setup.
+    //
+    // users/{uid}/feedItems/{itemId}
+    //   Active user feed cache. Client may create manual feed items,
+    //   update saved/status, and delete for dismiss. Agent-selected feed
+    //   writes happen through Admin SDK in Cloud Functions.
+    //
+    // users/{uid}/archivedFeedItems/{itemId}
+    //   Read-only client archive cache. Lifecycle writes happen in functions.
+    //
+    // users/{uid}/analysisRuns/{runId}, logs, simulations, mockState
+    //   Read-only client report/simulation state. Writes happen in functions.
+    //
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,17 +39,199 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function validTimestamp(value) {
+      return value == null || value is timestamp || value is string;
+    }
+
+    function optionalString(data, field, maxLength) {
+      return !data.keys().hasAny([field]) ||
+        (data[field] is string && data[field].size() <= maxLength) ||
+        data[field] == null;
+    }
+
+    function optionalBool(data, field) {
+      return !data.keys().hasAny([field]) ||
+        data[field] is bool ||
+        data[field] == null;
+    }
+
+    function optionalList(data, field, maxSize) {
+      return !data.keys().hasAny([field]) ||
+        (data[field] is list && data[field].size() <= maxSize) ||
+        data[field] == null;
+    }
+
+    function optionalTimestamp(data, field) {
+      return !data.keys().hasAny([field]) || validTimestamp(data[field]);
+    }
+
+    function isValidUserDoc(data, userId) {
+      return data.keys().hasOnly([
+        'uid',
+        'email',
+        'isAnonymous',
+        'fullName',
+        'provider',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.uid == userId &&
+      optionalString(data, 'email', 320) &&
+      optionalBool(data, 'isAnonymous') &&
+      optionalString(data, 'fullName', 160) &&
+      optionalString(data, 'provider', 40) &&
+      optionalTimestamp(data, 'createdAt') &&
+      optionalTimestamp(data, 'updatedAt');
+    }
+
+    function isValidProfile(data) {
+      return data.keys().hasOnly([
+        'businessName',
+        'organizationName',
+        'industry',
+        'domain',
+        'locations',
+        'keyConcerns',
+        'concerns',
+        'targetAudience',
+        'primaryGoal',
+        'goals',
+        'riskSensitivity',
+        'enableAutoSim',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      optionalString(data, 'businessName', 160) &&
+      optionalString(data, 'organizationName', 160) &&
+      optionalString(data, 'industry', 120) &&
+      optionalString(data, 'domain', 120) &&
+      optionalList(data, 'locations', 40) &&
+      optionalString(data, 'keyConcerns', 2000) &&
+      optionalString(data, 'concerns', 2000) &&
+      optionalString(data, 'targetAudience', 1000) &&
+      optionalString(data, 'primaryGoal', 1000) &&
+      optionalString(data, 'goals', 1000) &&
+      optionalString(data, 'riskSensitivity', 40) &&
+      optionalBool(data, 'enableAutoSim') &&
+      optionalTimestamp(data, 'createdAt') &&
+      optionalTimestamp(data, 'updatedAt');
+    }
+
+    function isValidNewsFeedSettings(data) {
+      return data.keys().hasOnly([
+        'systemPrompt',
+        'sources',
+        'lastRefreshAt',
+        'updatedAt'
+      ]) &&
+      optionalString(data, 'systemPrompt', 5000) &&
+      optionalList(data, 'sources', 50) &&
+      optionalTimestamp(data, 'lastRefreshAt') &&
+      optionalTimestamp(data, 'updatedAt');
+    }
+
+    function isValidManualFeedItem(data) {
+      return data.keys().hasOnly([
+        'sourceType',
+        'sourceName',
+        'title',
+        'body',
+        'url',
+        'sourceUrl',
+        'timestamp',
+        'relevanceStatus',
+        'detectedTopics',
+        'createdAt'
+      ]) &&
+      data.sourceType == 'manual' &&
+      optionalString(data, 'sourceName', 120) &&
+      optionalString(data, 'title', 500) &&
+      optionalString(data, 'body', 50000) &&
+      optionalString(data, 'url', 2000) &&
+      optionalString(data, 'sourceUrl', 2000) &&
+      optionalString(data, 'timestamp', 80) &&
+      optionalString(data, 'relevanceStatus', 40) &&
+      optionalList(data, 'detectedTopics', 40) &&
+      optionalTimestamp(data, 'createdAt');
+    }
+
+    function isValidFeedStatusUpdate(data) {
+      return data.keys().hasAll(['updatedAt']) &&
+        data.diff(resource.data).affectedKeys().hasOnly([
+          'saved',
+          'status',
+          'updatedAt'
+        ]) &&
+        optionalBool(data, 'saved') &&
+        optionalString(data, 'status', 40) &&
+        optionalTimestamp(data, 'updatedAt');
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
     match /users/{userId} {
-      allow read, create, update: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) &&
+        isValidUserDoc(request.resource.data, userId);
       allow delete: if false;
 
-      match /profile/{profileId} {
-        allow read, create, update, delete: if isOwner(userId);
+      match /profile/main {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          isValidProfile(request.resource.data);
+        allow delete: if false;
+      }
+
+      match /settings/newsFeed {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          isValidNewsFeedSettings(request.resource.data);
+        allow delete: if false;
+      }
+
+      match /feedItems/{itemId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidManualFeedItem(request.resource.data);
+        allow update: if isOwner(userId) &&
+          isValidFeedStatusUpdate(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /archivedFeedItems/{itemId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
       }
 
       match /analysisRuns/{runId} {
-        allow read, create, update, delete: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if false;
+
+        match /logs/{logId} {
+          allow read: if isOwner(userId);
+          allow write: if false;
+        }
       }
+
+      match /mockState/main {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /simulations/{simId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /{allChildren=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
