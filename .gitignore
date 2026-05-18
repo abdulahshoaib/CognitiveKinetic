@@ -44,3 +44,6 @@ yarn-error.*
 # Stitch previews and mockups
 stitch/
 
+firebase-debug.log
+.firebase
+.firebaserc
