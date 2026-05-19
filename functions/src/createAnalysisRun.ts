@@ -64,6 +64,23 @@ export const createAnalysisRun = onCall(async (request) => {
 
   const db = admin.firestore();
 
+  // Rate limiting: max 5 analysis requests per minute per user
+  const rateLimitRef = db.doc(`users/${uid}/rateLimit/analysis`);
+  const rateLimitSnap = await rateLimitRef.get();
+  const now = Date.now();
+  const rateLimitData = rateLimitSnap.data() || { count: 0, windowStart: now };
+  const windowAge = now - (rateLimitData.windowStart || now);
+
+  if (windowAge < 60000) {
+    // Still in current window
+    if (rateLimitData.count >= 5) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Too many analysis requests. Maximum 5 per minute. Please wait before trying again."
+      );
+    }
+  }
+
   // Fetch Profile
   const profileRef = db.doc(`users/${uid}/profile/main`);
   const profileSnap = await profileRef.get();
@@ -72,6 +89,15 @@ export const createAnalysisRun = onCall(async (request) => {
     throw new HttpsError(
       "failed-precondition",
       "User profile not found. Please complete onboarding."
+    );
+  }
+
+  // Validate profile has required fields
+  const profileData = profileSnap.data();
+  if (!profileData?.businessName || !profileData?.industry) {
+    throw new HttpsError(
+      "failed-precondition",
+      "User profile incomplete. Business name and industry are required."
     );
   }
   // Profile fetch verification only
@@ -119,6 +145,15 @@ export const createAnalysisRun = onCall(async (request) => {
   // Enqueue Execution Task
   const queue = getFunctions().taskQueue("agentWorker");
   await queue.enqueue({runId, uid});
+
+  // Update rate limit
+  const newWindowStart = windowAge >= 60000 ? now : rateLimitData.windowStart;
+  const newCount = windowAge >= 60000 ? 1 : (rateLimitData.count || 0) + 1;
+  await rateLimitRef.set({
+    count: newCount,
+    windowStart: newWindowStart,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
 
   return {runId};
 });

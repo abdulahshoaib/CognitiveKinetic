@@ -47,13 +47,19 @@ export const agentWorker = onTaskDispatched(
     const {runId, uid} = request.data as { runId: string; uid: string };
     const db = admin.firestore();
 
-    const runRef = db.doc(`users/${uid}/analysisRuns/${runId}`);
-    const runSnap = await runRef.get();
+    try {
+      const runRef = db.doc(`users/${uid}/analysisRuns/${runId}`);
+      const runSnap = await runRef.get();
 
-    if (!runSnap.exists) {
-      console.error(`Analysis run ${runId} not found`);
-      return;
-    }
+      if (!runSnap.exists) {
+        await db.doc(`users/${uid}/analysisRuns/${runId}`).update({
+          status: 'failed',
+          currentStage: 'error',
+          errorMessage: 'Analysis run document not found',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return;
+      }
 
     const runData = runSnap.data();
     const content = runData?.sourceContent || "";
@@ -200,14 +206,29 @@ export const agentWorker = onTaskDispatched(
       "Recommended actions created."
     );
 
-    // Finalize
-    await runRef.update({
-      currentStage: "completed",
-      status: "completed",
-      recommendedActions,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    await addLog(db, uid, runId, "completed", "Updated report generated.");
+      // Finalize
+      await runRef.update({
+        currentStage: "completed",
+        status: "completed",
+        recommendedActions,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      await addLog(db, uid, runId, "completed", "Updated report generated.");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      try {
+        await db.doc(`users/${uid}/analysisRuns/${runId}`).update({
+          status: 'failed',
+          currentStage: 'error',
+          errorMessage,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await addLog(db, uid, runId, 'error', `Pipeline error: ${errorMessage}`);
+      } catch (updateError) {
+        // Silently fail if update fails
+      }
+      throw error;
+    }
   }
 );
