@@ -150,7 +150,19 @@ export const AnalysisProvider = ({ children }) => {
       }
     };
 
+    // DEBUG TOAST HELPER
+    const _dbg = (msg) => {
+      console.log('[PIPELINE DEBUG]', msg);
+      const { Alert, ToastAndroid, Platform } = require('react-native');
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(msg, ToastAndroid.LONG);
+      } else {
+        Alert.alert('DEBUG', msg);
+      }
+    };
+
     try {
+      _dbg('T3: analyzeContent entered. Calling createAnalysisRun cloud fn...');
       addLog(`Initiating backend content-to-action analysis pipeline...`, 'orchestrator');
 
       const createAnalysisRunCallable = httpsCallable(functions, 'createAnalysisRun');
@@ -160,6 +172,7 @@ export const AnalysisProvider = ({ children }) => {
       });
 
       const { runId } = res.data;
+      _dbg(`T4: createAnalysisRun returned. runId=${runId}`);
 
       // Cleanup any existing run subscriptions
       cleanupActiveRun();
@@ -178,9 +191,12 @@ export const AnalysisProvider = ({ children }) => {
       });
       activeSubscriptions.current.push(unsubscribeLogs);
 
+      _dbg('T5: Firestore listeners attached. Waiting for agentWorker...');
+
       // Start watchdog after run created — 90s max for backend to finish
       watchdogRef.timer = setTimeout(() => {
         console.warn('Analysis watchdog: backend did not complete in 90s');
+        _dbg('T-WATCHDOG: 90s passed, backend never completed. agentWorker likely not deployed or task queue broken.');
         addLog('Pipeline timed out. Backend did not respond within 90 seconds.', 'orchestrator', 'error');
         setIsAnalyzing(false);
         setCurrentStage('error');
@@ -192,12 +208,15 @@ export const AnalysisProvider = ({ children }) => {
         if (!runSnap.exists()) return;
         const data = runSnap.data();
 
+        _dbg(`T6: Firestore snapshot fired. stage=${data.currentStage} status=${data.status}`);
+
         if (data.currentStage) {
           setCurrentStage(data.currentStage);
         }
 
         if (data.status === 'completed' || data.status === 'needs_simulation' || data.status === 'ignored' || data.status === 'failed') {
           clearWatchdog();
+          _dbg(`T7: Terminal status reached: ${data.status}. Finalizing...`);
           // Unsubscribe from real-time monitoring
           cleanupActiveRun();
 
@@ -230,6 +249,7 @@ export const AnalysisProvider = ({ children }) => {
       }, (err) => {
         console.error("Error monitoring active analysis run:", err);
         clearWatchdog();
+        _dbg(`T-LISTENER-ERR: Firestore listener error: ${err.message}`);
         setIsAnalyzing(false);
         setCurrentStage('error');
         addLog(`Firestore listener error: ${err.message}`, 'orchestrator', 'error');
@@ -240,6 +260,7 @@ export const AnalysisProvider = ({ children }) => {
     } catch (error) {
       console.error("Analysis pipeline failed:", error);
       clearWatchdog();
+      _dbg(`T8-CATCH: Pipeline threw error: [${error?.code}] ${error.message}`);
       addLog(`Pipeline execution halted: ${error.message}`, 'orchestrator', 'error');
       setIsAnalyzing(false);
       setCurrentStage('error');

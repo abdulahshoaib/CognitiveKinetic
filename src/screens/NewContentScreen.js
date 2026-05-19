@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Modal, ScrollView, RefreshControl, ActivityIndicator
+  KeyboardAvoidingView, Platform, Modal, ScrollView, RefreshControl, ActivityIndicator,
+  Alert, ToastAndroid
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import BrandIcon from '../components/common/BrandIcon';
@@ -92,11 +93,24 @@ export default function NewContentScreen() {
     } catch (e) { console.error(e); }
   };
 
+  const _dbgToast = (msg) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(msg, ToastAndroid.LONG);
+    } else {
+      Alert.alert('DEBUG', msg);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!body.trim() || !profile) return;
+    _dbgToast('T1: Button pressed. body ok, profile ok. Creating feed item...');
     const content = title.trim() ? `${title}\n\n${body}` : body;
     const newItem = await addManualAnalysisItem(title || 'Manual Input', body);
-    if (!newItem) return;
+    if (!newItem) {
+      _dbgToast('T2-FAIL: addManualAnalysisItem returned null! Feed item not created.');
+      return;
+    }
+    _dbgToast(`T2-OK: Feed item created. id=${newItem.id}. Calling analyzeContent...`);
     analyzeContent(content, profile, newItem.id, newItem);
     navigation.navigate('AnalysisRun');
     setTitle('');
