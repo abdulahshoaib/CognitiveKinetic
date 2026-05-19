@@ -1,14 +1,19 @@
 /**
  * Feature 6: Action Simulation Service
- * Executes mock actions and generates logs.
+ * Note: This service is deprecated. Use AnalysisContext.executeSimulation() instead,
+ * which properly calls the Cloud Function.
+ * Kept for backward compatibility.
  */
 
 export function simulateAction(action) {
-  // TODO: Mock execution (API call, dashboard update, etc.)
+  console.warn(
+    'Legacy simulateAction called. Use AnalysisContext.executeSimulation() for Cloud Function integration.'
+  );
+  // This should not be called - use Cloud Function via AnalysisContext
   return {
     action,
-    success: true,
-    logs: [],
+    success: false,
+    logs: ['Error: This is a legacy mock - use AnalysisContext.executeSimulation()'],
     beforeState: {},
     afterState: {},
   };

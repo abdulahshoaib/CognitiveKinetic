@@ -249,8 +249,22 @@ export const AnalysisProvider = ({ children }) => {
 
     } catch (error) {
       console.error("Simulation failed:", error);
-      addLog(`Simulation error: ${error.message}`, 'simulation', 'error');
-      updateActionStatus('failed', [error.message]);
+      const errorMsg = error?.message || 'Unknown error';
+      const errorCode = error?.code || 'unknown';
+      const detailedError = `[${errorCode}] ${errorMsg}`;
+      
+      addLog(`Simulation error: ${detailedError}`, 'simulation', 'error');
+      
+      // Provide specific guidance based on error type
+      if (errorCode === 'permission-denied') {
+        addLog('Permission denied: Verify user authentication and Firestore rules.', 'simulation', 'error');
+      } else if (errorCode === 'not-found') {
+        addLog('Analysis run or action not found: Run may have expired.', 'simulation', 'error');
+      } else if (errorCode === 'unauthenticated') {
+        addLog('Authentication required: Please log in again.', 'simulation', 'error');
+      }
+      
+      updateActionStatus('failed', [detailedError]);
     } finally {
       setIsSimulating(false);
     }
