@@ -110,9 +110,22 @@ export const agentWorker = onTaskDispatched(
     const relevanceResponse = await ai.generate({
       prompt: `Given this user profile:\n${JSON.stringify(profile)}\n\n` +
         `And these signals:\n${signals.join("\n")}\n\n` +
-        "Is this relevant? Reply YES or NO, then explain.",
+        "Is this relevant to the business? Analyze the signals against the profile. " +
+        "Return a JSON object with 'score' (0 to 100) and 'explanation'. " +
+        "A score of 75+ means it is highly relevant and actionable.",
+      output: {
+        schema: z.object({
+          score: z.number().describe("Relevance score between 0 and 100."),
+          explanation: z.string().describe("Explanation for why it is relevant or not."),
+        })
+      }
     });
-    const relevance = relevanceResponse.text;
+    
+    let relevanceScore = relevanceResponse.output?.score || 0;
+    const relevanceExplanation = relevanceResponse.output?.explanation || "No explanation provided.";
+    
+    // Ensure score is within 0-100 bounds
+    relevanceScore = Math.max(0, Math.min(100, relevanceScore));
     await addLog(
       db,
       uid,
@@ -124,12 +137,12 @@ export const agentWorker = onTaskDispatched(
     // 3. Generate Insights
     await runRef.update({
       currentStage: "insights",
-      relevance: {score: 80, explanation: relevance},
+      relevance: {score: relevanceScore, explanation: relevanceExplanation},
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const insightResponse = await ai.generate({
       prompt: "Generate an operational insight " +
-        `based on the relevance explanation:\n${relevance}`,
+        `based on the relevance explanation:\n${relevanceExplanation}`,
     });
     const insights = [insightResponse.text];
     await addLog(
