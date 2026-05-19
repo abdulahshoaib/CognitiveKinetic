@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from './firebase';
+import { db, functions } from './firebase';
 
 const PROFILE_SUBCOLLECTION = 'profile';
 const PROFILE_DOC_ID = 'main';
@@ -95,5 +96,24 @@ export const updateProfile = async (uid, profileData) => {
     }, { merge: true });
   } catch (error) {
     console.warn('Firestore update failed, local cache preserved:', error);
+  }
+};
+
+export const analyzeProfileContext = async (uid, profile) => {
+  if (!uid || !profile) {
+    console.warn('Missing uid or profile for context analysis');
+    return null;
+  }
+
+  try {
+    const analyzeBusinessContextCallable = httpsCallable(functions, 'analyzeBusinessContext');
+    const response = await analyzeBusinessContextCallable({
+      profile,
+    });
+    return response.data?.analysis || null;
+  } catch (error) {
+    console.warn('Business context analysis failed (non-blocking):', error);
+    // Don't throw - analysis is optional and shouldn't block profile save
+    return null;
   }
 };

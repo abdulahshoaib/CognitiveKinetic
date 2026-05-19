@@ -18,7 +18,7 @@ import BrandIcon from '../components/common/BrandIcon';
 import { useAuth } from '../context/AuthContext';
 import { useIntegrations } from '../context/IntegrationsContext';
 import { usePreferences } from '../context/PreferencesContext';
-import { getProfile, saveProfile, updateProfile } from '../services/profileService';
+import { getProfile, saveProfile, updateProfile, analyzeProfileContext } from '../services/profileService';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
 import ProfileForm from '../components/common/ProfileForm';
@@ -106,6 +106,8 @@ export default function ProfileSettingsScreen() {
   const c = activeTheme.colors;
 
   const [profile, setProfile] = useState(null);
+  const [businessContext, setBusinessContext] = useState(null);
+  const [isAnalyzingContext, setIsAnalyzingContext] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('context');
@@ -155,10 +157,24 @@ export default function ProfileSettingsScreen() {
 
     setIsSaving(true);
     try {
+      // Save profile first
       await saveProfile(user.uid, profileData);
       Alert.alert('Saved', 'Business profile updated.');
       setProfile(profileData);
       setIsEditingProfile(false);
+
+      // Analyze business context in background (non-blocking)
+      setIsAnalyzingContext(true);
+      try {
+        const analysis = await analyzeProfileContext(user.uid, profileData);
+        if (analysis) {
+          setBusinessContext(analysis);
+        }
+      } catch (analyzeError) {
+        console.warn('Background analysis failed (non-blocking):', analyzeError);
+      } finally {
+        setIsAnalyzingContext(false);
+      }
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to update profile.');
@@ -870,6 +886,42 @@ export default function ProfileSettingsScreen() {
                 <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Key Concerns</Text>
                 <Text style={[{ fontSize: 14, color: c.textPrimary }]}>{profile.keyConcerns || '—'}</Text>
               </View>
+
+              {/* AI Business Context Analysis */}
+              {(businessContext || isAnalyzingContext) && (
+                <View style={[{ borderTopWidth: 1, borderTopColor: c.surfaceBorder, paddingTopf: 16, marginTop: 12 }]}>
+                  <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 10, flexDirection: 'row', alignItems: 'center' }]}>
+                    <Feather name="cpu" size={12} style={{ marginRight: 4 }} /> AI Business Context
+                  </Text>
+                  {isAnalyzingContext ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator size="small" color={c.accent} />
+                      <Text style={[{ fontSize: 12, color: c.textSecondary }]}>Analyzing business context...</Text>
+                    </View>
+                  ) : businessContext ? (
+                    <View style={{ gap: 12 }}>
+                      {businessContext.businessOverview && (
+                        <View>
+                          <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Overview</Text>
+                          <Text style={[{ fontSize: 13, color: c.textPrimary, lineHeight: 18 }]}>{businessContext.businessOverview}</Text>
+                        </View>
+                      )}
+                      {businessContext.operationalImpactAreas && businessContext.operationalImpactAreas.length > 0 && (
+                        <View>
+                          <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Operational Focus Areas</Text>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                            {businessContext.operationalImpactAreas.slice(0, 4).map((area, idx) => (
+                              <View key={idx} style={[{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, backgroundColor: c.accentSoft, borderColor: c.accentBorder, borderWidth: 0.5 }]}>
+                                <Text style={[{ color: c.accent, fontSize: 11 }]}>{area}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  ) : null}
+                </View>
+              )}
             </View>
           </View>
         </View>
