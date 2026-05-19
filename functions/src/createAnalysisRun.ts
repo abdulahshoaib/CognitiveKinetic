@@ -1,6 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
-import {getFunctions} from "firebase-admin/functions";
+import { runAgentPipeline } from "./agentWorker";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -142,9 +142,12 @@ export const createAnalysisRun = onCall(async (request) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Enqueue Execution Task
-  const queue = getFunctions().taskQueue("agentWorker");
-  await queue.enqueue({runId, uid});
+  // Call Execution Pipeline Inline Synchronously (eliminates Cloud Task Queue dependency)
+  try {
+    await runAgentPipeline(runId, uid);
+  } catch (pipelineErr) {
+    console.error("Inline pipeline execution failed:", pipelineErr);
+  }
 
   // Update rate limit
   const newWindowStart = windowAge >= 60000 ? now : rateLimitData.windowStart;
