@@ -1,8 +1,8 @@
-# CognitiveKinetic Backend Service Architecture
+# Cognitive Kinetic Backend Service Architecture
 
-This document defines the required backend architecture for CognitiveKinetic.
+This document defines the required backend architecture for **Cognitive Kinetic**, the end-to-end content-to-action backend service and pipeline. The mobile application that serves as the frontend interface for this system is named **Relay**.
 
-CognitiveKinetic is not a chatbot. It is a profile-driven content-to-action system:
+Cognitive Kinetic is not a chatbot. It is a profile-driven content-to-action system:
 
 ```text
 saved profile
@@ -37,52 +37,31 @@ The migration should not replace the frontend. It should replace the trusted loc
 
 ---
 
-## 2. Required Architecture
+## 2. Current Architecture
 
-Use a Firebase-first architecture with Cloud Run for long-running agent work and backend-owned news ingestion.
+The backend utilizes a Firebase-first architecture using Firebase Functions for both API exposure and executing background logic.
 
-```text
-Expo Mobile App
-  |
-  | Firebase Auth session
-  | Firebase JS SDK
-  v
-Firebase Callable Functions v2
-  |
-  | auth validation
-  | input validation
-  | profile checks
-  | per-user quotas/throttles
-  | create queued work
-  v
-Cloud Firestore
-  |
-  | durable user state
-  | analysis run state
-  | feed state
-  | dashboard state
-  | realtime client updates
-  v
-Cloud Tasks
-  |
-  | retryable user-triggered jobs
-  | analysis jobs
-  | simulation jobs
-  | feed projection jobs
-  v
-Private Cloud Run Worker
-  |
-  | analysis pipeline
-  | source fetching
-  | feed normalization
-  | relevance projection
-  | simulation handlers
-  | Vertex AI calls when needed
-  v
-Firestore + Cloud Storage + Secret Manager + Cloud Logging
+```mermaid
+graph TD
+    A[Expo Mobile App] -->|Firebase JS SDK| B[Firebase Callable Functions]
+    
+    subgraph "Firebase Functions"
+        B --> C[createAnalysisRun]
+        B --> D[simulateAction]
+        E[Pub/Sub Scheduled] --> F[ingestNewsTick]
+        
+        C --> G[Agent Worker]
+        D --> G
+        F --> G
+    end
+    
+    subgraph "Data Storage"
+        G --> H[(Cloud Firestore)]
+        H -->|Realtime updates| A
+    end
 ```
 
-The app-facing API is Firebase Callable Functions. The long-running executor is Cloud Run. Firestore is the realtime product state store. Cloud Tasks protects callable functions from long-running work and retry problems. Cloud Scheduler/Pub/Sub triggers periodic news ingestion.
+The app-facing API is exposed via Firebase Callable Functions. The agent logic and pipeline run within the same Node.js environment in Cloud Functions, communicating directly with Firestore as the realtime product state store. Periodic news ingestion is triggered by Cloud Scheduler through Pub/Sub.
 
 ---
 
@@ -162,339 +141,76 @@ The backend should be split into clear services.
 
 ```text
 functions/
-  src/
-    callable/
-      saveProfile.ts
-      updateProfile.ts
-      createContentItem.ts
-      createAnalysisRun.ts
-      analyzeFeedItem.ts
-      simulateAction.ts
-      refreshContentFeed.ts
-      saveFeedItem.ts
-      dismissFeedItem.ts
-      markActionStatus.ts
-      getDashboardState.ts
-    lib/
-      auth.ts
-      validation.ts
-      firestorePaths.ts
-      taskQueue.ts
-      rateLimit.ts
-      errors.ts
-
-agent-worker/
-  src/
-    index.ts
-    routes/
-      analyze.ts
-      simulate.ts
-      fetchSource.ts
-      projectFeed.ts
-    pipeline/
-      loadProfile.ts
-      ingestContent.ts
-      extractSignals.ts
-      checkRelevance.ts
-      generateInsights.ts
-      analyzeImpact.ts
-      planActions.ts
-      updateReport.ts
-    feed/
-      sourceAdapters/
-        rssAdapter.ts
-        gdeltAdapter.ts
-        newsApiAdapter.ts
-        customHttpAdapter.ts
-      fetchSources.ts
-      normalizeArticle.ts
-      dedupeFeedItems.ts
-      scoreFeedItem.ts
-      projectFeedItemToUser.ts
-    simulation/
-      handlers/
-        pricingAdjust.ts
-        routeShift.ts
-        policyReview.ts
-      simulationState.ts
-    model/
-      vertexClient.ts
-      schemas.ts
-      prompts.ts
-      validators.ts
-    repositories/
-      profileRepository.ts
-      contentRepository.ts
-      analysisRepository.ts
-      feedRepository.ts
-      simulationRepository.ts
-      logRepository.ts
+├── src/
+│   ├── index.ts                  # Main entry point exporting all functions
+│   ├── createAnalysisRun.ts      # Callable: Initiates analysis process
+│   ├── simulateAction.ts         # Callable: Simulates recommended actions
+│   ├── ingestNewsTick.ts         # PubSub/Scheduled: Fetches latest news
+│   ├── agentWorker.ts            # Logic for content-to-action pipeline
+│   └── constants/                # Shared constants
+│       ├── sources.ts            # Defined news sources
+│       └── types.ts              # TypeScript interfaces
 ```
 
-The existing mobile services can remain, but they should become thin API clients instead of owning trusted agent logic.
+The existing mobile services remain, but they use thin API clients instead of owning trusted agent logic.
 
 Recommended mobile API clients:
-
 ```text
-src/services/api/profileApi.js
-src/services/api/contentApi.js
-src/services/api/analysisApi.js
-src/services/api/feedApi.js
-src/services/api/simulationApi.js
+src/services/
+├── ingestion.js
+├── actions.js
+├── simulation.js
+├── profileService.js
+└── understanding.js
 ```
 
 ---
 
 ## 6. Public Callable Endpoints
 
-These endpoints are called by the Expo app.
-
-### `saveProfile`
-
-Creates the saved operating profile after onboarding.
-
-Responsibilities:
-
-- require auth
-- validate required profile fields
-- write `users/{uid}/profile/main`
-- create `profileVersions/{versionId}`
-- seed `simulationState/main`
-- update `dashboard/main`
-
-### `updateProfile`
-
-Updates the saved profile from Profile Settings.
-
-Responsibilities:
-
-- require auth
-- validate patch
-- increment `profileVersion`
-- write previous version into `profileVersions`
-- update `dashboard/main.profileSummary`
-- never rewrite old analysis run snapshots
-
-### `createContentItem`
-
-Creates a user-owned content item from pasted text, upload metadata, URL metadata, or selected feed item.
-
-Responsibilities:
-
-- require auth
-- validate source type
-- normalize text
-- compute `normalizedTextHash`
-- dedupe against recent user content
-- store full small text in Firestore or large content in Cloud Storage
-- return `{ contentId }`
+These endpoints are exposed via Firebase Callable Functions and can be called directly by the Expo app.
 
 ### `createAnalysisRun`
 
 Starts analysis for pasted content or an existing content item.
 
 Responsibilities:
-
-- require auth
-- load saved profile from Firestore
-- fail with `failed-precondition` if profile does not exist
-- accept either `contentId` or raw `content`
-- never trust `profileContext` from the client
-- create `analysisRuns/{runId}` with `status: queued`
-- write initial log
-- enqueue `/tasks/analyze` in production
-- return `{ runId }`
-
-### `analyzeFeedItem`
-
-Starts analysis from a global feed item.
-
-Responsibilities:
-
-- require auth
-- verify `feedItems/{feedItemId}` exists and is active
-- create `users/{uid}/contentItems/{contentId}` with `sourceType: feed_item`
-- copy safe source snapshot fields into the content item
-- call the same internal flow as `createAnalysisRun`
-- mark `users/{uid}/feedItems/{feedItemId}.status = analyzed`
-- return `{ runId, contentId }`
+- Requires authentication
+- Loads saved profile from Firestore (`users/{uid}/profile/main`)
+- Fails with `failed-precondition` if profile does not exist
+- Creates a new `contentItems` entry from the provided text
+- Creates `analysisRuns/{runId}` with `status: running`
+- Initializes `logs` collection for the run
+- Runs the agent worker pipeline synchronously (in the current MVP)
+- Extracts signals, checks relevance, generates insights, and plans actions
+- Updates the analysis run status to `completed`
+- Returns `{ runId }`
 
 ### `simulateAction`
 
-Simulates a recommended action against backend-owned simulation state.
+Simulates a recommended action against the mock state.
 
 Responsibilities:
-
-- require auth
-- validate `runId` and `actionId`
-- verify action belongs to the run
-- verify action type is whitelisted
-- run simulation in a Firestore transaction or enqueue `/tasks/simulate`
-- write immutable simulation record
-- update `simulationState/main`
-- update action status and run summary
-- return simulation result
-
-### `refreshContentFeed`
-
-Manual feed refresh from the app.
-
-Responsibilities:
-
-- require auth
-- apply per-user throttle, for example one refresh every 10 minutes
-- return recent cached feed if refresh is already fresh
-- enqueue source fetch or feed projection jobs when allowed
-- never expose provider keys or raw provider errors
-
-### `saveFeedItem`
-
-Marks a user feed item as saved.
-
-Responsibilities:
-
-- require auth
-- write `users/{uid}/feedItems/{feedItemId}.saved = true`
-- keep global `feedItems/{feedItemId}` unchanged
-
-### `dismissFeedItem`
-
-Hides a feed item for the current user.
-
-Responsibilities:
-
-- require auth
-- write `users/{uid}/feedItems/{feedItemId}.status = dismissed`
-- keep global `feedItems/{feedItemId}` unchanged
-
-### `markActionStatus`
-
-Updates a user decision about an action.
-
-Responsibilities:
-
-- require auth
-- allow only user-decision statuses such as `accepted`, `dismissed`, or `completed`
-- do not allow the client to forge simulation results
-
-### `getDashboardState`
-
-Optional convenience endpoint for initial dashboard load.
-
-Responsibilities:
-
-- require auth
-- return profile existence
-- return latest run summary
-- return recent actions
-- return latest simulation summary
-- return dashboard materialized state if available
-
-For realtime views, the app should prefer Firestore listeners instead of repeatedly calling this endpoint.
+- Requires authentication
+- Validates the requested `actionId`
+- Updates the action's status to `simulated` in the analysis run
+- Adds an execution log to the analysis run
+- Returns a hardcoded or mock simulation result representing the before and after state
 
 ---
 
-## 7. Private Cloud Run Endpoints
+## 7. Scheduled Background Functions
 
-These endpoints are private. The mobile app must never call them directly.
+These functions are triggered automatically by the system infrastructure.
 
-### `POST /tasks/analyze`
+### `ingestNewsTick`
 
-Called by Cloud Tasks.
-
-Body:
-
-```json
-{
-  "uid": "USER_ID",
-  "runId": "RUN_ID",
-  "idempotencyKey": "uid:contentHash:profileVersion"
-}
-```
+A scheduled function (Pub/Sub) that periodically aggregates external news content.
 
 Responsibilities:
-
-- verify Cloud Run IAM/OIDC auth
-- validate payload
-- transactionally claim the run only if status is `queued`
-- set status to `running`
-- execute analysis stages
-- write partial outputs only after schema validation
-- mark low relevance as `ignored`
-- mark relevant run as `needs_simulation`, `simulating`, or `simulated`
-- write final logs
-- return `200` only when work is complete or intentionally skipped
-
-### `POST /tasks/simulate`
-
-Called by Cloud Tasks when simulation is too heavy for the callable path.
-
-Body:
-
-```json
-{
-  "uid": "USER_ID",
-  "runId": "RUN_ID",
-  "actionId": "ACTION_ID",
-  "idempotencyKey": "uid:runId:actionId"
-}
-```
-
-Responsibilities:
-
-- verify Cloud Run IAM/OIDC auth
-- claim simulation idempotently
-- run whitelisted simulation handler
-- write immutable simulation record
-- update simulation state
-- update run/action status
-
-### `POST /tasks/fetch-source`
-
-Fetches articles from one configured source.
-
-Body:
-
-```json
-{
-  "sourceId": "rss_dawn_business",
-  "trigger": "scheduled_6h | user_refresh",
-  "requestedBy": "system | uid"
-}
-```
-
-Responsibilities:
-
-- load `sourceConfigs/{sourceId}`
-- fetch RSS/API/custom HTTP source
-- apply timeout and item limits
-- normalize articles into the global `feedItems` shape
-- dedupe by canonical URL, provider ID, and normalized hash
-- upsert `feedItems/{feedItemId}`
-- write `sourceFetchRuns/{runId}`
-- enqueue feed projection if needed
-
-### `POST /tasks/project-feed`
-
-Projects global feed items into user-specific feed documents.
-
-Body:
-
-```json
-{
-  "feedItemId": "FEED_ITEM_ID",
-  "uid": "USER_ID",
-  "trigger": "new_item | user_refresh | profile_updated"
-}
-```
-
-Responsibilities:
-
-- load global `feedItems/{feedItemId}`
-- load `users/{uid}/profile/main`
-- calculate lightweight deterministic relevance
-- write `users/{uid}/feedItems/{feedItemId}` only if score crosses threshold
-- do not run the full agent pipeline here
+- Triggered on a schedule (e.g., via Cloud Scheduler)
+- Fetches external content from defined sources (currently mock sources in `sources.ts`)
+- Stores normalized feed items in the global `feedItems` collection for users to discover and analyze
 
 ---
 

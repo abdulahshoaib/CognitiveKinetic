@@ -1,6 +1,6 @@
-# CognitiveKinetic: App Capabilities and Features
+# Relay App: Capabilities and Features
 
-CognitiveKinetic is a React Native mobile application built on Expo SDK 54 that functions as an **Autonomous Content-to-Action Agent System**. It ingests new content and fetched news, evaluates it against a saved operating profile, extracts signals, models business impact, recommends practical actions, and simulates one action with visible before/after state and execution logs.
+**Cognitive Kinetic** is the entire end-to-end content-to-action pipeline (encompassing background feed ingestion, agentic parsing, impact reasoning, and transaction simulation). **Relay** is the mobile application (built on React Native and Expo SDK 54) that serves as the frontend interface for operators to interact with the Cognitive Kinetic system.
 
 The app is not a chatbot and not a generic summarizer. Its product contract is:
 
@@ -89,7 +89,7 @@ User refresh
 
 ## 3. Action Simulation Engine
 
-CognitiveKinetic includes a stateful simulation sandbox for supported action types. A simulation button is valid only when it changes state and produces visible before/after output.
+The Cognitive Kinetic system (accessed via the Relay mobile app) includes a stateful simulation sandbox for supported action types. A simulation button is valid only when it changes state and produces visible before/after output.
 
 ### Simulation State
 
@@ -252,19 +252,26 @@ The app should keep UI and agent logic separate. Screens render state; services 
 
 ```text
 src/
-├── components/          # Reusable UI elements, cards, badges, timelines
-├── constants/           # Theme values and display constants
-├── context/             # Auth, profile, analysis, preferences
-├── data/                # Static UI options only; no hardcoded feed records
-├── navigation/          # Tab and stack navigation
+├── components/          # UI elements (common, settings, simulation, etc.)
+├── constants/           # Theme values, colors, brand, and display constants
+├── context/             # Auth, profile, analysis, and preferences contexts
+├── data/                # Static data and sample inputs
+├── navigation/          # React Navigation stacks (Auth, Main, App)
 ├── screens/             # Native views rendering workflow states
 ├── services/            # Client service layer
-│   ├── api/             # profileApi, contentApi, analysisApi, simulationApi, feedApi
-│   ├── agent/           # Offline/dev fallback only, not trusted production execution
+│   ├── actions.js
+│   ├── export.js
+│   ├── feedService.js
+│   ├── firebase.js
+│   ├── impact.js
+│   ├── ingestion.js
+│   ├── insights.js
 │   ├── profileService.js
-│   └── firebase.js
-├── hooks/               # Firestore subscriptions and UI helpers
-└── utils/               # Formatting, timing, validation helpers
+│   ├── simulation.js
+│   ├── understanding.js
+│   └── agent/           # Local agent orchestration and tracing
+├── hooks/               # Custom React hooks (useAgent, useIngestion, useSimulation)
+└── utils/               # Formatters, validators, and storage helpers
 ```
 
 Backend services own trusted execution:
