@@ -140,6 +140,16 @@ export const AnalysisProvider = ({ children }) => {
     setExecutionLogs([]);
     setCurrentStage('loading_profile');
 
+    // Watchdog: if backend never responds in 90s, fail gracefully
+    const watchdogRef = { timer: null };
+
+    const clearWatchdog = () => {
+      if (watchdogRef.timer) {
+        clearTimeout(watchdogRef.timer);
+        watchdogRef.timer = null;
+      }
+    };
+
     try {
       addLog(`Initiating backend content-to-action analysis pipeline...`, 'orchestrator');
 
@@ -168,6 +178,15 @@ export const AnalysisProvider = ({ children }) => {
       });
       activeSubscriptions.current.push(unsubscribeLogs);
 
+      // Start watchdog after run created — 90s max for backend to finish
+      watchdogRef.timer = setTimeout(() => {
+        console.warn('Analysis watchdog: backend did not complete in 90s');
+        addLog('Pipeline timed out. Backend did not respond within 90 seconds.', 'orchestrator', 'error');
+        setIsAnalyzing(false);
+        setCurrentStage('error');
+        cleanupActiveRun();
+      }, 90000);
+
       // Subscribe to run status/state changes
       unsubscribeRun = onSnapshot(runDocRef, (runSnap) => {
         if (!runSnap.exists()) return;
@@ -178,6 +197,7 @@ export const AnalysisProvider = ({ children }) => {
         }
 
         if (data.status === 'completed' || data.status === 'needs_simulation' || data.status === 'ignored' || data.status === 'failed') {
+          clearWatchdog();
           // Unsubscribe from real-time monitoring
           cleanupActiveRun();
 
@@ -209,16 +229,20 @@ export const AnalysisProvider = ({ children }) => {
         }
       }, (err) => {
         console.error("Error monitoring active analysis run:", err);
+        clearWatchdog();
         setIsAnalyzing(false);
+        setCurrentStage('error');
+        addLog(`Firestore listener error: ${err.message}`, 'orchestrator', 'error');
         cleanupActiveRun();
       });
       activeSubscriptions.current.push(unsubscribeRun);
 
     } catch (error) {
       console.error("Analysis pipeline failed:", error);
+      clearWatchdog();
       addLog(`Pipeline execution halted: ${error.message}`, 'orchestrator', 'error');
       setIsAnalyzing(false);
-      setCurrentStage('idle');
+      setCurrentStage('error');
     }
   }, [user, addLog]);
 
