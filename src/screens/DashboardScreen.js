@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -135,7 +136,7 @@ export default function DashboardScreen() {
   if (!profile) return <Screen style={{ backgroundColor: c.background }} />;
 
   const renderProfileStrip = () => (
-    <View style={[styles.profileStrip, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+    <View style={[styles.profileStrip, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
       <View style={[styles.profileIcon, { backgroundColor: c.successSoft }]}>
         <Feather name="check-circle" size={18} color={c.success || '#22C55E'} />
       </View>
@@ -157,19 +158,23 @@ export default function DashboardScreen() {
   );
 
   const renderPrimaryCTA = () => (
-    <TouchableOpacity
-      style={[styles.primaryCTA, { backgroundColor: c.accent }]}
-      onPress={() => navigation.navigate('IngestionTab')}
-    >
-      <Feather name="plus-circle" size={18} color={c.white} />
-      <Text style={[styles.primaryCTAText, { color: c.white }]}>Analyze New Content</Text>
+    <TouchableOpacity onPress={() => navigation.navigate('IngestionTab')}>
+      <LinearGradient
+        colors={[c.accent, c.accent + 'CC']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.primaryCTA, styles.shadow]}
+      >
+        <Feather name="plus-circle" size={18} color={c.white} />
+        <Text style={[styles.primaryCTAText, { color: c.white }]}>Analyze New Content</Text>
+      </LinearGradient>
     </TouchableOpacity>
   );
 
   const renderMetricGrid = () => (
     <View style={styles.metricsGrid}>
       {metrics.map(metric => (
-        <View key={metric.label} style={[styles.metricCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+        <View key={metric.label} style={[styles.metricCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
           <Text style={[styles.metricValue, { color: metric.color }]}>{metric.value}</Text>
           <Text style={[styles.metricLabel, { color: c.textSecondary }]}>{metric.label}</Text>
         </View>
@@ -181,7 +186,7 @@ export default function DashboardScreen() {
     if (!isAnalyzing) return null;
     return (
       <TouchableOpacity
-        style={[styles.compactCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.accentBorder }]}
+        style={[styles.compactCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.accentBorder }, styles.shadow]}
         onPress={() => navigation.navigate('IngestionTab', { screen: 'AnalysisRun' })}
       >
         <View style={styles.cardRow}>
@@ -213,7 +218,7 @@ export default function DashboardScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.reportCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
+        style={[styles.reportCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}
         onPress={() => openReport(latestReport)}
       >
         <View style={styles.reportHeader}>
@@ -256,7 +261,7 @@ export default function DashboardScreen() {
     const isManual = action.simulationSupported === false || action.actionType === 'manual_review';
 
     return (
-      <View style={[styles.actionCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.actionCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.cardRow}>
           <View style={[styles.cardIcon, { backgroundColor: c.warningSoft }]}>
             <Feather name="zap" size={18} color={c.warning || '#F59E0B'} />
@@ -276,11 +281,15 @@ export default function DashboardScreen() {
           >
             <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>Open</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: c.accent }]}
-            onPress={handleSimulateNextAction}
-          >
-            <Text style={[styles.actionButtonText, { color: c.white }]}>{isManual ? 'Review' : 'Simulate'}</Text>
+          <TouchableOpacity onPress={handleSimulateNextAction} style={styles.actionButtonContainer}>
+            <LinearGradient
+              colors={[c.accent, c.accent + 'DD']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.actionButtonGradient}
+            >
+              <Text style={[styles.actionButtonText, { color: c.white }]}>{isManual ? 'Review' : 'Simulate'}</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
@@ -403,6 +412,20 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  shadow: Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+    },
+    android: {
+      elevation: 4,
+    },
+    web: {
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.06)',
+    }
+  }),
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -612,10 +635,13 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.bold,
   },
-  actionButton: {
+  actionButtonContainer: {
     flex: 1,
-    alignItems: 'center',
     borderRadius: 10,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    alignItems: 'center',
     paddingVertical: 12,
   },
   actionButtonText: {
