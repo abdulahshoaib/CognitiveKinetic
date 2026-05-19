@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Modal, ScrollView, RefreshControl, ActivityIndicator,
-  Alert, ToastAndroid
+  KeyboardAvoidingView, Platform, Modal, ScrollView, RefreshControl, ActivityIndicator
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import BrandIcon from '../components/common/BrandIcon';
@@ -93,28 +92,11 @@ export default function NewContentScreen() {
     } catch (e) { console.error(e); }
   };
 
-  const _dbgToast = (msg) => {
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(msg, ToastAndroid.LONG);
-    } else {
-      Alert.alert('DEBUG', msg);
-    }
-  };
-
   const handleAnalyze = async () => {
-    _dbgToast('T0: Analyze button fired!');
-    if (!body.trim() || !profile) {
-      _dbgToast(`T0-BLOCKED: body="${body.trim().slice(0,30)}" | profile=${!!profile} | returning early`);
-      return;
-    }
-    _dbgToast('T1: body+profile ok. Creating feed item...');
+    if (!body.trim() || !profile) return;
     const content = title.trim() ? `${title}\n\n${body}` : body;
     const newItem = await addManualAnalysisItem(title || 'Manual Input', body);
-    if (!newItem) {
-      _dbgToast('T2-FAIL: addManualAnalysisItem returned null! Feed item not created.');
-      return;
-    }
-    _dbgToast(`T2-OK: Feed item created. id=${newItem.id}. Calling analyzeContent...`);
+    if (!newItem) return;
     analyzeContent(content, profile, newItem.id, newItem);
     navigation.navigate('AnalysisRun');
     setTitle('');

@@ -52,15 +52,6 @@ export default function AnalysisRunScreen() {
 
   return (
     <Screen scroll={true} style={{ backgroundColor: c.background }}>
-      {/* DEBUG BANNER - remove after issue resolved */}
-      <View style={{ backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#00ff88', borderRadius: 8, marginHorizontal: 20, marginTop: 8, padding: 10, gap: 4 }}>
-        <Text style={{ color: '#00ff88', fontSize: 10, fontFamily: 'monospace', fontWeight: 'bold' }}>🔍 DEBUG PANEL</Text>
-        <Text style={{ color: '#00ff88', fontSize: 10, fontFamily: 'monospace' }}>currentStage: "{currentStage}"</Text>
-        <Text style={{ color: '#00ff88', fontSize: 10, fontFamily: 'monospace' }}>isCompleted: {String(isCompleted)}</Text>
-        <Text style={{ color: '#00ff88', fontSize: 10, fontFamily: 'monospace' }}>isError: {String(isError)}</Text>
-        <Text style={{ color: '#00ff88', fontSize: 10, fontFamily: 'monospace' }}>hasResult: {String(!!analysisResult)}</Text>
-      </View>
-
       <View style={[styles.header]}>
         <Text style={[styles.title, { color: c.textPrimary }]}>
           {isCompleted ? 'Pipeline Finalized' : isError ? 'Pipeline Execution Failed' : 'Agent In Progress'}
