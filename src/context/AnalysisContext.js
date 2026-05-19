@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { doc, collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../services/firebase';
@@ -61,8 +61,20 @@ export const AnalysisProvider = ({ children }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
   const [executionLogs, setExecutionLogs] = useState([]);
+  const activeSubscriptions = useRef([]);
 
   const [systemState, setSystemState] = useState(null);
+
+  // Cleanup active run subscriptions
+  const cleanupActiveRun = useCallback(() => {
+    activeSubscriptions.current.forEach(unsub => unsub());
+    activeSubscriptions.current = [];
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cleanupActiveRun();
+  }, [cleanupActiveRun]);
 
   // 0. Sync user-scoped feedItems in real-time with Firestore.
   useEffect(() => {
@@ -139,6 +151,9 @@ export const AnalysisProvider = ({ children }) => {
 
       const { runId } = res.data;
 
+      // Cleanup any existing run subscriptions
+      cleanupActiveRun();
+
       // Subscribe to this specific run and its logs to show real-time progress
       const runDocRef = doc(db, 'users', user.uid, 'analysisRuns', runId);
       const logsColRef = collection(db, 'users', user.uid, 'analysisRuns', runId, 'logs');
@@ -151,6 +166,7 @@ export const AnalysisProvider = ({ children }) => {
       unsubscribeLogs = onSnapshot(logsQuery, (logsSnap) => {
         setExecutionLogs(normalizeLogSnapshot(logsSnap));
       });
+      activeSubscriptions.current.push(unsubscribeLogs);
 
       // Subscribe to run status/state changes
       unsubscribeRun = onSnapshot(runDocRef, (runSnap) => {
@@ -163,8 +179,7 @@ export const AnalysisProvider = ({ children }) => {
 
         if (data.status === 'completed' || data.status === 'needs_simulation' || data.status === 'ignored' || data.status === 'failed') {
           // Unsubscribe from real-time monitoring
-          unsubscribeRun();
-          unsubscribeLogs();
+          cleanupActiveRun();
 
           const enrichedResult = normalizeAnalysisRun(runSnap.id, data, {
             content,
@@ -189,9 +204,9 @@ export const AnalysisProvider = ({ children }) => {
       }, (err) => {
         console.error("Error monitoring active analysis run:", err);
         setIsAnalyzing(false);
-        unsubscribeRun();
-        unsubscribeLogs();
+        cleanupActiveRun();
       });
+      activeSubscriptions.current.push(unsubscribeRun);
 
     } catch (error) {
       console.error("Analysis pipeline failed:", error);
