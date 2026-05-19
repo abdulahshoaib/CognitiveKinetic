@@ -96,6 +96,9 @@ service cloud.firestore {
         'targetAudience',
         'primaryGoal',
         'goals',
+        'immutableNewsPrompt',
+        'newsSources',
+        'newsSystemPrompt',
         'riskSensitivity',
         'enableAutoSim',
         'createdAt',
@@ -111,6 +114,9 @@ service cloud.firestore {
       optionalString(data, 'targetAudience', 1000) &&
       optionalString(data, 'primaryGoal', 1000) &&
       optionalString(data, 'goals', 1000) &&
+      optionalString(data, 'immutableNewsPrompt', 1000) &&
+      optionalList(data, 'newsSources', 40) &&
+      optionalString(data, 'newsSystemPrompt', 2000) &&
       optionalString(data, 'riskSensitivity', 40) &&
       optionalBool(data, 'enableAutoSim') &&
       optionalTimestamp(data, 'createdAt') &&

@@ -64,7 +64,6 @@ export const saveProfile = async (uid, profileData) => {
     const docRef = doc(db, 'users', uid, PROFILE_SUBCOLLECTION, PROFILE_DOC_ID);
     await setDoc(docRef, {
       ...profileData,
-      createdAt: existingLocal.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp(),
     }, { merge: true });
   } catch (error) {

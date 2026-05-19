@@ -36,7 +36,7 @@ export async function runPipeline(rawContent, profile) {
     riskSensitivity: 'balanced'
   };
 
-  const concernsText = toText(activeProfile.concerns || activeProfile.goals);
+  const concernsText = toText(activeProfile.keyConcerns || activeProfile.concerns || activeProfile.goals);
   const locationsText = toText(activeProfile.locations);
   const concernsList = concernsText.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
   const locationsList = locationsText.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);

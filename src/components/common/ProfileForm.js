@@ -24,6 +24,7 @@ export default function ProfileForm({ initialData, onSave, isSaving, submitLabel
   });
 
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [manualLocation, setManualLocation] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -56,10 +57,21 @@ export default function ProfileForm({ initialData, onSave, isSaving, submitLabel
   const addLocation = (name) => {
     const cleanName = String(name || '').trim();
     if (!cleanName) return;
+    
+    // Split by comma in case multiple locations are input together (e.g., Lahore, Karachi, Islamabad)
+    const newLocs = cleanName.split(',').map(l => l.trim()).filter(Boolean);
+    if (newLocs.length === 0) return;
+    
     const currentLocs = Array.isArray(formData.locations) ? formData.locations : [];
-    if (!currentLocs.some(loc => loc.toLowerCase() === cleanName.toLowerCase())) {
-      handleChange('locations', [...currentLocs, cleanName]);
-    }
+    const updatedLocs = [...currentLocs];
+    
+    newLocs.forEach(loc => {
+      if (!updatedLocs.some(existing => existing.toLowerCase() === loc.toLowerCase())) {
+        updatedLocs.push(loc);
+      }
+    });
+    
+    handleChange('locations', updatedLocs);
     setLocationModalVisible(false);
   };
 
@@ -176,13 +188,50 @@ export default function ProfileForm({ initialData, onSave, isSaving, submitLabel
               </TouchableOpacity>
             </View>
 
+            {/* Manual entry fallback option */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={[styles.label, { color: c.textPrimary, marginBottom: 8 }]}>Enter Location Manually</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder, color: c.textPrimary, height: 48, paddingVertical: 0 }
+                  ]}
+                  value={manualLocation}
+                  onChangeText={setManualLocation}
+                  placeholder="e.g. Lahore, Karachi, Islamabad"
+                  placeholderTextColor={c.placeholder}
+                  onSubmitEditing={() => {
+                    if (manualLocation.trim()) {
+                      addLocation(manualLocation.trim());
+                      setManualLocation('');
+                    }
+                  }}
+                />
+                <TouchableOpacity
+                  style={[styles.saveButton, { marginTop: 0, paddingHorizontal: 20, paddingVertical: 0, justifyContent: 'center', height: 48, borderRadius: 8 }]}
+                  onPress={() => {
+                    if (manualLocation.trim()) {
+                      addLocation(manualLocation.trim());
+                      setManualLocation('');
+                    }
+                  }}
+                >
+                  <Text style={{ color: c.white, fontWeight: 'bold' }}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={{ borderBottomWidth: 1, borderBottomColor: c.surfaceBorder, marginVertical: 16 }} />
+
+            <Text style={[styles.label, { color: c.textPrimary, marginBottom: 8 }]}>Search Google Places</Text>
             <GooglePlacesAutocomplete
               placeholder="Search city, region, or country"
               onPress={(data) => addLocation(data.description)}
               query={{
                 key: placesApiKey,
                 language: 'en',
-                types: '(cities)',
+                types: 'geocode',
               }}
               enablePoweredByContainer={false}
               fetchDetails={false}
