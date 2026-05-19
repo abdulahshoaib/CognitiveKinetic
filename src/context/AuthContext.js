@@ -51,14 +51,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithGoogle = async (idToken) => {
-    const credential = GoogleAuthProvider.credential(idToken);
-    const userCred = await signInWithCredential(auth, credential);
-    const currentUser = userCred.user;
-    await createOrUpdateUserProfile(currentUser, {
-      fullName: currentUser.displayName,
-      provider: 'google'
-    });
-    return userCred;
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCred = await signInWithCredential(auth, credential);
+      const currentUser = userCred.user;
+      await createOrUpdateUserProfile(currentUser, {
+        fullName: currentUser.displayName,
+        provider: 'google'
+      });
+      return userCred;
+    } catch (error) {
+      throw {
+        code: error.code,
+        message: error.message || 'Google sign-in failed. Please try again.',
+      };
+    }
   };
 
   const resetPassword = async (email) => {
