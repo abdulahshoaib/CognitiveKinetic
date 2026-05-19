@@ -399,7 +399,12 @@ export default function NewContentScreen() {
                   <Text style={[styles.compactSource, { color: c.textSecondary }]}>{item.sourceName}</Text>
                   <Text style={[styles.compactTime, { color: c.textSecondary }]}>{getDisplayTime(item)}</Text>
                 </View>
-                <Text style={[styles.compactTitle, { color: c.textPrimary }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[styles.compactTitle, { color: c.textPrimary }]} numberOfLines={2}>{item.title}</Text>
+                {(item.summary || item.brief || item.body) && (
+                  <Text style={[styles.compactBrief, { color: c.textSecondary }]} numberOfLines={2}>
+                    {item.summary || item.brief || item.body}
+                  </Text>
+                )}
               </TouchableOpacity>
             ))
           ) : (
@@ -626,6 +631,7 @@ const styles = StyleSheet.create({
   compactSource: { fontSize: FontSizes.xs, fontWeight: FontWeights.medium },
   compactTime: { fontSize: FontSizes.xs - 1 },
   compactTitle: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, lineHeight: 20 },
+  compactBrief: { fontSize: FontSizes.xs, lineHeight: 18, marginTop: 6 },
   analyzedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
   analyzedBadgeText: { fontSize: FontSizes.xs - 1, fontWeight: FontWeights.bold, textTransform: 'uppercase' },
   archiveWrap: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 },
