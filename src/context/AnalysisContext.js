@@ -151,6 +151,15 @@ export const AnalysisProvider = ({ children }) => {
       }
     };
 
+    // Start watchdog immediately — 20 seconds max for the entire pipeline (including backend Callable and Firestore updates)
+    watchdogRef.timer = setTimeout(() => {
+      console.warn('Analysis watchdog: pipeline did not complete in 20s');
+      addLog('Pipeline timed out. Execution exceeded 20 seconds.', 'orchestrator', 'error');
+      setIsAnalyzing(false);
+      setCurrentStage('error');
+      cleanupActiveRun();
+    }, 20000);
+
     try {
       addLog('Initiating backend content-to-action analysis pipeline...', 'orchestrator');
 
@@ -179,15 +188,6 @@ export const AnalysisProvider = ({ children }) => {
         console.error("Error monitoring active analysis run logs:", err);
       });
       activeSubscriptions.current.push(unsubscribeLogs);
-
-      // Start watchdog after run created — 90s max for backend to finish
-      watchdogRef.timer = setTimeout(() => {
-        console.warn('Analysis watchdog: backend did not complete in 90s');
-        addLog('Pipeline timed out. Backend did not respond within 90 seconds.', 'orchestrator', 'error');
-        setIsAnalyzing(false);
-        setCurrentStage('error');
-        cleanupActiveRun();
-      }, 90000);
 
       // Subscribe to run status/state changes
       unsubscribeRun = onSnapshot(runDocRef, (runSnap) => {
