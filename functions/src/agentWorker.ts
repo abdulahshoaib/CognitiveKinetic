@@ -7,6 +7,24 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutErrorMsg: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(timeoutErrorMsg));
+    }, ms);
+    promise.then(
+      (res) => {
+        clearTimeout(timer);
+        resolve(res);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 const ai = genkit({
   plugins: [googleAI()],
   model: googleAI.model("gemini-2.5-flash"),
@@ -321,9 +339,13 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
         await new Promise((r) => setTimeout(r, 300));
 
         // AI Signal Extraction
-        const extractResponse = await ai.generate({
-          prompt: `Extract key facts and signals from this content:\n${content}`,
-        });
+        const extractResponse = await withTimeout(
+          ai.generate({
+            prompt: `Extract key facts and signals from this content:\n${content}`,
+          }),
+          8000,
+          "Signal extraction timed out"
+        );
         signals = [extractResponse.text];
 
         // Stage 3: signals
@@ -340,19 +362,23 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
           currentStage: "relevance",
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        const relevanceResponse = await ai.generate({
-          prompt: `Given this user profile:\n${JSON.stringify(profile)}\n\n` +
-            `And these signals:\n${signals.join("\n")}\n\n` +
-            "Is this relevant to the business? Analyze the signals against the profile. " +
-            "Return a JSON object with 'score' (0 to 100) and 'explanation'. " +
-            "A score of 75+ means it is highly relevant and actionable.",
-          output: {
-            schema: z.object({
-              score: z.number().describe("Relevance score between 0 and 100."),
-              explanation: z.string().describe("Explanation for why it is relevant or not."),
-            }),
-          },
-        });
+        const relevanceResponse = await withTimeout(
+          ai.generate({
+            prompt: `Given this user profile:\n${JSON.stringify(profile)}\n\n` +
+              `And these signals:\n${signals.join("\n")}\n\n` +
+              "Is this relevant to the business? Analyze the signals against the profile. " +
+              "Return a JSON object with 'score' (0 to 100) and 'explanation'. " +
+              "A score of 75+ means it is highly relevant and actionable.",
+            output: {
+              schema: z.object({
+                score: z.number().describe("Relevance score between 0 and 100."),
+                explanation: z.string().describe("Explanation for why it is relevant or not."),
+              }),
+            },
+          }),
+          8000,
+          "Relevance analysis timed out"
+        );
 
         relevanceScore = relevanceResponse.output?.score ?? 0;
         relevanceExplanation = (relevanceResponse.output?.explanation ?? relevanceResponse.text) || "";
@@ -381,13 +407,17 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
           relevance: { score: relevanceScore, explanation: relevanceExplanation },
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        const insightResponse = await ai.generate({
-          prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
-            `And these signals extracted from the event:\n${signals.join("\n")}\n\n` +
-            `And this relevance analysis:\n${relevanceExplanation}\n\n` +
-            "Generate a highly specific, actionable operational insight that the business should consider. " +
-            "Focus on practical implications and operational impact for their specific industry and location.",
-        });
+        const insightResponse = await withTimeout(
+          ai.generate({
+            prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
+              `And these signals extracted from the event:\n${signals.join("\n")}\n\n` +
+              `And this relevance analysis:\n${relevanceExplanation}\n\n` +
+              "Generate a highly specific, actionable operational insight that the business should consider. " +
+              "Focus on practical implications and operational impact for their specific industry and location.",
+          }),
+          8000,
+          "Insight generation timed out"
+        );
         insights = [insightResponse.text];
         await addLog(db, uid, runId, "insights", "Operational insight generated using Gemini AI.");
         await new Promise((r) => setTimeout(r, 300));
@@ -398,18 +428,22 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
           insights,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        const impactResponse = await ai.generate({
-          prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
-            `And these operational insights:\n${insights.join("\n")}\n\n` +
-            "Analyze the business impact of these insights on our operations, costs, margins, and customers. " +
-            "Provide a detailed impact breakdown, then categorize the severity level as low, medium, or high.",
-          output: {
-            schema: z.object({
-              level: z.enum(["low", "medium", "high"]).describe("The business impact severity level."),
-              details: z.string().describe("Detailed description of the operational impact."),
-            }),
-          },
-        });
+        const impactResponse = await withTimeout(
+          ai.generate({
+            prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
+              `And these operational insights:\n${insights.join("\n")}\n\n` +
+              "Analyze the business impact of these insights on our operations, costs, margins, and customers. " +
+              "Provide a detailed impact breakdown, then categorize the severity level as low, medium, or high.",
+            output: {
+              schema: z.object({
+                level: z.enum(["low", "medium", "high"]).describe("The business impact severity level."),
+                details: z.string().describe("Detailed description of the operational impact."),
+              }),
+            },
+          }),
+          8000,
+          "Impact analysis timed out"
+        );
         impact = {
           level: impactResponse.output?.level || "medium",
           details: impactResponse.output?.details || "Impact analysis compiled.",
@@ -423,30 +457,34 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
           impact,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        const actionsResponse = await ai.generate({
-          prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
-            `And the analyzed operational impact:\n${impact.details}\n\n` +
-            "Recommend 1-2 concrete actions that the business can immediately execute. Return JSON matching schema: " +
-            "[{ id: string, title: string, description: string, " +
-            "actionType: \"pricing_adjust\" | " +
-            "\"route_shift\" | \"manual_review\", " +
-            "simulationSupported: boolean }]",
-          output: {
-            schema: z.array(
-              z.object({
-                id: z.string().describe("Stable action id."),
-                title: z.string().describe("Short action title."),
-                description: z.string().describe("Practical action description."),
-                actionType: z.string().describe(
-                  "One of pricing_adjust, route_shift, or manual_review."
-                ),
-                simulationSupported: z.boolean().describe(
-                  "True when the mock simulator can execute this action."
-                ),
-              })
-            ),
-          },
-        });
+        const actionsResponse = await withTimeout(
+          ai.generate({
+            prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
+              `And the analyzed operational impact:\n${impact.details}\n\n` +
+              "Recommend 1-2 concrete actions that the business can immediately execute. Return JSON matching schema: " +
+              "[{ id: string, title: string, description: string, " +
+              "actionType: \"pricing_adjust\" | " +
+              "\"route_shift\" | \"manual_review\", " +
+              "simulationSupported: boolean }]",
+            output: {
+              schema: z.array(
+                z.object({
+                  id: z.string().describe("Stable action id."),
+                  title: z.string().describe("Short action title."),
+                  description: z.string().describe("Practical action description."),
+                  actionType: z.string().describe(
+                    "One of pricing_adjust, route_shift, or manual_review."
+                  ),
+                  simulationSupported: z.boolean().describe(
+                    "True when the mock simulator can execute this action."
+                  ),
+                })
+              ),
+            },
+          }),
+          8000,
+          "Action planning timed out"
+        );
         recommendedActions = actionsResponse.output || [
           {
             id: "pricing_adjust_001",
