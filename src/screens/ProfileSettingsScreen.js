@@ -423,7 +423,7 @@ export default function ProfileSettingsScreen() {
       {actionApis.map(api => (
         <TouchableOpacity
           key={api.id}
-          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
+          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}
           onPress={() => openApiModal(api)}
         >
           <View style={styles.cardTopRow}>
@@ -454,7 +454,7 @@ export default function ProfileSettingsScreen() {
 
   const renderNewsTab = () => (
     <View style={styles.stack}>
-      <View style={[styles.promptCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.promptCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.sectionHeaderRow}>
           <View>
             <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>News Agent Prompt</Text>
@@ -493,7 +493,7 @@ export default function ProfileSettingsScreen() {
         return (
         <View
           key={source.id}
-          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorderSubtle, opacity: enabled ? 1 : 0.7, paddingHorizontal: 12, paddingVertical: 10 }]}
+          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorderSubtle, opacity: enabled ? 1 : 0.7, paddingHorizontal: 12, paddingVertical: 10 }, styles.shadow]}
         >
           <View style={styles.cardTopRow}>
             {isEditableModal ? (
@@ -602,7 +602,7 @@ export default function ProfileSettingsScreen() {
   const renderAccountTab = () => (
     <View style={styles.accountContainer}>
       <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Identity</Text>
-      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: c.textSecondary }]}>Display name</Text>
           <TextInput
@@ -627,7 +627,7 @@ export default function ProfileSettingsScreen() {
       </View>
 
       <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Security</Text>
-      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.actionRow}>
           <View style={[styles.actionIcon, { backgroundColor: c.primarySubtle }]}>
             <Feather name="key" size={18} color={c.primary} />
@@ -654,7 +654,7 @@ export default function ProfileSettingsScreen() {
       </View>
 
       <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Session</Text>
-      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.detailRow}>
           <Text style={[styles.detailLabel, { color: c.textSecondary }]}>Account</Text>
           <Text style={[styles.detailValue, { color: c.textPrimary }]}>{isDemo ? 'Demo' : 'Registered'}</Text>
@@ -1078,6 +1078,20 @@ export default function ProfileSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  shadow: Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+    },
+    android: {
+      elevation: 4,
+    },
+    web: {
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.06)',
+    }
+  }),
   keyboardView: { flex: 1 },
   header: {
     paddingHorizontal: 20,
