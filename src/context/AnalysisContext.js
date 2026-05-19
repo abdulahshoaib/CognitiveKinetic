@@ -190,6 +190,12 @@ export const AnalysisProvider = ({ children }) => {
           setAnalysisResult(enrichedResult);
           setIsAnalyzing(false);
 
+          if (data.status === 'failed') {
+            setCurrentStage('error');
+          } else {
+            setCurrentStage('completed');
+          }
+
           if (sourceItemId) {
             setFeedItems(prev => prev.map(item =>
               item.id === sourceItemId
