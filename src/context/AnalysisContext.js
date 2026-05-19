@@ -133,7 +133,6 @@ export const AnalysisProvider = ({ children }) => {
   }, []);
 
   // 3. Initiate analysis using the real backend Callable Function
-  // 3. Run analysis pipeline locally (no Firebase Functions / Cloud Tasks needed)
   const analyzeContent = useCallback(async (content, profileContext, sourceItemId = null, sourceItem = null) => {
     if (!user) return;
 
@@ -143,139 +142,108 @@ export const AnalysisProvider = ({ children }) => {
     setExecutionLogs([]);
     setCurrentStage('loading_profile');
 
-    try {
-      // Stage 1: load profile
-      addLog('Loading saved business profile...', 'orchestrator');
-      await new Promise(r => setTimeout(r, 400));
+    const watchdogRef = { timer: null };
 
-      // Stage 2: ingest content
-      setCurrentStage('ingesting');
-      addLog('Ingesting content signals...', 'orchestrator');
-      await new Promise(r => setTimeout(r, 350));
-
-      // Stage 3: extract signals
-      setCurrentStage('signals');
-      addLog('Extracting facts and patterns from content...', 'signals');
-      await new Promise(r => setTimeout(r, 350));
-
-      // Stage 4: relevance check + full pipeline via local orchestrator
-      setCurrentStage('relevance');
-      addLog('Evaluating business relevance...', 'relevance');
-
-      const result = await runPipeline(content, profileContext);
-
-      addLog(`Relevance score: ${result.relevanceScore}%`, 'relevance');
-      result.traceLogs?.forEach(t => addLog(t.message, t.stage || 'orchestrator', t.level || 'info'));
-
-      // Stage 5: insights
-      setCurrentStage('insights');
-      addLog('Generating operational insights...', 'insights');
-      await new Promise(r => setTimeout(r, 300));
-
-      // Stage 6: impact
-      setCurrentStage('impact');
-      addLog('Running impact simulation...', 'impact');
-      await new Promise(r => setTimeout(r, 300));
-
-      // Stage 7: actions
-      setCurrentStage('actions');
-      addLog('Formulating recommended actions...', 'planner');
-      await new Promise(r => setTimeout(r, 250));
-
-      // Build structured Firestore-compatible run document
-      const now = new Date().toISOString();
-      const runData = {
-        status: result.isRelevant ? 'needs_simulation' : 'ignored',
-        currentStage: 'completed',
-        createdAt: serverTimestamp(),
-        completedAt: serverTimestamp(),
-        sourceContent: typeof content === 'string' ? content : String(content),
-        sourceItemId: sourceItemId || null,
-        relevance: {
-          score: result.relevanceScore,
-          isRelevant: result.isRelevant,
-          matchedConcerns: result.matchedConcerns || [],
-        },
-        signals: result.signals || [],
-        insights: result.insights || [],
-        impact: result.impact || {},
-        impactMatrix: {
-          overallRisk: result.impact?.riskLevel || 'Moderate',
-        },
-        recommendedActions: result.recommendedActions || [],
-      };
-
-      // Save run to Firestore
-      const runsColRef = collection(db, 'users', user.uid, 'analysisRuns');
-      const runDocRef = doc(runsColRef);
-      await setDoc(runDocRef, runData);
-      const runId = runDocRef.id;
-
-      // Save logs to Firestore subcollection
-      const logsColRef = collection(db, 'users', user.uid, 'analysisRuns', runId, 'logs');
-      const logEntries = (result.traceLogs || []).map((t, i) => ({
-        message: t.message,
-        stage: t.stage || 'orchestrator',
-        level: t.level || 'info',
-        timestamp: serverTimestamp(),
-        order: i,
-      }));
-      for (const entry of logEntries) {
-        const logRef = doc(logsColRef);
-        await setDoc(logRef, entry);
+    const clearWatchdog = () => {
+      if (watchdogRef.timer) {
+        clearTimeout(watchdogRef.timer);
+        watchdogRef.timer = null;
       }
+    };
 
-      // Update feed item status if this came from a feed item
-      if (sourceItemId) {
-        try {
-          const feedItemRef = doc(db, 'users', user.uid, 'feedItems', sourceItemId);
-          await setDoc(feedItemRef, {
-            status: 'analyzed',
-            relevanceScore: result.relevanceScore,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
-        } catch (feedErr) {
-          console.warn('Could not update feed item status:', feedErr);
+    try {
+      addLog('Initiating backend content-to-action analysis pipeline...', 'orchestrator');
+
+      const createAnalysisRunCallable = httpsCallable(functions, 'createAnalysisRun');
+      const res = await createAnalysisRunCallable({
+        content,
+        sourceItemId
+      });
+
+      const { runId } = res.data;
+
+      // Cleanup any existing run subscriptions
+      cleanupActiveRun();
+
+      // Subscribe to this specific run and its logs to show real-time progress
+      const runDocRef = doc(db, 'users', user.uid, 'analysisRuns', runId);
+      const logsColRef = collection(db, 'users', user.uid, 'analysisRuns', runId, 'logs');
+      const logsQuery = query(logsColRef, orderBy('timestamp', 'asc'));
+
+      let unsubscribeRun = () => {};
+      let unsubscribeLogs = () => {};
+
+      unsubscribeLogs = onSnapshot(logsQuery, (logsSnap) => {
+        setExecutionLogs(normalizeLogSnapshot(logsSnap));
+      }, (err) => {
+        console.error("Error monitoring active analysis run logs:", err);
+      });
+      activeSubscriptions.current.push(unsubscribeLogs);
+
+      // Start watchdog after run created — 90s max for backend to finish
+      watchdogRef.timer = setTimeout(() => {
+        console.warn('Analysis watchdog: backend did not complete in 90s');
+        addLog('Pipeline timed out. Backend did not respond within 90 seconds.', 'orchestrator', 'error');
+        setIsAnalyzing(false);
+        setCurrentStage('error');
+        cleanupActiveRun();
+      }, 90000);
+
+      // Subscribe to run status/state changes
+      unsubscribeRun = onSnapshot(runDocRef, (runSnap) => {
+        if (!runSnap.exists()) return;
+        const data = runSnap.data();
+
+        if (data.currentStage) {
+          setCurrentStage(data.currentStage);
         }
 
-        setFeedItems(prev => prev.map(item =>
-          item.id === sourceItemId
-            ? { ...item, relevanceStatus: getRunFeedStatus(result.relevanceScore), status: 'analyzed' }
-            : item
-        ));
-      }
+        if (data.status === 'completed' || data.status === 'needs_simulation' || data.status === 'ignored' || data.status === 'failed') {
+          clearWatchdog();
+          // Unsubscribe from real-time monitoring
+          cleanupActiveRun();
 
-      // Build enriched local result and set on state
-      const enrichedResult = {
-        id: runId,
-        ...runData,
-        createdAt: now,
-        completedAt: now,
-        analyzedAt: now,
-        relevanceScore: result.relevanceScore,
-        isRelevant: result.isRelevant,
-        reportTitle: sourceItem?.title || 'Manual Analysis',
-        sourceContent: typeof content === 'string' ? content : String(content),
-        sourceItem,
-        sourceItemId,
-        sourceTitle: sourceItem?.title || 'Manual Input',
-        sourceName: sourceItem?.sourceName || 'Manual Input',
-        sourceUrl: sourceItem?.url || '',
-        sourceBody: sourceItem?.body || (typeof content === 'string' ? content : ''),
-      };
+          const enrichedResult = normalizeAnalysisRun(runSnap.id, data, {
+            content,
+            sourceItemId,
+            sourceItem,
+          });
 
-      addLog('Pipeline complete. Results ready.', 'orchestrator', 'success');
-      setAnalysisResult(enrichedResult);
-      setCurrentStage('completed');
-      setIsAnalyzing(false);
+          setAnalysisResult(enrichedResult);
+          setIsAnalyzing(false);
+
+          if (data.status === 'failed') {
+            setCurrentStage('error');
+          } else {
+            setCurrentStage('completed');
+          }
+
+          if (sourceItemId) {
+            setFeedItems(prev => prev.map(item =>
+              item.id === sourceItemId
+                ? { ...item, relevanceStatus: getRunFeedStatus(data.relevance?.score || 0), status: 'analyzed' }
+                : item
+            ));
+          }
+        }
+      }, (err) => {
+        console.error("Error monitoring active analysis run:", err);
+        clearWatchdog();
+        setIsAnalyzing(false);
+        setCurrentStage('error');
+        addLog(`Firestore listener error: ${err.message}`, 'orchestrator', 'error');
+        cleanupActiveRun();
+      });
+      activeSubscriptions.current.push(unsubscribeRun);
 
     } catch (error) {
-      console.error('Analysis pipeline failed:', error);
-      addLog(`Pipeline error: ${error.message}`, 'orchestrator', 'error');
-      setCurrentStage('error');
+      console.error("Analysis pipeline failed:", error);
+      clearWatchdog();
+      addLog(`Pipeline execution halted: ${error.message}`, 'orchestrator', 'error');
       setIsAnalyzing(false);
+      setCurrentStage('error');
     }
-  }, [user, addLog]);
+  }, [user, addLog, cleanupActiveRun]);
 
 
   // 4. Trigger simulation using the real backend Callable Function
