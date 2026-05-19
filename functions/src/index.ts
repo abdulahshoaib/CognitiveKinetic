@@ -27,3 +27,4 @@ setGlobalOptions({maxInstances: 10});
 export {createAnalysisRun} from "./createAnalysisRun";
 export {simulateAction} from "./simulateAction";
 export {ingestNewsTick, getContentFeed} from "./ingestNewsTick";
+export {agentWorker} from "./agentWorker";

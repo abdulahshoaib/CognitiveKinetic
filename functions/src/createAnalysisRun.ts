@@ -1,5 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import {getFunctions} from "firebase-admin/functions";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -92,10 +93,10 @@ export const createAnalysisRun = onCall(async (request) => {
   await runRef.set({
     status: "queued",
     currentStage: "load_profile",
-    profileSnapshot: null,
+    profileSnapshot: profileSnap.data() || null,
     sourceItemId: sourceItemId || null,
     articleSnapshot,
-    sourceContent: content.substring(0, 500),
+    sourceContent: content,
     signals: [],
     relevance: null,
     insights: [],
@@ -116,8 +117,8 @@ export const createAnalysisRun = onCall(async (request) => {
   });
 
   // Enqueue Execution Task
-  // TODO(abdullah): Add Cloud Tasks implementation for
-  // target Cloud Run agent-worker
+  const queue = getFunctions().taskQueue("agentWorker");
+  await queue.enqueue({runId, uid});
 
   return {runId};
 });

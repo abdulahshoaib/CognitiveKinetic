@@ -3,8 +3,9 @@ import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
+import {genkit, z} from "genkit";
+import {googleAI} from "@genkit-ai/google-genai";
 import {
-  DEFAULT_FEED_SOURCES,
   INTERNATIONAL_FEED_SOURCES,
   PAKISTAN_FEED_SOURCES,
   QUERY_FEED_SOURCES,
@@ -19,6 +20,11 @@ import type {
   SyncLog,
 } from "./constants/types";
 
+const ai = genkit({
+  plugins: [googleAI()],
+  model: googleAI.model("gemini-2.5-flash"),
+});
+
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -30,6 +36,10 @@ const DEFAULT_COUNTRY = "PK";
 const IDLE_ARCHIVE_MS = 2 * 24 * 60 * 60 * 1000;
 const ARCHIVE_DELETE_MS = 31 * 24 * 60 * 60 * 1000;
 const MAX_AGENT_INPUT_ITEMS = 80;
+const IMMUTABLE_NEWS_PROMPT =
+  "System rule: use the saved business profile as the source of truth, " +
+  "classify only enabled user-configured sources, and return operationally " +
+  "relevant news for the content-to-action workflow.";
 const DEFAULT_NEWS_PROMPT =
   "Collect operationally relevant news that could affect costs, margins, " +
   "customer churn, market access, compliance, logistics, supply chains, " +
@@ -89,11 +99,11 @@ function renderTemplate(value: string, params: Record<string, string>): string {
 }
 
 function resolveSources(settings: NewsFeedSettings): FeedSource[] {
-  const systemPrompt = settings.systemPrompt || DEFAULT_NEWS_PROMPT;
+  const systemPrompt = settings.systemPrompt || "";
   const configured = Array.isArray(settings.sources) &&
     settings.sources.length > 0 ?
     settings.sources :
-    DEFAULT_FEED_SOURCES;
+    [];
   const resolved: FeedSource[] = [];
   let googleAdded = false;
 
@@ -182,9 +192,7 @@ function resolveSources(settings: NewsFeedSettings): FeedSource[] {
     }
   }
 
-  return resolved.length > 0 ?
-    resolved :
-    resolveSources({systemPrompt, sources: DEFAULT_FEED_SOURCES});
+  return resolved;
 }
 
 function parseRSS(xmlText: string, source: FeedSource): FeedArticleDraft[] {
@@ -303,47 +311,213 @@ async function fetchSource(source: FeedSource): Promise<{
 async function selectFeedItemsWithAgent(input: {
   uid: string;
   articles: FeedArticleDraft[];
+  syncLogs: SyncLog[];
 }): Promise<AgentFeedSelection[]> {
-  void input.uid;
+  const {uid, articles, syncLogs} = input;
 
-  // Agent stub contract:
-  // Replace with real agent call. Agent receives uid + parsed RSS articles.
-  // Agent must load profile/settings/location from Firestore itself,
-  // then return only selected relevant items in this exact shape.
-  return input.articles.slice(0, MAX_AGENT_INPUT_ITEMS).map((article) => {
-    const brief = truncate(article.summary || article.title, 280);
-    return {
+  if (articles.length === 0) {
+    return [];
+  }
+
+  const profileRef = db.doc(`users/${uid}/profile/main`);
+  const profileSnap = await profileRef.get();
+
+  if (!profileSnap.exists) {
+    console.warn(`User profile users/${uid}/profile/main does not exist.`);
+    syncLogs.push({
+      type: "pull",
+      sourceName: "Agent Selection",
+      status: "failed",
+      errorType: "Missing Profile",
+      message: `User profile users/${uid}/profile/main not found.`,
+      reason: "Relevance check skipped because user profile is missing.",
+    });
+    return [];
+  }
+
+  const profile = profileSnap.data() || {};
+  const settingsSnap = await db.doc(`users/${uid}/settings/newsFeed`).get();
+  const settings = settingsSnap.exists ?
+    (settingsSnap.data() as NewsFeedSettings) :
+    {};
+
+  const userPrompt = profile.systemPrompt ||
+    profile.newsSystemPrompt ||
+    settings.systemPrompt ||
+    DEFAULT_NEWS_PROMPT;
+  const immutablePrompt = profile.immutableNewsPrompt ||
+    IMMUTABLE_NEWS_PROMPT;
+  const systemPrompt = [
+    immutablePrompt,
+    "",
+    "User-configured news focus:",
+    userPrompt,
+  ].join("\n");
+
+  const compactProfile = {
+    businessName: profile.businessName || "",
+    industry: profile.industry || profile.domain || "",
+    locations: Array.isArray(profile.locations) ?
+      profile.locations.join(", ") :
+      (profile.locations || ""),
+    keyConcerns: profile.keyConcerns || profile.concerns || "",
+    goals: profile.goals || profile.primaryGoal || "",
+    targetAudience: profile.targetAudience || "",
+    riskSensitivity: profile.riskSensitivity || "Medium",
+    systemPrompt,
+  };
+
+  const inputArticles = articles
+    .slice(0, MAX_AGENT_INPUT_ITEMS)
+    .map((article) => ({
       feedItemId: getFeedItemId(article),
       title: article.title,
       summary: article.summary,
-      sourceName: article.sourceName,
-      sourceUrl: article.url,
+      source: article.sourceName,
       url: article.url,
-      canonicalUrl: article.canonicalUrl,
       publishedAt: article.publishedAt,
-      relevanceScore: 50,
-      selectionReason:
-        "Agent selection stub: replace with real Firestore-aware feed agent.",
+      language: article.language,
+      country: article.country,
+    }));
+
+  const promptText = [
+    "You are an agentic news selection and classification assistant.",
+    "Evaluate RSS articles against the user's saved business profile.",
+    "Return only articles with relevanceScore >= 60.",
+    "",
+    "USER BUSINESS PROFILE:",
+    `Business Name: ${compactProfile.businessName}`,
+    `Industry/Domain: ${compactProfile.industry}`,
+    `Operating Locations: ${compactProfile.locations}`,
+    `Key Concerns: ${compactProfile.keyConcerns}`,
+    `Goals: ${compactProfile.goals}`,
+    `Target Audience: ${compactProfile.targetAudience}`,
+    `Risk Sensitivity: ${compactProfile.riskSensitivity}`,
+    "",
+    "SELECTION INSTRUCTION:",
+    String(compactProfile.systemPrompt),
+    "",
+    "Rules:",
+    "- feedItemId must exactly match one input article feedItemId.",
+    "- relevanceScore must be 0..100.",
+    "- selectionReason must explain business relevance.",
+    "- brief must be under 280 characters.",
+    "",
+    "INPUT ARTICLES JSON:",
+    JSON.stringify(inputArticles, null, 2),
+  ].join("\n");
+
+  let response;
+  try {
+    response = await ai.generate({
+      prompt: promptText,
+      output: {
+        schema: z.object({
+          selectedItems: z.array(
+            z.object({
+              feedItemId: z.string().describe(
+                "Must exactly match one input article feedItemId."
+              ),
+              relevanceScore: z.number().describe(
+                "Relevance score between 0 and 100."
+              ),
+              selectionReason: z.string().describe(
+                "Brief explanation of relevance."
+              ),
+              brief: z.string().describe(
+                "Engaging summary under 280 characters."
+              ),
+            })
+          ),
+        }),
+      },
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error("Genkit news selection failed:", error);
+    syncLogs.push({
+      type: "pull",
+      sourceName: "Agent Selection",
+      status: "failed",
+      errorType: "LLM Error",
+      message: error.message,
+      reason: "Agent news selection encountered an LLM or schema error.",
+    });
+    return [];
+  }
+
+  const selectedItems: AgentFeedSelection[] = [];
+  const rawSelected = response.output?.selectedItems || [];
+
+  const originalMap = new Map<string, FeedArticleDraft>();
+  for (const article of articles) {
+    const feedItemId = getFeedItemId(article);
+    originalMap.set(feedItemId, article);
+  }
+
+  for (const item of rawSelected) {
+    if (!item.feedItemId) continue;
+
+    const original = originalMap.get(item.feedItemId);
+    if (!original) continue;
+
+    let score = Math.round(item.relevanceScore);
+    if (Number.isNaN(score)) score = 0;
+    score = Math.max(0, Math.min(100, score));
+
+    if (score < 60) continue;
+
+    const brief = truncate(
+      item.brief || item.selectionReason || original.summary || original.title,
+      280
+    );
+
+    selectedItems.push({
+      feedItemId: item.feedItemId,
+      title: original.title,
+      summary: original.summary,
+      sourceName: original.sourceName,
+      sourceUrl: original.url,
+      url: original.url,
+      canonicalUrl: original.canonicalUrl,
+      publishedAt: original.publishedAt,
+      relevanceScore: score,
+      selectionReason: item.selectionReason || "Relevant to profile concerns.",
       brief,
-      sourceId: article.sourceId,
-      sourceType: article.sourceType,
-    };
+      sourceId: original.sourceId,
+      sourceType: original.sourceType,
+    });
+  }
+
+  selectedItems.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  const finalSelected = selectedItems.slice(0, 20);
+
+  syncLogs.push({
+    type: "pull",
+    sourceName: "Agent Selection",
+    status: "success",
+    message:
+      `Agent selected ${finalSelected.length} relevant articles out of ` +
+      `${inputArticles.length} inputs.`,
+    reason: "Evaluated articles against business profile.",
   });
+
+  return finalSelected;
 }
 
 async function loadNewsFeedSettings(uid: string): Promise<NewsFeedSettings> {
   const settingsSnap = await db.doc(`users/${uid}/settings/newsFeed`).get();
   if (!settingsSnap.exists) {
     return {
-      systemPrompt: DEFAULT_NEWS_PROMPT,
-      sources: DEFAULT_FEED_SOURCES,
+      systemPrompt: "",
+      sources: [],
     };
   }
 
   const data = settingsSnap.data() as NewsFeedSettings;
   return {
-    systemPrompt: data.systemPrompt || DEFAULT_NEWS_PROMPT,
-    sources: Array.isArray(data.sources) ? data.sources : DEFAULT_FEED_SOURCES,
+    systemPrompt: data.systemPrompt || "",
+    sources: Array.isArray(data.sources) ? data.sources : [],
   };
 }
 
@@ -434,10 +608,48 @@ async function refreshUserFeed(uid: string): Promise<IngestionResult> {
   await cleanupFeedLifecycle(uid);
 
   const settings = await loadNewsFeedSettings(uid);
-  const systemPrompt = settings.systemPrompt || DEFAULT_NEWS_PROMPT;
-  const sources = resolveSources(settings);
+  const profileSnap = await db.doc(`users/${uid}/profile/main`).get();
+  const profile = profileSnap.exists ? profileSnap.data() || {} : {};
+  const sourceQueryPrompt =
+    profile.newsSystemPrompt ||
+    profile.systemPrompt ||
+    settings.systemPrompt ||
+    DEFAULT_NEWS_PROMPT;
+  const configuredSources = Array.isArray(settings.sources) &&
+    settings.sources.length > 0 ?
+    settings.sources :
+    (Array.isArray(profile.newsSources) ? profile.newsSources : []);
+  const sources = resolveSources({
+    ...settings,
+    systemPrompt: sourceQueryPrompt,
+    sources: configuredSources,
+  });
   const syncLogs: SyncLog[] = [];
   const rawArticles: FeedArticleDraft[] = [];
+
+  if (sources.length === 0) {
+    syncLogs.push({
+      type: "pull",
+      sourceName: "News Sources",
+      status: "failed",
+      errorType: "No Sources Enabled",
+      message: "No enabled news sources found. Ingestion stopped.",
+      reason: "News aggregation stopped as no sources are enabled.",
+    });
+
+    await db.doc(`users/${uid}/settings/newsFeed`).set({
+      systemPrompt: settings.systemPrompt || "",
+      sources: configuredSources,
+      lastRefreshAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+
+    return {
+      status: "empty",
+      items: [],
+      syncLogs,
+    };
+  }
 
   for (const source of sources) {
     try {
@@ -461,6 +673,7 @@ async function refreshUserFeed(uid: string): Promise<IngestionResult> {
   const selectedItems = await selectFeedItemsWithAgent({
     uid,
     articles: rawArticles,
+    syncLogs,
   });
 
   for (const selectedItem of selectedItems) {
@@ -468,8 +681,8 @@ async function refreshUserFeed(uid: string): Promise<IngestionResult> {
   }
 
   await db.doc(`users/${uid}/settings/newsFeed`).set({
-    systemPrompt,
-    sources: settings.sources || DEFAULT_FEED_SOURCES,
+    systemPrompt: settings.systemPrompt || "",
+    sources: configuredSources,
     lastRefreshAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
