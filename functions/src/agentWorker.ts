@@ -141,8 +141,11 @@ export const agentWorker = onTaskDispatched(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const insightResponse = await ai.generate({
-      prompt: "Generate an operational insight " +
-        `based on the relevance explanation:\n${relevanceExplanation}`,
+      prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
+        `And these signals extracted from the event:\n${signals.join("\n")}\n\n` +
+        `And this relevance analysis:\n${relevanceExplanation}\n\n` +
+        "Generate a highly specific, actionable operational insight that the business should consider. " +
+        "Focus on practical implications and operational impact for their specific industry and location.",
     });
     const insights = [insightResponse.text];
     await addLog(
@@ -160,10 +163,21 @@ export const agentWorker = onTaskDispatched(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const impactResponse = await ai.generate({
-      prompt: "Analyze the business impact of these insights:\n" +
-        `${insights.join("\n")}`,
+      prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
+        `And these operational insights:\n${insights.join("\n")}\n\n` +
+        "Analyze the business impact of these insights on our operations, costs, margins, and customers. " +
+        "Provide a detailed impact breakdown, then categorize the severity level as low, medium, or high.",
+      output: {
+        schema: z.object({
+          level: z.enum(["low", "medium", "high"]).describe("The business impact severity level."),
+          details: z.string().describe("Detailed description of the operational impact."),
+        })
+      }
     });
-    const impact = {level: "high", details: impactResponse.text};
+    const impact = {
+      level: impactResponse.output?.level || "medium",
+      details: impactResponse.output?.details || "Impact analysis compiled."
+    };
     await addLog(
       db,
       uid,
@@ -179,8 +193,9 @@ export const agentWorker = onTaskDispatched(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const actionsResponse = await ai.generate({
-      prompt: `Given the impact:\n${impact.details}\n\n` +
-        "Recommend 1-2 concrete actions. Return JSON matching schema: " +
+      prompt: `Given this user business profile:\n${JSON.stringify(profile)}\n\n` +
+        `And the analyzed operational impact:\n${impact.details}\n\n` +
+        "Recommend 1-2 concrete actions that the business can immediately execute. Return JSON matching schema: " +
         "[{ id: string, title: string, description: string, " +
         "actionType: \"pricing_adjust\" | " +
         "\"route_shift\" | \"manual_review\", " +
