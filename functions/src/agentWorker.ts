@@ -121,8 +121,30 @@ export const agentWorker = onTaskDispatched(
       }
     });
     
-    let relevanceScore = relevanceResponse.output?.score || 0;
-    const relevanceExplanation = relevanceResponse.output?.explanation || "No explanation provided.";
+    let relevanceScore = relevanceResponse.output?.score;
+    let relevanceExplanation = relevanceResponse.output?.explanation;
+
+    // Fallback parsing in case the LLM output is not perfectly structured by Genkit
+    if (relevanceScore === undefined || relevanceScore === null) {
+      try {
+        const text = relevanceResponse.text || "";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          relevanceScore = parsed.score ?? parsed.relevanceScore ?? 0;
+          relevanceExplanation = parsed.explanation ?? parsed.reason ?? parsed.selectionReason;
+        }
+      } catch (err) {
+        console.error("Fallback relevance parsing failed:", err);
+      }
+    }
+
+    if (relevanceScore === undefined || relevanceScore === null) {
+      relevanceScore = 0;
+    }
+    if (!relevanceExplanation) {
+      relevanceExplanation = relevanceResponse.text || "No explanation provided.";
+    }
     
     // Ensure score is within 0-100 bounds
     relevanceScore = Math.max(0, Math.min(100, relevanceScore));
