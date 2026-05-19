@@ -159,7 +159,6 @@ service cloud.firestore {
       optionalString(data, 'sourceUrl', 2000) &&
       optionalString(data, 'timestamp', 80) &&
       optionalString(data, 'relevanceStatus', 40) &&
-      optionalList(data, 'detectedTopics', 40) &&
       optionalTimestamp(data, 'createdAt');
     }
 
