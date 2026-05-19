@@ -64,18 +64,18 @@ export const agentWorker = onTaskDispatched(
 
     await runRef.update({
       status: "running",
-      currentStage: "load_profile",
+      currentStage: "loading_profile",
       profileSnapshot: profile,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    await addLog(db, uid, runId, "load_profile", "Saved profile loaded.");
+    await addLog(db, uid, runId, "loading_profile", "Saved profile loaded.");
 
     // 1. Extract Signals
     await runRef.update({
-      currentStage: "extract_signals",
+      currentStage: "ingesting",
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    await addLog(db, uid, runId, "ingest_content", "New content ingested.");
+    await addLog(db, uid, runId, "ingesting", "New content ingested.");
     const extractResponse = await ai.generate({
       prompt: `Extract key facts and signals from this content:\n${content}`,
     });
@@ -84,13 +84,13 @@ export const agentWorker = onTaskDispatched(
       db,
       uid,
       runId,
-      "extract_signals",
+      "signals",
       "Signals extracted from content."
     );
 
     // 2. Check Relevance
     await runRef.update({
-      currentStage: "check_relevance",
+      currentStage: "relevance",
       signals,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -104,13 +104,13 @@ export const agentWorker = onTaskDispatched(
       db,
       uid,
       runId,
-      "check_relevance",
+      "relevance",
       "Relevance checked against saved profile."
     );
 
     // 3. Generate Insights
     await runRef.update({
-      currentStage: "generate_insights",
+      currentStage: "insights",
       relevance: {score: 80, explanation: relevance},
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -123,13 +123,13 @@ export const agentWorker = onTaskDispatched(
       db,
       uid,
       runId,
-      "generate_insights",
+      "insights",
       "Operational insight generated."
     );
 
     // 4. Analyze Impact
     await runRef.update({
-      currentStage: "analyze_impact",
+      currentStage: "impact",
       insights,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -142,13 +142,13 @@ export const agentWorker = onTaskDispatched(
       db,
       uid,
       runId,
-      "analyze_impact",
+      "impact",
       "Impact analysis completed."
     );
 
     // 5. Recommend Actions
     await runRef.update({
-      currentStage: "recommend_actions",
+      currentStage: "actions",
       impact,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -189,18 +189,18 @@ export const agentWorker = onTaskDispatched(
       db,
       uid,
       runId,
-      "recommend_actions",
+      "actions",
       "Recommended actions created."
     );
 
     // Finalize
     await runRef.update({
-      currentStage: "complete",
+      currentStage: "completed",
       status: "completed",
       recommendedActions,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    await addLog(db, uid, runId, "complete", "Updated report generated.");
+    await addLog(db, uid, runId, "completed", "Updated report generated.");
   }
 );

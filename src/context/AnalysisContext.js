@@ -126,7 +126,7 @@ export const AnalysisProvider = ({ children }) => {
     setAnalysisResult(null);
     setSimulationResult(null);
     setExecutionLogs([]);
-    setCurrentStage('load_profile');
+    setCurrentStage('loading_profile');
 
     try {
       addLog(`Initiating backend content-to-action analysis pipeline...`, 'orchestrator');

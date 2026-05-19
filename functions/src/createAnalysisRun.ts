@@ -92,7 +92,7 @@ export const createAnalysisRun = onCall(async (request) => {
 
   await runRef.set({
     status: "queued",
-    currentStage: "load_profile",
+    currentStage: "loading_profile",
     profileSnapshot: profileSnap.data() || null,
     sourceItemId: sourceItemId || null,
     articleSnapshot,
