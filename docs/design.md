@@ -1,5 +1,5 @@
 ---
-name: CognitiveKinetic
+name: Relay
 colors:
   background: '#0F1110'
   surface: '#181C18'
@@ -70,9 +70,11 @@ spacing:
 ---
 
 ## Brand & Style
-The design system for this autonomous agent platform is built on the principles of **Human Kinetics** and **High-Fidelity Transparency**. It targets a user base that requires a personal cognitive and physical performance system, steering clear of generic corporate SaaS vibes.
+**Cognitive Kinetic** is the entire end-to-end content-to-action pipeline (encompassing background feed ingestion, agentic parsing, impact reasoning, and transaction simulation). **Relay** is the mobile application frontend for this system.
 
-The style feels warm, characterful, and clean. It utilizes deep, layered surfaces with natural, earthy dark tones, while vibrant data-driven signals ensure that the "kinetic" nature of the agent is always visible. The aesthetic should feel like a personal performance engine: intuitive, responsive, and organically premium.
+The design system for the **Relay** mobile app is built on the principles of **Operational Clarity** and **High-Fidelity Transparency**. It targets operators who require a clear, high-performance console for real-time decision-making, steering clear of generic corporate SaaS or chatbot vibes.
+
+The style feels warm, characterful, and clean. It utilizes deep, layered surfaces with natural, earthy dark tones, while vibrant data-driven signals ensure that key changes and alerts are always visible. The aesthetic should feel like an operational cockpit: intuitive, responsive, and premium.
 
 ## Colors
 The palette is anchored in a **warm dark-mode default** ecosystem. The base is a deep charcoal (`#0F1110`), providing a high-contrast foundation for the layered surfaces (`#181C18`, `#222820`).
@@ -101,7 +103,7 @@ Depth is created through **Tonal Layering** and **Subtle Glassmorphism** rather 
 - **L0 (Base):** Deep Charcoal (`#0F1110`). The canvas.
 - **L1 (Surfaces):** Dark Earth (`#181C18`) with a subtle 1px border (`#333A32`).
 - **L2 (Overlays/Modals):** Raised Earth (`#222820`) with a backdrop-blur (12px) and 60% opacity. This creates a "glass" effect that suggests the UI is floating organically over the stream of data.
-- **Active State Glow:** When an agent is "Active," elements may use a soft Ember Orange outer glow (0px 0px 15px rgba(232, 93, 42, 0.2)) to signal life and kinetic energy.
+- **Active State Glow:** When an agent is "Active," elements may use a soft Ember Orange outer glow (0px 0px 15px rgba(232, 93, 42, 0.2)) to signal active processing.
 
 ## Shapes
 A **Rounded** (Level 2) shape language is applied to soften the technical rigidity and improve user comfort.

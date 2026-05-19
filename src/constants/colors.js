@@ -1,6 +1,6 @@
 /**
- * CognitiveKinetic color tokens.
- * Source: docs/DESIGN.md
+ * Relay color tokens.
+ * Source: docs/design.md
  */
 
 export const Colors = {

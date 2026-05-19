@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "CognitiveKinetic",
-    "slug": "CognitiveKinetic",
-    "scheme": "cognitivekinetic",
+    "name": "Relay",
+    "slug": "relay",
+    "scheme": "relay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.cognitivekinetic"
+      "package": "com.relay.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

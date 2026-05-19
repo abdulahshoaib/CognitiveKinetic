@@ -1,8 +1,27 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
-import { runPipeline } from '../services/agent/orchestrator';
-import { useIntegrations } from './IntegrationsContext';
-import { usePreferences } from './PreferencesContext';
-import { buildReportTitle } from '../utils/reportTitles';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { doc, collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../services/firebase';
+import {
+  addUserFeedItems,
+  createManualFeedItem,
+  dismissUserFeedItem,
+  listenUserFeedItems,
+  refreshUserFeed,
+  updateFeedItemSaved,
+  updateFeedItemStatus,
+} from '../services/feedService';
+import { useAuth } from './AuthContext';
+import {
+  buildFeedItemContent,
+  buildLocalLogEntry,
+  getRunFeedStatus,
+  normalizeAnalysisRun,
+  normalizeAnalysisRunSnapshot,
+  normalizeLogSnapshot,
+  normalizeSimulationResult,
+  updateActionStatusInResult,
+} from '../utils/analysisContextUtils';
 
 const noop = () => {};
 
@@ -22,57 +41,18 @@ const AnalysisContext = createContext({
   executeSimulation: noop,
   clearAnalysis: noop,
   addManualAnalysisItem: noop,
+  addFeedItems: noop,
+  refreshFeedItems: noop,
   viewAnalysis: noop,
   markActionSimulated: noop,
+  saveFeedItem: noop,
+  dismissFeedItem: noop,
+  analyzeFeedItem: noop,
 });
 
-const defaultFeedItems = [
-  {
-    id: 'feed_1',
-    sourceType: 'news',
-    sourceName: 'National Petroleum Review',
-    title: 'Fuel prices increased by 12% effective immediately',
-    body: 'The Ministry of Energy has announced a sudden 12% hike in base fuel and diesel prices, effective midnight. The adjustment is attributed to global crude price spikes and fluctuations in import tariffs. Transportation networks and heavy haulers are advised to brace for severe operational margin pressures.',
-    timestamp: '15 mins ago',
-    relevanceStatus: 'pending',
-    detectedTopics: ['Fuel Costs', 'Logistics', 'Operational Costs']
-  },
-  {
-    id: 'feed_2',
-    sourceType: 'alert',
-    sourceName: 'Lahore Traffic Authority',
-    title: 'Commercial vehicle restrictions on Mall Road Lahore',
-    body: 'Effective tomorrow, heavy cargo vehicles and commercial delivery vans will face strict access hours on Mall Road and central Lahore areas due to environmental smog control measures. Operations restricted between 8:00 AM and 8:00 PM.',
-    timestamp: '2 hours ago',
-    relevanceStatus: 'pending',
-    detectedTopics: ['Lahore Operations', 'Regulatory Constraints']
-  },
-  {
-    id: 'feed_3',
-    sourceType: 'sports',
-    sourceName: 'CricBuzz Pakistan',
-    title: 'Lahore Qalandars announce new training campus in Karachi',
-    body: 'The Lahore Qalandars franchise has unveiled state-of-the-art practice facilities in Karachi to groom local talent ahead of the upcoming PSL season. Selected training sessions will be open to the public.',
-    timestamp: '4 hours ago',
-    relevanceStatus: 'pending',
-    detectedTopics: ['Cricket', 'Local Events']
-  },
-  {
-    id: 'feed_4',
-    sourceType: 'entertainment',
-    sourceName: 'Showbiz Herald',
-    title: 'International Film Festival returns to Islamabad',
-    body: 'The annual cultural arts and movie gala is set to take place at the national auditorium in Islamabad next month, showcasing over 40 award-winning independent films from across Asia.',
-    timestamp: '1 day ago',
-    relevanceStatus: 'pending',
-    detectedTopics: ['Culture', 'Social Events']
-  }
-];
-
 export const AnalysisProvider = ({ children }) => {
-  const { preferences } = usePreferences();
-  const { actionApis } = useIntegrations();
-  const [feedItems, setFeedItems] = useState(defaultFeedItems);
+  const { user } = useAuth();
+  const [feedItems, setFeedItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentStage, setCurrentStage] = useState('idle'); // idle, loading_profile, ingesting, signals, relevance, insights, impact, actions, completed
@@ -82,242 +62,179 @@ export const AnalysisProvider = ({ children }) => {
   const [simulationResult, setSimulationResult] = useState(null);
   const [executionLogs, setExecutionLogs] = useState([]);
 
-  // Custom mock state representing system settings that simulations will modify
-  const [systemState, setSystemState] = useState({
-    baseDeliveryFee: 100,
-    longDistanceSurcharge: 0,
-    peakHourSurcharge: 15,
-    lastUpdate: 'System Synced'
-  });
+  const [systemState, setSystemState] = useState(null);
+
+  // 0. Sync user-scoped feedItems in real-time with Firestore.
+  useEffect(() => {
+    if (!user) {
+      setFeedItems([]);
+      return;
+    }
+
+    return listenUserFeedItems(user.uid, setFeedItems, (err) => {
+      console.error("Error listening to user feed items:", err);
+    });
+  }, [user]);
+
+  // 1. Sync systemState in real-time with Firestore
+  useEffect(() => {
+    if (!user) {
+      setSystemState(null);
+      return;
+    }
+
+    const systemStateRef = doc(db, 'users', user.uid, 'mockState', 'main');
+    const unsubscribe = onSnapshot(systemStateRef, (snap) => {
+      if (snap.exists()) {
+        setSystemState(snap.data());
+      } else {
+        setSystemState(null);
+      }
+    }, (err) => {
+      console.error("Error listening to mock state:", err);
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  // 2. Sync analysisHistory in real-time with Firestore
+  useEffect(() => {
+    if (!user) {
+      setAnalysisHistory([]);
+      return;
+    }
+
+    const runsColRef = collection(db, 'users', user.uid, 'analysisRuns');
+    const q = query(runsColRef, orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setAnalysisHistory(normalizeAnalysisRunSnapshot(snap));
+    }, (err) => {
+      console.error("Error listening to analysis runs:", err);
+    });
+
+    return unsubscribe;
+  }, [user]);
 
   const addLog = useCallback((message, stage = 'system', level = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    setExecutionLogs((prev) => [...prev, {
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: `[${timestamp}]`,
-      stage,
-      message,
-      level
-    }]);
+    setExecutionLogs((prev) => [...prev, buildLocalLogEntry(message, stage, level)]);
   }, []);
 
+  // 3. Initiate analysis using the real backend Callable Function
   const analyzeContent = useCallback(async (content, profileContext, sourceItemId = null, sourceItem = null) => {
+    if (!user) return;
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setSimulationResult(null);
     setExecutionLogs([]);
+    setCurrentStage('load_profile');
 
-    const delayMs = preferences.motion === 'minimal' ? 0 : preferences.motion === 'reduced' ? 300 : 800;
-    const delay = () => new Promise(res => setTimeout(res, delayMs));
-
-    // Stage 1: Load saved profile
-    setCurrentStage('loading_profile');
-    addLog(`Loading active business profile context for '${profileContext?.businessName || 'Apex Logistics'}'`, 'profile');
-    await delay();
-
-    // Stage 2: Ingestion
-    setCurrentStage('ingesting');
-    addLog(`Ingesting new content block. Size: ${content.length} characters.`, 'ingestion');
-    await delay();
-
-    // Stage 3: Extract signals
-    setCurrentStage('signals');
-    addLog('Extracting entities, numeric values, and keywords...', 'signals');
-    await delay();
-
-    // Stage 4: Check relevance
-    setCurrentStage('relevance');
-    addLog('Running multi-factor semantic alignment check against active profile...', 'relevance');
-    await delay();
-
-    // Stage 5: Insights
-    setCurrentStage('insights');
-    addLog('Formulating operational insights and risk priorities...', 'insights');
-    await delay();
-
-    // Stage 6: Impact
-    setCurrentStage('impact');
-    addLog('Modeling financial, structural, and regulatory impacts...', 'impact');
-    await delay();
-
-    // Stage 7: Actions
-    setCurrentStage('actions');
-    addLog('Compiling recommended actions and decision parameters...', 'actions');
-    await delay();
-
-    // Call orchestrator pipeline to build the actual structured results
     try {
-      const result = await runPipeline(content, profileContext);
+      addLog(`Initiating backend content-to-action analysis pipeline...`, 'orchestrator');
 
-      // Update feed item relevance status in the feed list if it matches an existing item ID
-      const itemIdToUpdate = sourceItemId || result.feedItemId;
-      if (itemIdToUpdate) {
-        setFeedItems(prev => prev.map(item =>
-          item.id === itemIdToUpdate
-            ? {
-                ...item,
-                relevanceStatus: result.relevanceScore >= 75 ? 'high-impact' : result.relevanceScore > 40 ? 'relevant' : 'ignored'
-              }
-            : item
-        ));
-      }
-
-      // Add simulation status tracking to each recommended action
-      const sourceSnapshot = sourceItem ? {
-        id: sourceItem.id || sourceItemId || null,
-        sourceType: sourceItem.sourceType || 'content',
-        sourceName: sourceItem.sourceName || 'Analyzed Content',
-        title: sourceItem.title || buildReportTitle(content, result),
-        body: sourceItem.body || content,
-        timestamp: sourceItem.timestamp || null,
-        url: sourceItem.url || sourceItem.sourceUrl || '',
-        sourceUrl: sourceItem.sourceUrl || sourceItem.url || '',
-        detectedTopics: Array.isArray(sourceItem.detectedTopics) ? sourceItem.detectedTopics : [],
-      } : null;
-
-      const enrichedResult = {
-        ...result,
-        id: Math.random().toString(36).substr(2, 9),
-        analyzedAt: new Date().toISOString(),
-        reportTitle: buildReportTitle(content, result),
-        sourceContent: content.substring(0, 200),
-        sourceItem: sourceSnapshot,
-        sourceItemId: sourceItemId || sourceSnapshot?.id || null,
-        sourceTitle: sourceSnapshot?.title || buildReportTitle(content, result),
-        sourceName: sourceSnapshot?.sourceName || (sourceItemId ? 'News Source' : 'Manual Input'),
-        sourceUrl: sourceSnapshot?.url || '',
-        sourceBody: sourceSnapshot?.body || content,
-        sourceTimestamp: sourceSnapshot?.timestamp || null,
-        sourceTopics: sourceSnapshot?.detectedTopics || [],
-        recommendedActions: (result.recommendedActions || []).map(action => ({
-          ...action,
-          simulationStatus: 'pending', // pending | running | passed | failed
-          simulationLogs: null,
-        })),
-      };
-
-      setAnalysisResult(enrichedResult);
-
-      // Add to history
-      setAnalysisHistory(prev => [enrichedResult, ...prev]);
-
-      result.traceLogs.forEach(log => {
-        addLog(log.message, log.stage, log.level);
+      const createAnalysisRunCallable = httpsCallable(functions, 'createAnalysisRun');
+      const res = await createAnalysisRunCallable({
+        content,
+        sourceItemId: sourceItemId || null
       });
 
-      setCurrentStage('completed');
-      addLog('Agent pipeline run completed successfully. Awaiting operator decisions.', 'orchestrator', 'success');
-    } catch (error) {
-      console.error('Pipeline failed:', error);
-      addLog(`Pipeline execution halted: ${error.message}`, 'orchestrator', 'error');
-      setCurrentStage('idle');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [addLog, preferences.motion]);
+      const { runId } = res.data;
 
+      // Subscribe to this specific run and its logs to show real-time progress
+      const runDocRef = doc(db, 'users', user.uid, 'analysisRuns', runId);
+      const logsColRef = collection(db, 'users', user.uid, 'analysisRuns', runId, 'logs');
+      const logsQuery = query(logsColRef, orderBy('timestamp', 'asc'));
+
+      let unsubscribeLogs = () => {};
+      let unsubscribeRun = () => {};
+
+      // Subscribe to log stream
+      unsubscribeLogs = onSnapshot(logsQuery, (logsSnap) => {
+        setExecutionLogs(normalizeLogSnapshot(logsSnap));
+      });
+
+      // Subscribe to run status/state changes
+      unsubscribeRun = onSnapshot(runDocRef, (runSnap) => {
+        if (!runSnap.exists()) return;
+        const data = runSnap.data();
+
+        if (data.currentStage) {
+          setCurrentStage(data.currentStage);
+        }
+
+        if (data.status === 'completed' || data.status === 'needs_simulation' || data.status === 'ignored' || data.status === 'failed') {
+          // Unsubscribe from real-time monitoring
+          unsubscribeRun();
+          unsubscribeLogs();
+
+          const enrichedResult = normalizeAnalysisRun(runSnap.id, data, {
+            content,
+            sourceItem,
+            sourceItemId,
+          });
+
+          setAnalysisResult(enrichedResult);
+          setIsAnalyzing(false);
+
+          if (sourceItemId) {
+            setFeedItems(prev => prev.map(item =>
+              item.id === sourceItemId
+                ? {
+                    ...item,
+                    relevanceStatus: getRunFeedStatus(data.relevance?.score || 0)
+                  }
+                : item
+            ));
+          }
+        }
+      }, (err) => {
+        console.error("Error monitoring active analysis run:", err);
+        setIsAnalyzing(false);
+        unsubscribeRun();
+        unsubscribeLogs();
+      });
+
+    } catch (error) {
+      console.error("Analysis pipeline failed:", error);
+      addLog(`Pipeline execution halted: ${error.message}`, 'orchestrator', 'error');
+      setIsAnalyzing(false);
+      setCurrentStage('idle');
+    }
+  }, [user, addLog]);
+
+  // 4. Trigger simulation using the real backend Callable Function
   const executeSimulation = useCallback(async (action, analysisId = null) => {
-    if (!action) return;
+    if (!action || !user) return;
+    const runId = analysisId || analysisResult?.id;
+    if (!runId) {
+      addLog('Simulation error: analysis run id is missing.', 'simulation', 'error');
+      return;
+    }
+
     setIsSimulating(true);
     setSimulationResult(null);
 
-    // Mark action as running in both current result and history
     const updateActionStatus = (status, logs = null) => {
-      const updater = (result) => {
-        if (!result) return result;
-        return {
-          ...result,
-          recommendedActions: (result.recommendedActions || []).map(a =>
-            a.id === action.id ? { ...a, simulationStatus: status, simulationLogs: logs } : a
-          ),
-        };
-      };
-      setAnalysisResult(prev => updater(prev));
-      setAnalysisHistory(prev => prev.map(h =>
-        (analysisId ? h.id === analysisId : true) ? updater(h) : h
-      ));
+      setAnalysisResult(prev =>
+        prev?.id === runId ? updateActionStatusInResult(prev, action.id, status, logs) : prev
+      );
     };
 
     updateActionStatus('running');
 
     try {
       addLog(`Initiating simulation run for action: ${action.title}`, 'simulation');
-      const configuredApi = actionApis.find(api =>
-        api.enabled !== false &&
-        (api.actionTypes || []).some(type => type === action.actionType || type === 'custom')
-      );
 
-      const delayMs = preferences.motion === 'minimal' ? 0 : preferences.motion === 'reduced' ? 250 : 600;
-      const delay = (multiplier = 1) => new Promise(res => setTimeout(res, delayMs * multiplier));
-      await delay();
+      const simulateActionCallable = httpsCallable(functions, 'simulateAction');
+      const res = await simulateActionCallable({
+        runId,
+        actionId: action.id
+      });
 
-      addLog(`Reading base configuration values...`, 'simulation');
-      if (configuredApi) {
-        addLog(`Configured API available: ${configuredApi.name} (${configuredApi.baseUrl})`, 'simulation');
-      }
-      const beforeState = { ...systemState };
-      await delay();
+      const simResult = normalizeSimulationResult(action, res.data || {});
+      const { logs, passed } = simResult;
 
-      addLog(`Simulating API call / DB update to configure target: ${action.targetSystem}`, 'simulation');
-      await delay(1.3);
-
-      let afterState = { ...beforeState };
-      let logs = [];
-      let passed = true;
-
-      if (action.actionType === 'pricing_adjust') {
-        afterState.longDistanceSurcharge = 20;
-        afterState.lastUpdate = 'Surcharge Active (+Rs. 20)';
-        logs = [
-          configuredApi ? `Configured API selected: ${configuredApi.name}` : 'Configured API selected: mock pricing service',
-          'API Request: POST /api/v1/config/pricing-rules',
-          'Payload: { rule: "long_distance_surcharge", value: 20, active: true }',
-          'Response Status: 200 OK',
-          'Database Write: Table [PricingRules] updated row [long_distance] with value [20]',
-          'System event triggered: PRICING_UPDATED_BROADCAST'
-        ];
-      } else if (action.actionType === 'route_shift') {
-        afterState.peakHourSurcharge = 30;
-        afterState.lastUpdate = 'Peak Adjustment Active (+Rs. 30)';
-        logs = [
-          configuredApi ? `Configured API selected: ${configuredApi.name}` : 'Configured API selected: mock routing service',
-          'API Request: POST /api/v1/routes/optimizer',
-          'Payload: { avoidZone: "Mall Road Lahore", shiftWindows: ["08:00", "20:00"] }',
-          'Response Status: 200 OK',
-          'AI Dispatch Engine: Routing graph reconstructed to re-route 14 vehicles.',
-          'Surcharge updated: Peak hour buffer raised to Rs. 30'
-        ];
-      } else if (action.actionType === 'manual_review') {
-        // Manual actions "fail" simulation — need manual execution
-        passed = false;
-        logs = [
-          'Simulation attempted for manual action type.',
-          'Result: Cannot auto-execute — requires human operator intervention.',
-          'Recommended: Execute this action manually through operations dashboard.',
-        ];
-      } else {
-        afterState.lastUpdate = 'Policy Updated (Manual)';
-        logs = [
-          configuredApi ? `Configured API selected: ${configuredApi.name}` : 'Configured API selected: mock workflow service',
-          'Notification Service: Dispatched urgent alert to operations team.',
-          'Document Repository: Created policy amendment report.',
-          'Task Queue: Added manual review task for account managers.'
-        ];
-      }
-
-      if (passed) {
-        setSystemState(afterState);
-      }
+      // Update client logs terminal
       logs.forEach(logLine => addLog(logLine, 'tool', 'info'));
-
-      const simResult = {
-        actionId: action.id,
-        actionTitle: action.title,
-        beforeState,
-        afterState: passed ? afterState : beforeState,
-        logs,
-        passed,
-      };
 
       setSimulationResult(simResult);
       updateActionStatus(passed ? 'passed' : 'failed', logs);
@@ -329,10 +246,15 @@ export const AnalysisProvider = ({ children }) => {
         'simulation',
         passed ? 'success' : 'error'
       );
+
+    } catch (error) {
+      console.error("Simulation failed:", error);
+      addLog(`Simulation error: ${error.message}`, 'simulation', 'error');
+      updateActionStatus('failed', [error.message]);
     } finally {
       setIsSimulating(false);
     }
-  }, [actionApis, systemState, addLog, preferences.motion]);
+  }, [user, analysisResult, addLog]);
 
   const clearAnalysis = useCallback(() => {
     setAnalysisResult(null);
@@ -343,42 +265,113 @@ export const AnalysisProvider = ({ children }) => {
     setSelectedItem(null);
   }, []);
 
-  const addManualAnalysisItem = useCallback((title, body) => {
-    const newItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      sourceType: 'manual',
-      sourceName: 'Manual Input',
-      title,
-      body,
-      url: '',
-      sourceUrl: '',
-      timestamp: 'Just now',
-      relevanceStatus: 'pending',
-      detectedTopics: ['Manual Parse']
-    };
-    setFeedItems(prev => [newItem, ...prev]);
-    return newItem;
-  }, []);
+  const addManualAnalysisItem = useCallback(async (title, body) => {
+    if (!user) return null;
+    try {
+      return await createManualFeedItem(user.uid, title, body);
+    } catch (e) {
+      console.error("Error adding manual analysis item:", e);
+      return null;
+    }
+  }, [user]);
 
-  // Load a specific analysis from history into current view
-  const viewAnalysis = useCallback((analysis) => {
+  const addFeedItems = useCallback(async (items) => {
+    if (!user) return;
+    try {
+      await addUserFeedItems(user.uid, items);
+    } catch (e) {
+      console.error("Error adding feed items:", e);
+    }
+  }, [user]);
+
+  const refreshFeedItems = useCallback(async () => {
+    if (!user) return { status: 'empty', items: [], syncLogs: [] };
+
+    try {
+      return await refreshUserFeed();
+    } catch (error) {
+      console.error("Error refreshing feed items:", error);
+      addLog(`Feed refresh failed: ${error.message}`, 'feed', 'error');
+      return { status: 'error', items: [], syncLogs: [] };
+    }
+  }, [user, addLog]);
+
+  // 5. Populate logs and select past run from history
+  const viewAnalysis = useCallback(async (analysis) => {
     setAnalysisResult(analysis);
-  }, []);
+    if (user && analysis?.id) {
+      try {
+        const logsColRef = collection(db, 'users', user.uid, 'analysisRuns', analysis.id, 'logs');
+        const q = query(logsColRef, orderBy('timestamp', 'asc'));
+        const querySnap = await getDocs(q);
+        setExecutionLogs(normalizeLogSnapshot(querySnap));
+      } catch (err) {
+        console.error("Error fetching logs for historical run:", err);
+      }
+    }
+  }, [user]);
 
-  // Mark an action as simulated in a specific analysis history entry
-  const markActionSimulated = useCallback((analysisId, actionId, status, logs) => {
-    const updater = (result) => {
-      if (!result) return result;
-      return {
-        ...result,
-        recommendedActions: (result.recommendedActions || []).map(a =>
-          a.id === actionId ? { ...a, simulationStatus: status, simulationLogs: logs } : a
-        ),
-      };
-    };
-    setAnalysisResult(prev => prev?.id === analysisId ? updater(prev) : prev);
-    setAnalysisHistory(prev => prev.map(h => h.id === analysisId ? updater(h) : h));
-  }, []);
+  const markActionSimulated = useCallback(async (analysisId, actionId) => {
+    if (!user || !analysisId || !actionId) return;
+
+    try {
+      const simulateActionCallable = httpsCallable(functions, 'simulateAction');
+      await simulateActionCallable({runId: analysisId, actionId});
+    } catch (error) {
+      console.error("Simulation status update failed:", error);
+      addLog(`Simulation status update failed: ${error.message}`, 'simulation', 'error');
+    }
+  }, [user, addLog]);
+
+  const saveFeedItem = useCallback(async (feedItemId, saved = true) => {
+    if (!user) return;
+    try {
+      await updateFeedItemSaved(user.uid, feedItemId, saved);
+      addLog(`Feed item marked as ${saved ? 'saved' : 'unsaved'}.`, 'feed');
+    } catch (e) {
+      console.error("Error saving feed item:", e);
+      addLog(`Failed to save feed item: ${e.message}`, 'feed', 'error');
+    }
+  }, [user, addLog]);
+
+  const dismissFeedItem = useCallback(async (feedItemId) => {
+    if (!user) return;
+    try {
+      await dismissUserFeedItem(user.uid, feedItemId);
+      addLog(`Feed item dismissed and deleted.`, 'feed');
+    } catch (e) {
+      console.error("Error dismissing feed item:", e);
+      addLog(`Failed to dismiss feed item: ${e.message}`, 'feed', 'error');
+    }
+  }, [user, addLog]);
+
+  const analyzeFeedItem = useCallback(async (feedItemId) => {
+    if (!user) return;
+    try {
+      const item = feedItems.find(i => i.feedItemId === feedItemId || i.id === feedItemId);
+      if (!item) {
+        throw new Error("Feed item not found locally.");
+      }
+      const content = buildFeedItemContent(item);
+
+      await updateFeedItemStatus(user.uid, feedItemId, 'analyzing');
+
+      await analyzeContent(content, null, feedItemId, item);
+
+      await updateFeedItemStatus(user.uid, feedItemId, 'analyzed');
+
+      addLog(`Feed item analysis complete.`, 'feed');
+    } catch (e) {
+      console.error("Error analyzing feed item:", e);
+      addLog(`Failed to analyze feed item: ${e.message}`, 'feed', 'error');
+
+      try {
+        await updateFeedItemStatus(user.uid, feedItemId, 'unread');
+      } catch (innerErr) {
+        console.error("Error resetting feed item status:", innerErr);
+      }
+    }
+  }, [user, feedItems, analyzeContent, addLog]);
 
   return (
     <AnalysisContext.Provider value={{
@@ -397,8 +390,13 @@ export const AnalysisProvider = ({ children }) => {
       executeSimulation,
       clearAnalysis,
       addManualAnalysisItem,
+      addFeedItems,
+      refreshFeedItems,
       viewAnalysis,
       markActionSimulated,
+      saveFeedItem,
+      dismissFeedItem,
+      analyzeFeedItem,
     }}>
       {children}
     </AnalysisContext.Provider>

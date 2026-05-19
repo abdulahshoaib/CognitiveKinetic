@@ -1,5 +1,5 @@
 /**
- * CognitiveKinetic Design Tokens — Typography
+ * Relay Design Tokens — Typography
  */
 
 export const FontSizes = {

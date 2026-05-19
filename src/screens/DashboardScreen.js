@@ -11,6 +11,7 @@ import Screen from '../components/common/Screen';
 import SectionHeader from '../components/common/SectionHeader';
 import EmptyState from '../components/common/EmptyState';
 import { getReportTitle } from '../utils/reportTitles';
+import { BRAND_NAME } from '../constants/brand';
 
 const STAGE_LABELS = {
   idle: 'Idle',
@@ -364,7 +365,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerTitle}>
           <Text style={[styles.greeting, { color: c.textSecondary }]}>Welcome back</Text>
-          <Text style={[styles.appName, { color: c.textPrimary }]}>CognitiveKinetic</Text>
+          <Text style={[styles.appName, { color: c.textPrimary }]}>{BRAND_NAME}</Text>
         </View>
         <TouchableOpacity
           style={styles.profileControl}

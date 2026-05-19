@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import Colors from '../../constants/colors';
+import { BRAND_NAME } from '../../constants/brand';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -29,36 +30,39 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.container}>
             <View style={styles.header}>
               <View style={styles.logoBox}>
-                <MaterialIcons name="lock-reset" size={32} color={Colors.accent} />
+                <Image
+                  source={require('../../../assets/adaptive-icon.png')}
+                  style={{ width: 80, height: 80, resizeMode: 'contain' }}
+                />
               </View>
-              <Text style={styles.title}>Cognitive Kinetic</Text>
+              <Text style={styles.title}>{BRAND_NAME}</Text>
               <Text style={styles.subtitle}>Reset your access secret</Text>
             </View>
-            
+
             <View style={styles.form}>
               <Text style={styles.desc}>Enter your workspace email address and we'll send you a link to reset your password.</Text>
-              
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>WORKSPACE EMAIL</Text>
                 <View style={styles.inputWrapper}>
                   <MaterialIcons name="mail" size={20} color={Colors.slateText} style={styles.inputIcon} />
-                  <TextInput 
-                    style={styles.input} 
-                    placeholder="name@company.com" 
+                  <TextInput
+                    style={styles.input}
+                    placeholder="name@company.com"
                     placeholderTextColor={Colors.placeholder}
-                    value={email} 
-                    onChangeText={setEmail} 
+                    value={email}
+                    onChangeText={setEmail}
                     autoCapitalize="none"
                     keyboardType="email-address"
                   />
                 </View>
               </View>
-              
+
               <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>
                 {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Send Reset Link</Text>}
               </TouchableOpacity>
@@ -82,7 +86,7 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
   container: { paddingHorizontal: 32, paddingVertical: 40, justifyContent: 'center', alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
-  logoBox: { width: 56, height: 56, backgroundColor: Colors.l1Surface, borderWidth: 1, borderColor: Colors.l1Border, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  logoBox: { marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 24, fontWeight: '700', color: Colors.white, letterSpacing: -0.5, marginBottom: 4 },
   subtitle: { fontSize: 14, color: Colors.slateText },
   form: { width: '100%', maxWidth: 420 },

@@ -9,79 +9,97 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import BrandIcon from '../common/BrandIcon';
 import { usePreferences } from '../../context/PreferencesContext';
 import { FontSizes, FontWeights } from '../../constants/typography';
 
 export const AGGREGATOR_OPTIONS = [
-  { id: 'google_news', type: 'google_news', name: 'Google News', icon: 'globe', desc: 'Google News RSS feeds', category: 'International', defaultUrl: 'https://news.google.com/rss/search?q=fuel+logistics+pakistan' },
-  { id: 'newsapi', type: 'newsapi', name: 'NewsAPI', icon: 'server', desc: 'newsapi.org API key required', category: 'International', needsKey: true },
-  { id: 'bing_news', type: 'bing_news', name: 'Bing News', icon: 'search', desc: 'Microsoft Bing News API key required', category: 'International', needsKey: true },
-  { id: 'reddit', type: 'reddit', name: 'Reddit', icon: 'message-circle', desc: 'Subreddit feeds', category: 'International' },
-  { id: 'hackernews', type: 'hackernews', name: 'Hacker News', icon: 'terminal', desc: 'YC Hacker News top stories', category: 'International' },
-  { id: 'dawn', type: 'dawn', name: 'Dawn News', icon: 'file-text', desc: 'dawn.com RSS', category: 'Pakistan' },
-  { id: 'geo', type: 'geo', name: 'Geo News', icon: 'file-text', desc: 'geo.tv RSS', category: 'Pakistan' },
-  { id: 'express_tribune', type: 'express_tribune', name: 'Express Tribune', icon: 'file-text', desc: 'tribune.com.pk RSS', category: 'Pakistan' },
-  { id: 'ary', type: 'ary', name: 'ARY News', icon: 'file-text', desc: 'arynews.tv RSS', category: 'Pakistan' },
-  { id: 'business_recorder', type: 'business_recorder', name: 'Business Recorder', icon: 'trending-up', desc: 'brecorder.com RSS', category: 'Pakistan' },
-  { id: 'custom_rss', type: 'custom_rss', name: 'Custom RSS', icon: 'rss', desc: 'Add any RSS / Atom feed URL', category: 'Custom', needsUrl: true, custom: true },
-  { id: 'custom_api', type: 'custom_api', name: 'Custom News API', icon: 'database', desc: 'Add API endpoint and optional key', category: 'Custom', needsUrl: true, acceptsKey: true, custom: true },
+  { id: 'google_news', type: 'google_news', name: 'Google News', icon: 'globe', desc: 'Get news based on your profile and agent prompt.', category: 'International' },
+  { id: 'bing_news', type: 'bing_news', name: 'Bing News', icon: 'search', desc: 'Get news based on your profile and agent prompt.', category: 'International' },
+  { id: 'newsapi', type: 'newsapi', name: 'NewsAPI', icon: 'server', desc: 'Connect your NewsAPI key to fetch from supported publishers.', category: 'International', needsApiKey: true },
+  { id: 'hackernews', type: 'hackernews', name: 'Hacker News', icon: 'terminal', desc: 'Track startup, tech, AI, and business stories from Hacker News.', category: 'International' },
+  { id: 'reddit', type: 'reddit', name: 'Reddit', icon: 'message-circle', desc: 'Track posts from specific subreddits using Reddit RSS.', category: 'International', needsSubreddit: true, allowMultiple: true },
+  { id: 'dawn', type: 'dawn', name: 'Dawn News', icon: 'file-text', desc: 'Fetch from trusted Pakistani news providers managed by the backend.', category: 'Pakistan' },
+  { id: 'geo', type: 'geo', name: 'Geo News', icon: 'file-text', desc: 'Fetch from trusted Pakistani news providers managed by the backend.', category: 'Pakistan' },
+  { id: 'express_tribune', type: 'express_tribune', name: 'Express Tribune', icon: 'file-text', desc: 'Fetch from trusted Pakistani news providers managed by the backend.', category: 'Pakistan' },
+  { id: 'ary', type: 'ary', name: 'ARY News', icon: 'file-text', desc: 'Fetch from trusted Pakistani news providers managed by the backend.', category: 'Pakistan' },
+  { id: 'business_recorder', type: 'business_recorder', name: 'Business Recorder', icon: 'trending-up', desc: 'Fetch from trusted Pakistani news providers managed by the backend.', category: 'Pakistan' },
+  { id: 'custom_rss', type: 'custom_rss', name: 'Custom RSS', icon: 'rss', desc: 'Add any RSS or Atom feed link.', category: 'Custom', needsUrl: true, custom: true, allowMultiple: true },
+  { id: 'custom_api', type: 'custom_api', name: 'Custom API', icon: 'server', desc: 'Connect a custom news/data endpoint.', category: 'Custom', needsUrl: true, custom: true, allowMultiple: true },
 ];
 
 const EMPTY_ARRAY = [];
 const EMPTY_OBJECT = {};
 const createLocalId = () => `news_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-const uniqueList = (items) => [...new Set((items || []).map(item => String(item).trim()).filter(Boolean))];
 const getOptionByType = (type) => AGGREGATOR_OPTIONS.find(option => option.type === type || option.id === type);
 
 export const normalizeNewsSource = (source = {}) => {
   const option = getOptionByType(source.type) || getOptionByType(source.templateId);
   const custom = source.custom === true || option?.custom === true || !option;
-  const type = source.type || option?.type || (source.needsKey ? 'custom_api' : 'custom_rss');
+  const type = source.type || option?.type || 'custom_rss';
+  const needsUrl = source.needsUrl === true || option?.needsUrl === true || type === 'custom_rss' || type === 'custom_api';
+  const needsSubreddit = source.needsSubreddit === true || option?.needsSubreddit === true || type === 'reddit';
+  const needsApiKey = source.needsApiKey === true || option?.needsApiKey === true || type === 'newsapi';
+  const rawSubreddit = source.subreddit || '';
+  const cleanSub = rawSubreddit.replace(/^\/?r\//i, '').trim();
 
   return {
     id: source.id || createLocalId(),
-    name: source.name || option?.name || 'Custom Source',
+    name: type === 'reddit' ? (cleanSub ? `r/${cleanSub}` : 'Reddit') : (source.name || option?.name || 'Custom Source'),
     type,
-    sourceUrl: source.sourceUrl || option?.defaultUrl || '',
+    sourceUrl: needsUrl ? (source.sourceUrl || '') : '',
+    subreddit: cleanSub,
+    queryParams: source.queryParams || '',
     apiKey: source.apiKey || '',
-    keywords: uniqueList(source.keywords),
+    providerId: source.providerId || option?.id || type,
     enabled: source.enabled !== false,
     custom,
-    needsUrl: source.needsUrl === true || option?.needsUrl === true || type === 'custom_rss' || type === 'custom_api',
-    needsKey: source.needsKey === true || option?.needsKey === true,
-    acceptsKey: source.acceptsKey === true || option?.acceptsKey === true || option?.needsKey === true || !!source.apiKey,
+    needsUrl,
+    needsSubreddit,
+    needsApiKey,
+    allowMultiple: source.allowMultiple === true || option?.allowMultiple === true || custom,
     icon: source.icon || option?.icon || (custom ? 'rss' : 'globe'),
     desc: source.desc || option?.desc || source.sourceUrl || 'Configured source',
     category: source.category || option?.category || 'Configured',
-    keywordDraft: '',
   };
 };
 
-export const sourceForStorage = (source) => ({
-  id: source.id || createLocalId(),
-  name: String(source.name || '').trim() || 'Untitled Source',
-  type: source.type || 'custom_rss',
-  sourceUrl: String(source.sourceUrl || '').trim(),
-  apiKey: String(source.apiKey || '').trim(),
-  keywords: uniqueList(source.keywords),
-  enabled: source.enabled !== false,
-  custom: source.custom === true,
-  needsUrl: source.needsUrl === true,
-  needsKey: source.needsKey === true,
-  acceptsKey: source.acceptsKey === true,
-});
+export const sourceForStorage = (source) => {
+  const cleanSub = String(source.subreddit || '').replace(/^\/?r\//i, '').trim();
+  const name = source.type === 'reddit' ? (cleanSub ? `r/${cleanSub}` : 'Reddit') : String(source.name || '').trim();
+  return {
+    id: source.id || createLocalId(),
+    name: name || 'Untitled Source',
+    type: source.type || 'custom_rss',
+    sourceUrl: source.needsUrl ? String(source.sourceUrl || '').trim() : '',
+    subreddit: cleanSub,
+    queryParams: String(source.queryParams || '').trim(),
+    apiKey: String(source.apiKey || '').trim(),
+    providerId: source.providerId || source.type || '',
+    enabled: source.enabled !== false,
+    custom: source.custom === true,
+    needsUrl: source.needsUrl === true,
+    needsSubreddit: source.needsSubreddit === true,
+    needsApiKey: source.needsApiKey === true,
+    allowMultiple: source.allowMultiple === true,
+  };
+};
 
 export const createNewsSourceFromOption = (option) => normalizeNewsSource({
   id: createLocalId(),
   name: option.name,
   type: option.type,
-  sourceUrl: option.defaultUrl || '',
-  keywords: [],
+  sourceUrl: '',
+  subreddit: '',
+  queryParams: '',
+  apiKey: '',
+  providerId: option.id,
   enabled: true,
   custom: option.custom === true,
   needsUrl: option.needsUrl === true,
-  needsKey: option.needsKey === true,
-  acceptsKey: option.acceptsKey === true || option.needsKey === true,
+  needsSubreddit: option.needsSubreddit === true,
+  needsApiKey: option.needsApiKey === true,
+  allowMultiple: option.allowMultiple === true,
 });
 
 export const newsSourcesToAggregatorSetup = (sources = []) => {
@@ -93,17 +111,18 @@ export const newsSourcesToAggregatorSetup = (sources = []) => {
       id: source.id,
       name: source.name,
       icon: source.icon,
-      desc: source.sourceUrl || source.desc,
+      desc: source.subreddit ? `r/${source.subreddit}` : source.sourceUrl || source.desc,
       category: source.category,
       type: source.type,
-      keywords: source.keywords,
     })),
     apiKeys: enabledSources.reduce((acc, source) => {
-      if (source.apiKey) acc[source.id] = source.apiKey;
       if (source.sourceUrl) acc[`${source.id}_url`] = source.sourceUrl;
+      if (source.subreddit) acc[`${source.id}_subreddit`] = source.subreddit;
+      if (source.queryParams) acc[`${source.id}_queryParams`] = source.queryParams;
+      if (source.apiKey) acc[`${source.id}_apiKey`] = source.apiKey;
       return acc;
     }, {}),
-    businessKeywords: uniqueList(enabledSources.flatMap(source => source.keywords)),
+    businessKeywords: [],
     newsSources: normalizedSources.map(sourceForStorage),
   };
 };
@@ -118,8 +137,9 @@ export const aggregatorSetupToNewsSources = ({
     name: aggregator.name,
     type: aggregator.type || aggregator.id,
     sourceUrl: apiKeys[`${aggregator.id}_url`] || aggregator.defaultUrl || '',
-    apiKey: apiKeys[aggregator.id] || '',
-    keywords: businessKeywords,
+    subreddit: apiKeys[`${aggregator.id}_subreddit`] || '',
+    queryParams: apiKeys[`${aggregator.id}_queryParams`] || '',
+    apiKey: apiKeys[`${aggregator.id}_apiKey`] || '',
     enabled: true,
   })))
 );
@@ -141,10 +161,14 @@ export function NewsSourceDetailModal({
   const { activeTheme } = usePreferences();
   const c = activeTheme.colors;
   const [form, setForm] = useState(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
     if (!visible || !source) return;
     setForm(normalizeNewsSource(source));
+    setValidationError(null);
+    setIsValidating(false);
   }, [source, visible]);
 
   if (!form) return null;
@@ -152,23 +176,85 @@ export function NewsSourceDetailModal({
   const sourceEnabled = form.enabled !== false;
   const missingName = sourceEnabled && !String(form.name || '').trim();
   const missingUrl = sourceEnabled && form.needsUrl && !String(form.sourceUrl || '').trim();
-  const missingKey = sourceEnabled && form.needsKey && !String(form.apiKey || '').trim();
-  const canSave = !(missingName || missingUrl || missingKey);
+  const missingSubreddit = sourceEnabled && form.needsSubreddit && !String(form.subreddit || '').trim();
+  const missingApiKey = sourceEnabled && form.needsApiKey && !String(form.apiKey || '').trim();
+  const canSave = !(missingName || missingUrl || missingSubreddit || missingApiKey);
 
   const updateForm = (updates) => setForm(prev => ({ ...prev, ...updates }));
 
-  const addKeyword = () => {
-    const keyword = String(form.keywordDraft || '').trim();
-    if (!keyword || form.keywords.includes(keyword)) return;
-    updateForm({ keywords: [...form.keywords, keyword], keywordDraft: '' });
-  };
-
-  const removeKeyword = (keyword) => {
-    updateForm({ keywords: form.keywords.filter(item => item !== keyword) });
-  };
-
-  const save = () => {
+  const save = async () => {
     if (!canSave) return;
+
+    if (form.needsSubreddit) {
+      setIsValidating(true);
+      setValidationError(null);
+      const sub = String(form.subreddit || '').replace(/^\/?r\//i, '').trim();
+
+      try {
+        const res = await fetch(`https://www.reddit.com/r/${sub}/about.json`, {
+          headers: {
+            'User-Agent': 'Relay/1.0.0 (Agentic News Verification)',
+          }
+        });
+
+        if (res.status === 404) {
+          setValidationError(`Subreddit r/${sub} does not exist.`);
+          setIsValidating(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 404 || data.message === 'Not Found') {
+          setValidationError(`Subreddit r/${sub} does not exist.`);
+          setIsValidating(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Reddit validation error:', err);
+      } finally {
+        setIsValidating(false);
+      }
+    }
+
+    if (form.needsUrl) {
+      setIsValidating(true);
+      setValidationError(null);
+      const url = String(form.sourceUrl || '').trim();
+
+      if (!/^https?:\/\//i.test(url)) {
+        setValidationError('URL must start with http:// or https://');
+        setIsValidating(false);
+        return;
+      }
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+
+        const res = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Relay/1.0.0 (Feed Verification)',
+          }
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          setValidationError(`Invalid response from URL. Status: ${res.status}`);
+          setIsValidating(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('URL validation error:', err);
+        setValidationError('Unable to reach URL. Please make sure it is correct and online.');
+        setIsValidating(false);
+        return;
+      } finally {
+        setIsValidating(false);
+      }
+    }
+
     onSave?.(sourceForStorage(form));
   };
 
@@ -177,7 +263,7 @@ export function NewsSourceDetailModal({
       <View style={styles.modalOverlay}>
         <View style={[styles.modalBox, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
           <View style={[styles.modalHead, { borderBottomColor: c.surfaceBorder }]}>
-            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{form.name || 'News Source'}</Text>
+            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>Configure Feed</Text>
             <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={22} color={c.textSecondary} />
             </TouchableOpacity>
@@ -189,6 +275,24 @@ export function NewsSourceDetailModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            {/* Premium Read-Only Source Banner */}
+            <View style={[styles.sourceHeaderCard, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder }]}>
+              <View style={styles.sourceHeaderTop}>
+                <View style={styles.sourceHeaderIcon}>
+                  <BrandIcon type={form.type} name={form.name} size={22} enabled={true} />
+                </View>
+                <View style={styles.sourceHeaderText}>
+                  <Text style={[styles.sourceHeaderName, { color: c.textPrimary }]}>{form.name || 'News Source'}</Text>
+                  <Text style={[styles.sourceHeaderCategory, { color: c.textSecondary }]}>{form.category || 'News'}</Text>
+                  {['custom_rss', 'custom_api'].includes(form.type) && !!form.sourceUrl && (
+                    <Text style={{ fontSize: 11, color: c.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                      {form.sourceUrl}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+
             <TouchableOpacity
               style={[styles.toggleRow, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder }]}
               onPress={() => updateForm({ enabled: !sourceEnabled })}
@@ -202,79 +306,90 @@ export function NewsSourceDetailModal({
               </View>
             </TouchableOpacity>
 
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Source name</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: missingName ? c.warning : c.surfaceBorder, color: c.textPrimary }]}
-                value={form.name}
-                onChangeText={(value) => updateForm({ name: value })}
-                placeholder="Source name"
-                placeholderTextColor={c.placeholder}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
-                {form.needsUrl ? 'URL / feed / endpoint' : 'URL / feed / endpoint (optional)'}
-              </Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: missingUrl ? c.warning : c.surfaceBorder, color: c.textPrimary }]}
-                value={form.sourceUrl}
-                onChangeText={(value) => updateForm({ sourceUrl: value })}
-                placeholder="https://example.com/rss or API endpoint"
-                placeholderTextColor={c.placeholder}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-            </View>
-
-            {(form.needsKey || form.acceptsKey || form.apiKey) && (
+            {form.custom && (
               <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
-                  {form.needsKey ? 'API key' : 'API key (optional)'}
-                </Text>
+                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Source name</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: missingKey ? c.warning : c.surfaceBorder, color: c.textPrimary }]}
-                  value={form.apiKey}
-                  onChangeText={(value) => updateForm({ apiKey: value })}
-                  placeholder="Paste source API key"
+                  style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: missingName ? c.warning : c.surfaceBorder, color: c.textPrimary }]}
+                  value={form.name}
+                  onChangeText={(value) => updateForm({ name: value })}
+                  placeholder="e.g. My Custom RSS Feed"
                   placeholderTextColor={c.placeholder}
-                  autoCapitalize="none"
                 />
               </View>
             )}
 
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Keywords for this source</Text>
-              <View style={[styles.keywordInputRow, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder }]}>
+            {(form.type === 'google_news' || form.type === 'bing_news') && (
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Custom Query Parameters</Text>
                 <TextInput
-                  style={[styles.keywordInput, { color: c.textPrimary }]}
-                  value={form.keywordDraft}
-                  onChangeText={(value) => updateForm({ keywordDraft: value })}
-                  placeholder="fuel, logistics, policy..."
+                  style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder, color: c.textPrimary }]}
+                  value={form.queryParams}
+                  onChangeText={(value) => updateForm({ queryParams: value })}
+                  placeholder="e.g. logistics OR fuel OR margins"
                   placeholderTextColor={c.placeholder}
-                  onSubmitEditing={addKeyword}
-                  returnKeyType="done"
+                  autoCapitalize="none"
                 />
-                <TouchableOpacity style={[styles.keywordAddButton, { backgroundColor: c.accent }]} onPress={addKeyword}>
-                  <Feather name="plus" size={15} color={c.white} />
-                </TouchableOpacity>
+                <Text style={[styles.fieldHint, { color: c.textSecondary, marginTop: 4, fontSize: FontSizes.xs - 1 }]}>
+                  Appended to the feed request query to refine news search results.
+                </Text>
               </View>
-              {form.keywords.length > 0 && (
-                <View style={styles.keywordChips}>
-                  {form.keywords.map(keyword => (
-                    <TouchableOpacity
-                      key={keyword}
-                      style={[styles.chip, { backgroundColor: c.accentSoft }]}
-                      onPress={() => removeKeyword(keyword)}
-                    >
-                      <Text style={[styles.chipText, { color: c.accent }]}>{keyword}</Text>
-                      <Feather name="x" size={12} color={c.accent} />
-                    </TouchableOpacity>
-                  ))}
+            )}
+
+            {form.needsSubreddit && (
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Subreddit</Text>
+                <View style={[styles.subredditRow, { backgroundColor: c.surfaceContainerLowest, borderColor: missingSubreddit ? c.warning : c.surfaceBorder }]}>
+                  <Text style={[styles.subredditPrefix, { color: c.textSecondary }]}>r/</Text>
+                  <TextInput
+                    style={[styles.subredditInput, { color: c.textPrimary }]}
+                    value={form.subreddit}
+                    onChangeText={(value) => {
+                      const cleaned = value.replace(/^\/?r\//i, '').replace(/[^a-zA-Z0-9_]/g, '');
+                      setForm(prev => ({
+                        ...prev,
+                        subreddit: cleaned,
+                        name: cleaned ? `r/${cleaned}` : 'Reddit'
+                      }));
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="supplychain"
+                    placeholderTextColor={c.placeholder}
+                    autoCapitalize="none"
+                  />
                 </View>
-              )}
-            </View>
+              </View>
+            )}
+
+            {form.needsUrl && (
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>RSS / Atom feed URL</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: missingUrl ? c.warning : c.surfaceBorder, color: c.textPrimary }]}
+                  value={form.sourceUrl}
+                  onChangeText={(value) => updateForm({ sourceUrl: value })}
+                  placeholder="https://example.com/rss"
+                  placeholderTextColor={c.placeholder}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+            )}
+
+            {form.needsApiKey && (
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>API Key / Token</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: c.surfaceContainerLowest, borderColor: missingApiKey ? c.warning : c.surfaceBorder, color: c.textPrimary }]}
+                  value={form.apiKey}
+                  onChangeText={(value) => updateForm({ apiKey: value })}
+                  placeholder="Enter API key"
+                  placeholderTextColor={c.placeholder}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
           </ScrollView>
 
           <View style={[styles.footer, { borderTopColor: c.surfaceBorder }]}>
@@ -282,23 +397,33 @@ export function NewsSourceDetailModal({
               <View style={styles.validationRow}>
                 <Feather name="alert-circle" size={14} color={c.warning} />
                 <Text style={[styles.validationText, { color: c.warning }]}>
-                  Add required name, URL, or API key.
+                  Please fill in all required fields.
+                </Text>
+              </View>
+            )}
+            {validationError && (
+              <View style={styles.validationRow}>
+                <Feather name="alert-circle" size={14} color={c.error} />
+                <Text style={[styles.validationText, { color: c.error }]}>
+                  {validationError}
                 </Text>
               </View>
             )}
             <View style={styles.footerActions}>
               {onDelete && (
-                <TouchableOpacity style={[styles.deleteButton, { borderColor: c.error }]} onPress={() => onDelete(form.id)}>
+                <TouchableOpacity style={[styles.deleteButton, { borderColor: c.error }]} onPress={() => onDelete(form.id)} disabled={isValidating}>
                   <Text style={[styles.deleteText, { color: c.error }]}>Delete</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={[styles.modalSaveBtn, { backgroundColor: canSave ? c.accent : c.surfaceVariant }]}
+                style={[styles.modalSaveBtn, { backgroundColor: (canSave && !isValidating) ? c.accent : c.surfaceVariant }]}
                 onPress={save}
-                disabled={!canSave}
+                disabled={!canSave || isValidating}
               >
-                <Feather name="check" size={16} color={c.white} />
-                <Text style={[styles.modalSaveBtnText, { color: c.white }]}>{saveLabel}</Text>
+                <Feather name={isValidating ? 'loader' : 'check'} size={16} color={c.white} />
+                <Text style={[styles.modalSaveBtnText, { color: c.white }]}>
+                  {isValidating ? 'Verifying...' : saveLabel}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -336,12 +461,12 @@ export default function NewsAggregatorModal({
 
   const addedTypes = useMemo(() => new Set(
     normalizedSources
-      .filter(source => !source.custom)
+      .filter(source => !source.custom && !source.allowMultiple)
       .map(source => source.type)
   ), [normalizedSources]);
 
   const availableOptions = useMemo(() => (
-    AGGREGATOR_OPTIONS.filter(option => option.custom || !addedTypes.has(option.type))
+    AGGREGATOR_OPTIONS.filter(option => option.custom || option.allowMultiple || !addedTypes.has(option.type))
   ), [addedTypes]);
 
   const categories = useMemo(() => (
@@ -383,14 +508,20 @@ export default function NewsAggregatorModal({
                       <TouchableOpacity
                         key={option.id}
                         style={[styles.optionRow, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorder }]}
-                        onPress={() => setPendingSource(createNewsSourceFromOption(option))}
+                        onPress={() => {
+                          const needsSetup = option.needsUrl || option.needsApiKey || option.needsSubreddit;
+                          if (needsSetup) {
+                            setPendingSource(createNewsSourceFromOption(option));
+                          } else {
+                            addSource(createNewsSourceFromOption(option));
+                          }
+                        }}
                       >
-                        <View style={[styles.optionIcon, { backgroundColor: c.surfaceVariant }]}>
-                          <Feather name={option.icon} size={17} color={c.textSecondary} />
+                        <View style={styles.optionIcon}>
+                          <BrandIcon type={option.type} name={option.name} size={18} enabled={true} />
                         </View>
                         <View style={styles.optionTextBlock}>
                           <Text style={[styles.optionName, { color: c.textPrimary }]}>{option.name}</Text>
-                          <Text style={[styles.optionDesc, { color: c.textSecondary }]}>{option.desc}</Text>
                         </View>
                         <Feather name="plus-circle" size={19} color={c.accent} />
                       </TouchableOpacity>
@@ -420,6 +551,63 @@ export default function NewsAggregatorModal({
 }
 
 const styles = StyleSheet.create({
+  subredditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  subredditPrefix: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    marginRight: 4,
+  },
+  subredditInput: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    paddingVertical: 0,
+    height: '100%',
+  },
+  sourceHeaderCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  sourceHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sourceHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sourceHeaderText: {
+    flex: 1,
+  },
+  sourceHeaderName: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+  },
+  sourceHeaderCategory: {
+    fontSize: FontSizes.xs,
+    marginTop: 1,
+    fontWeight: FontWeights.medium,
+  },
+  sourceHeaderDesc: {
+    fontSize: FontSizes.xs,
+    lineHeight: 18,
+    marginTop: 12,
+    borderTopWidth: 1,
+    paddingTop: 8,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',

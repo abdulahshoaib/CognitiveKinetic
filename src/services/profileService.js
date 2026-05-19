@@ -1,10 +1,10 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from './firebase';
 
 const PROFILE_SUBCOLLECTION = 'profile';
 const PROFILE_DOC_ID = 'main';
-const LOCAL_PROFILE_KEY = '@cognitive_kinetic_profile_';
+const LOCAL_PROFILE_KEY = '@relay_profile_';
 
 export const getProfile = async (uid) => {
   if (!uid) return null;
@@ -37,9 +37,18 @@ export const getProfile = async (uid) => {
 export const saveProfile = async (uid, profileData) => {
   if (!uid) return;
   const timestamp = new Date().toISOString();
+  let existingLocal = {};
+  try {
+    const localData = await AsyncStorage.getItem(LOCAL_PROFILE_KEY + uid);
+    existingLocal = localData ? JSON.parse(localData) : {};
+  } catch (localError) {
+    console.error('Error reading existing profile locally:', localError);
+  }
+
   const dataToSave = {
+    ...existingLocal,
     ...profileData,
-    createdAt: timestamp,
+    createdAt: existingLocal.createdAt || timestamp,
     updatedAt: timestamp,
   };
 
@@ -55,9 +64,8 @@ export const saveProfile = async (uid, profileData) => {
     const docRef = doc(db, 'users', uid, PROFILE_SUBCOLLECTION, PROFILE_DOC_ID);
     await setDoc(docRef, {
       ...profileData,
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
   } catch (error) {
     console.warn('Firestore save failed, local cache preserved:', error);
     // Do not throw if local save succeeded, ensuring smooth UX
@@ -81,10 +89,10 @@ export const updateProfile = async (uid, profileData) => {
   // 2. Attempt updating Firestore
   try {
     const docRef = doc(db, 'users', uid, PROFILE_SUBCOLLECTION, PROFILE_DOC_ID);
-    await updateDoc(docRef, {
+    await setDoc(docRef, {
       ...profileData,
       updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
   } catch (error) {
     console.warn('Firestore update failed, local cache preserved:', error);
   }
