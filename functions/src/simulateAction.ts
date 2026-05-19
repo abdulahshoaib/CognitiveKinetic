@@ -73,8 +73,8 @@ export const simulateAction = onCall(async (request) => {
 
     const action = recommendedActions[actionIndex];
 
-    // Verify epoundsligibility
-    if (action.simulationSupported !== true) {
+    // Verify eligibility
+    if (action.simulationSupported === false) {
       throw new HttpsError(
         "failed-precondition",
         "Action does not support simulation."
