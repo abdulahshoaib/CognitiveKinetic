@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Themes } from '../constants/themes';
 
-const PREFERENCES_STORAGE_KEY = '@cognitive_kinetic_preferences';
+const PREFERENCES_STORAGE_KEY = '@relay_preferences';
 
 const defaultPreferences = {
   themeMode: 'ember-carbon',

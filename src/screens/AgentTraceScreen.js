@@ -18,15 +18,15 @@ export default function AgentTraceScreen({ navigation }) {
         {/* Stage Header */}
         <View style={styles.stageIndicatorRow}>
           <Text style={[styles.stageTitle, { color: c.textSecondary }]}>Dashboard → News Report → </Text>
-          <Text style={[styles.stageTitleActive, { color: c.accent }]}>AI Decision Process</Text>
+          <Text style={[styles.stageTitleActive, { color: c.accent }]}>Signal Decision Process</Text>
         </View>
 
-        {/* Cognitive Block Diagram */}
+        {/* Trace Flow Block Diagram */}
         <View style={[styles.traceHeaderCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
           <Feather name="git-branch" size={24} color={c.accent} style={{ marginBottom: 8 }} />
-          <Text style={[styles.traceHeaderTitle, { color: c.textPrimary }]}>AI Reasoning Chain</Text>
+          <Text style={[styles.traceHeaderTitle, { color: c.textPrimary }]}>Signal Resolution Chain</Text>
           <Text style={[styles.traceHeaderSubtitle, { color: c.textSecondary }]}>
-            Below is the structured step-by-step reasoning the agent followed to analyze the incoming signals and recommend business actions.
+            Below is the structured step-by-step process the system followed to analyze incoming signals and recommend operational actions.
           </Text>
         </View>
 

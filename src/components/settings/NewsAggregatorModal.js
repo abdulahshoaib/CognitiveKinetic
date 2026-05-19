@@ -193,7 +193,7 @@ export function NewsSourceDetailModal({
       try {
         const res = await fetch(`https://www.reddit.com/r/${sub}/about.json`, {
           headers: {
-            'User-Agent': 'CognitiveKinetic/1.0.0 (Agentic News Verification)',
+            'User-Agent': 'Relay/1.0.0 (Agentic News Verification)',
           }
         });
 
@@ -235,7 +235,7 @@ export function NewsSourceDetailModal({
           method: 'GET',
           signal: controller.signal,
           headers: {
-            'User-Agent': 'CognitiveKinetic/1.0.0 (Feed Verification)',
+            'User-Agent': 'Relay/1.0.0 (Feed Verification)',
           }
         });
         clearTimeout(timeoutId);

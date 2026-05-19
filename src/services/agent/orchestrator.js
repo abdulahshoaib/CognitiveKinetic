@@ -243,7 +243,7 @@ export async function runPipeline(rawContent, profile) {
         urgency: 'critical',
         confidence: 'high (90%)',
         actionType: 'route_shift',
-        targetSystem: 'Autonomous Dispatch Engine',
+        targetSystem: 'Dispatch Engine',
         simulationSupported: true
       },
       {

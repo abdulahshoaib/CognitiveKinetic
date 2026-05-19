@@ -84,14 +84,14 @@ export default function ExportScreen({ navigation }) {
         <TouchableOpacity 
           style={[styles.fileCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
           disabled={!!downloadingFile}
-          onPress={() => triggerDownload('agent_reasoning_trace.json', 'JSON')}
+          onPress={() => triggerDownload('decision_reasoning_trace.json', 'JSON')}
         >
           <View style={[styles.fileIconBox, { backgroundColor: c.surfaceContainerLowest, borderColor: c.surfaceBorderSubtle }]}>
             <Feather name="code" size={24} color={c.primary} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={[styles.fileTitle, { color: c.textPrimary }]}>AI Decision Step Log</Text>
-            <Text style={[styles.fileMeta, { color: c.textSecondary }]}>Format: JSON • Contains AI Steps & Timeline Logs</Text>
+            <Text style={[styles.fileTitle, { color: c.textPrimary }]}>Resolution Decision Log</Text>
+            <Text style={[styles.fileMeta, { color: c.textSecondary }]}>Format: JSON • Contains Decision Steps & Timeline Logs</Text>
           </View>
           <Feather name="download" size={20} color={c.textSecondary} />
         </TouchableOpacity>

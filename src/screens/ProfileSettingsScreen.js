@@ -18,7 +18,7 @@ import BrandIcon from '../components/common/BrandIcon';
 import { useAuth } from '../context/AuthContext';
 import { useIntegrations } from '../context/IntegrationsContext';
 import { usePreferences } from '../context/PreferencesContext';
-import { getProfile, saveProfile } from '../services/profileService';
+import { getProfile, saveProfile, updateProfile } from '../services/profileService';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
 import ProfileForm from '../components/common/ProfileForm';
@@ -38,6 +38,9 @@ const TABS = [
 ];
 
 const API_TYPES = ['pricing_adjust', 'route_shift', 'notification', 'manual_review', 'custom'];
+
+const IMMUTABLE_NEWS_PROMPT =
+  'System rule: use the saved business profile as the source of truth, classify only enabled user-configured sources, and return operationally relevant news for the content-to-action workflow.';
 
 const emptyApiForm = {
   name: '',
@@ -276,25 +279,72 @@ export default function ProfileSettingsScreen() {
     setSelectedNewsSource(null);
   };
 
+  const mirrorNewsSettingsToProfile = async (updates) => {
+    if (!user?.uid) return;
+    try {
+      await updateProfile(user.uid, {
+        immutableNewsPrompt: IMMUTABLE_NEWS_PROMPT,
+        ...updates,
+      });
+      setProfile(prev => ({
+        ...(prev || {}),
+        immutableNewsPrompt: IMMUTABLE_NEWS_PROMPT,
+        ...updates,
+      }));
+    } catch (error) {
+      console.warn('Unable to mirror news settings to profile:', error);
+    }
+  };
+
   const saveNewsSetup = ({ newsSources }) => {
     setNewsAggregators(newsSources);
+    mirrorNewsSettingsToProfile({ newsSources });
     closeNewsModal();
   };
 
+  const saveNewsPrompt = async () => {
+    if (!user?.uid) return;
+    const nextPrompt = promptDraft.trim();
+    try {
+      updateNewsSystemPrompt(nextPrompt);
+      await updateProfile(user.uid, {
+        newsSystemPrompt: nextPrompt,
+        immutableNewsPrompt: IMMUTABLE_NEWS_PROMPT,
+        newsSources: newsAggregators,
+      });
+      setProfile(prev => ({
+        ...(prev || {}),
+        newsSystemPrompt: nextPrompt,
+        immutableNewsPrompt: IMMUTABLE_NEWS_PROMPT,
+        newsSources: newsAggregators,
+      }));
+      Alert.alert('Saved', 'News prompt updated.');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to update news prompt.');
+    }
+  };
+
   const saveNewsSource = (source) => {
-    setNewsAggregators(newsAggregators.map(item => item.id === source.id ? source : item));
+    const nextSources = newsAggregators.map(item => item.id === source.id ? source : item);
+    setNewsAggregators(nextSources);
+    mirrorNewsSettingsToProfile({ newsSources: nextSources });
     closeNewsDetails();
   };
 
   const deleteNewsSource = (id) => {
-    setNewsAggregators(newsAggregators.filter(source => source.id !== id));
+    const nextSources = newsAggregators.filter(source => source.id !== id);
+    setNewsAggregators(nextSources);
+    mirrorNewsSettingsToProfile({ newsSources: nextSources });
     closeNewsDetails();
   };
 
   const toggleNewsSource = (source) => {
-    setNewsAggregators(newsAggregators.map(item => (
+    const nextSources = newsAggregators.map(item => (
       item.id === source.id ? { ...item, enabled: item.enabled === false } : item
-    )));
+    ));
+    setNewsAggregators(nextSources);
+    mirrorNewsSettingsToProfile({ newsSources: nextSources });
   };
 
   const renderTabs = () => (
@@ -390,9 +440,9 @@ export default function ProfileSettingsScreen() {
         <View style={styles.sectionHeaderRow}>
           <View>
             <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>News Agent Prompt</Text>
-            <Text style={[styles.sectionSubtitle, { color: c.textSecondary }]}>Controls what collected news should focus on.</Text>
+          <Text style={[styles.sectionSubtitle, { color: c.textSecondary }]}>Controls what collected news should focus on.</Text>
           </View>
-          <TouchableOpacity style={[styles.savePromptButton, { backgroundColor: c.accent }]} onPress={() => updateNewsSystemPrompt(promptDraft)}>
+          <TouchableOpacity style={[styles.savePromptButton, { backgroundColor: c.accent }]} onPress={saveNewsPrompt}>
             <Text style={[styles.savePromptText, { color: c.white }]}>Save</Text>
           </TouchableOpacity>
         </View>
@@ -629,7 +679,7 @@ export default function ProfileSettingsScreen() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cognitive_kinetic_failed_logs_${Date.now()}.txt`;
+      link.download = `relay_failed_logs_${Date.now()}.txt`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -638,7 +688,7 @@ export default function ProfileSettingsScreen() {
     } else {
       Alert.alert(
         'Export Logs', 
-        'Failed logs exported to cognitive_kinetic_failed_logs.txt. Diagnostics saved to device storage.',
+        'Failed logs exported to relay_failed_logs.txt. Diagnostics saved to device storage.',
         [{ text: 'OK' }]
       );
     }

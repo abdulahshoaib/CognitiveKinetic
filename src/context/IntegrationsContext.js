@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { listenNewsFeedSettings, saveNewsFeedSettings } from '../services/feedService';
 
-const STORAGE_KEY = '@cognitive_kinetic_integrations_';
+const STORAGE_KEY = '@relay_integrations_';
 
 export const DEFAULT_NEWS_PROMPT =
   'You are a news collection agent. Gather news relevant to fuel prices, transport and logistics regulation, trade disruptions, supply chain delays, and tax policy changes affecting commercial operations. Prioritize breaking alerts and policy changes over general market commentary.';

@@ -1,5 +1,5 @@
 /**
- * CognitiveKinetic Design Tokens — Layout & Spacing
+ * Relay Design Tokens — Layout & Spacing
  */
 
 export const Spacing = {

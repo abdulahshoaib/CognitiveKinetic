@@ -13,6 +13,8 @@ import ThemePreviewCard from '../components/preferences/ThemePreviewCard';
 import SettingRow from '../components/preferences/SettingRow';
 import { usePreferences } from '../context/PreferencesContext';
 import Button from '../components/common/Button';
+import { BRAND_NAME } from '../constants/brand';
+
 
 export default function OnboardingScreen() {
   const navigation = useNavigation();
@@ -49,11 +51,11 @@ export default function OnboardingScreen() {
     >
       <Screen scroll={true}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: c.textPrimary }]}>Welcome to CognitiveKinetic</Text>
+          <Text style={[styles.title, { color: c.textPrimary }]}>Welcome to {BRAND_NAME}</Text>
           <Text style={[styles.subtitle, { color: c.textSecondary }]}>
             {step === 1 
               ? "Set up your business profile. The agent will use this context for all future content analysis. You only need to do this once."
-              : "Personalize your workspace. Tune your cognitive operating system's visuals and agent behavior."}
+              : "Personalize your workspace. Tune your workspace visuals and agent behavior."}
           </Text>
         </View>
 
