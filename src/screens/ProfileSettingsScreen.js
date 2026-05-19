@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import BrandIcon from '../components/common/BrandIcon';
@@ -849,7 +850,7 @@ export default function ProfileSettingsScreen() {
       
       return (
         <View style={{ marginBottom: 24 }}>
-          <View style={[{ borderRadius: 12, overflow: 'hidden', borderWidth: 1, backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <View style={[{ borderRadius: 12, overflow: 'hidden', borderWidth: 1, backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 16 }}>
               <View>
                 <Text style={[{ fontSize: 18, fontWeight: '700', color: c.textPrimary, marginBottom: 4 }]}>{profile.businessName || 'Business Profile'}</Text>
@@ -889,7 +890,7 @@ export default function ProfileSettingsScreen() {
 
               {/* AI Business Context Analysis */}
               {(businessContext || isAnalyzingContext) && (
-                <View style={[{ borderTopWidth: 1, borderTopColor: c.surfaceBorder, paddingTopf: 16, marginTop: 12 }]}>
+                <View style={[{ borderTopWidth: 1, borderTopColor: c.surfaceBorder, paddingTop: 16, marginTop: 12 }]}>
                   <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 10, flexDirection: 'row', alignItems: 'center' }]}>
                     <Feather name="cpu" size={12} style={{ marginRight: 4 }} /> AI Business Context
                   </Text>
@@ -899,26 +900,33 @@ export default function ProfileSettingsScreen() {
                       <Text style={[{ fontSize: 12, color: c.textSecondary }]}>Analyzing business context...</Text>
                     </View>
                   ) : businessContext ? (
-                    <View style={{ gap: 12 }}>
-                      {businessContext.businessOverview && (
-                        <View>
-                          <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Overview</Text>
-                          <Text style={[{ fontSize: 13, color: c.textPrimary, lineHeight: 18 }]}>{businessContext.businessOverview}</Text>
-                        </View>
-                      )}
-                      {businessContext.operationalImpactAreas && businessContext.operationalImpactAreas.length > 0 && (
-                        <View>
-                          <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Operational Focus Areas</Text>
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                            {businessContext.operationalImpactAreas.slice(0, 4).map((area, idx) => (
-                              <View key={idx} style={[{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, backgroundColor: c.accentSoft, borderColor: c.accentBorder, borderWidth: 0.5 }]}>
-                                <Text style={[{ color: c.accent, fontSize: 11 }]}>{area}</Text>
-                              </View>
-                            ))}
+                    <LinearGradient
+                      colors={[c.accentSoft, c.surfaceContainerLowest]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={{ padding: 14, borderRadius: 10, borderWidth: 1, borderColor: c.accentBorder }}
+                    >
+                      <View style={{ gap: 12 }}>
+                        {businessContext.businessOverview && (
+                          <View>
+                            <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Overview</Text>
+                            <Text style={[{ fontSize: 13, color: c.textPrimary, lineHeight: 18 }]}>{businessContext.businessOverview}</Text>
                           </View>
-                        </View>
-                      )}
-                    </View>
+                        )}
+                        {businessContext.operationalImpactAreas && businessContext.operationalImpactAreas.length > 0 && (
+                          <View>
+                            <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Operational Focus Areas</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                              {businessContext.operationalImpactAreas.slice(0, 4).map((area, idx) => (
+                                <View key={idx} style={[{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, backgroundColor: c.accentSoft, borderColor: c.accentBorder, borderWidth: 0.5 }]}>
+                                  <Text style={[{ color: c.accent, fontSize: 11 }]}>{area}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    </LinearGradient>
                   ) : null}
                 </View>
               )}
