@@ -107,6 +107,7 @@ export default function ProfileSettingsScreen() {
 
   const [profile, setProfile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('context');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [isSavingName, setIsSavingName] = useState(false);
@@ -156,7 +157,8 @@ export default function ProfileSettingsScreen() {
     try {
       await saveProfile(user.uid, profileData);
       Alert.alert('Saved', 'Business profile updated.');
-      navigation.goBack();
+      setProfile(profileData);
+      setIsEditingProfile(false);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to update profile.');
@@ -804,10 +806,73 @@ export default function ProfileSettingsScreen() {
 
   const renderActiveTab = () => {
     if (activeTab === 'context') {
-      return profile ? (
-        <ProfileForm initialData={profile} onSave={handleSaveProfile} isSaving={isSaving} />
-      ) : (
-        <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />
+      if (isEditingProfile) {
+        return (
+          <View>
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8, marginBottom: 16 }}
+              onPress={() => setIsEditingProfile(false)}
+            >
+              <Feather name="arrow-left" size={18} color={c.accent} />
+              <Text style={{ color: c.accent, marginLeft: 8, fontWeight: '600' }}>Back</Text>
+            </TouchableOpacity>
+            {profile ? (
+              <ProfileForm initialData={profile} onSave={handleSaveProfile} isSaving={isSaving} submitLabel="Save Changes" />
+            ) : (
+              <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />
+            )}
+          </View>
+        );
+      }
+      
+      // Display profile card
+      if (!profile) return <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />;
+      
+      const locations = Array.isArray(profile.locations) ? profile.locations : 
+                        (typeof profile.locations === 'string' ? profile.locations.split(',').map(l => l.trim()).filter(Boolean) : []);
+      
+      return (
+        <View style={{ marginBottom: 24 }}>
+          <View style={[{ borderRadius: 12, overflow: 'hidden', borderWidth: 1, backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 16 }}>
+              <View>
+                <Text style={[{ fontSize: 18, fontWeight: '700', color: c.textPrimary, marginBottom: 4 }]}>{profile.businessName || 'Business Profile'}</Text>
+                <Text style={[{ fontSize: 12, color: c.textSecondary }]}>Saved profile reused by agent</Text>
+              </View>
+              <TouchableOpacity 
+                style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: c.accent, gap: 6 }]}
+                onPress={() => setIsEditingProfile(true)}
+              >
+                <Feather name="edit-2" size={16} color={c.white} />
+                <Text style={[{ color: c.white, fontWeight: '600', fontSize: 12 }]}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[{ borderTopWidth: 1, borderTopColor: c.surfaceBorder, paddingVertical: 16, paddingHorizontal: 16 }]}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Industry</Text>
+                <Text style={[{ fontSize: 14, color: c.textPrimary }]}>{profile.industry || '—'}</Text>
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Locations</Text>
+                {locations.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {locations.map(loc => (
+                      <View key={loc} style={[{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, backgroundColor: c.accentSoft, borderColor: c.accentBorder }]}>
+                        <Text style={[{ color: c.accent, fontSize: 12 }]}>{loc}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[{ color: c.textSecondary }]}>—</Text>
+                )}
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Key Concerns</Text>
+                <Text style={[{ fontSize: 14, color: c.textPrimary }]}>{profile.keyConcerns || '—'}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
       );
     }
     if (activeTab === 'apis') return renderApisTab();
