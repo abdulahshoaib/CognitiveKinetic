@@ -35,11 +35,13 @@ const DEFAULT_LANGUAGE = "en";
 const DEFAULT_COUNTRY = "PK";
 const IDLE_ARCHIVE_MS = 2 * 24 * 60 * 60 * 1000;
 const ARCHIVE_DELETE_MS = 31 * 24 * 60 * 60 * 1000;
-const MAX_AGENT_INPUT_ITEMS = 80;
+const MAX_AGENT_INPUT_ITEMS = 30; // Reduced from 80 to focus on quality
+const MIN_RELEVANCE_SCORE = 70; // Increased from 60 to filter for high-quality items
 const IMMUTABLE_NEWS_PROMPT =
   "System rule: use the saved business profile as the source of truth, " +
   "classify only enabled user-configured sources, and return operationally " +
-  "relevant news for the content-to-action workflow.";
+  "relevant news for the content-to-action workflow. Prioritize high-impact, " +
+  "actionable news with clear business implications.";
 const DEFAULT_NEWS_PROMPT =
   "Collect operationally relevant news that could affect costs, margins, " +
   "customer churn, market access, compliance, logistics, supply chains, " +
@@ -367,7 +369,23 @@ async function selectFeedItemsWithAgent(input: {
     systemPrompt,
   };
 
-  const inputArticles = articles
+  // Pre-filter: remove duplicates and sort by recency
+  const seenTitles = new Set<string>();
+  const dedupedArticles = articles.filter((article) => {
+    const titleKey = article.title.toLowerCase().trim();
+    if (seenTitles.has(titleKey)) return false;
+    seenTitles.add(titleKey);
+    return true;
+  });
+
+  // Sort by publication date (newest first) to prioritize fresh content
+  dedupedArticles.sort((a, b) => {
+    const aTime = new Date(a.publishedAt).getTime();
+    const bTime = new Date(b.publishedAt).getTime();
+    return bTime - aTime;
+  });
+
+  const inputArticles = dedupedArticles
     .slice(0, MAX_AGENT_INPUT_ITEMS)
     .map((article) => ({
       feedItemId: getFeedItemId(article),
@@ -383,7 +401,9 @@ async function selectFeedItemsWithAgent(input: {
   const promptText = [
     "You are an agentic news selection and classification assistant.",
     "Evaluate RSS articles against the user's saved business profile.",
-    "Return only articles with relevanceScore >= 60.",
+    "Return ONLY articles with relevanceScore >= 70 that have clear, actionable business impact.",
+    "Prioritize high-quality, summary-worthy news that directly affects operations.",
+    "Filter out generic, speculative, or tangentially related content.",
     "",
     "USER BUSINESS PROFILE:",
     `Business Name: ${compactProfile.businessName}`,
@@ -397,11 +417,12 @@ async function selectFeedItemsWithAgent(input: {
     "SELECTION INSTRUCTION:",
     String(compactProfile.systemPrompt),
     "",
-    "Rules:",
+    "Quality Rules:",
     "- feedItemId must exactly match one input article feedItemId.",
-    "- relevanceScore must be 0..100.",
-    "- selectionReason must explain business relevance.",
-    "- brief must be under 280 characters.",
+    "- relevanceScore must be 0..100, with 70+ indicating direct business impact.",
+    "- selectionReason must explain specific operational relevance.",
+    "- brief must be under 280 characters and highlight key action items.",
+    "- Only select articles that could directly trigger business decisions or actions.",
     "",
     "INPUT ARTICLES JSON:",
     JSON.stringify(inputArticles, null, 2),
@@ -465,7 +486,7 @@ async function selectFeedItemsWithAgent(input: {
     if (Number.isNaN(score)) score = 0;
     score = Math.max(0, Math.min(100, score));
 
-    if (score < 60) continue;
+    if (score < MIN_RELEVANCE_SCORE) continue;
 
     const brief = truncate(
       item.brief || item.selectionReason || original.summary || original.title,
@@ -490,7 +511,7 @@ async function selectFeedItemsWithAgent(input: {
   }
 
   selectedItems.sort((a, b) => b.relevanceScore - a.relevanceScore);
-  const finalSelected = selectedItems.slice(0, 20);
+  const finalSelected = selectedItems.slice(0, 15);
 
   syncLogs.push({
     type: "pull",
