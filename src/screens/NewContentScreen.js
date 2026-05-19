@@ -102,8 +102,12 @@ export default function NewContentScreen() {
   };
 
   const handleAnalyze = async () => {
-    if (!body.trim() || !profile) return;
-    _dbgToast('T1: Button pressed. body ok, profile ok. Creating feed item...');
+    _dbgToast('T0: Analyze button fired!');
+    if (!body.trim() || !profile) {
+      _dbgToast(`T0-BLOCKED: body="${body.trim().slice(0,30)}" | profile=${!!profile} | returning early`);
+      return;
+    }
+    _dbgToast('T1: body+profile ok. Creating feed item...');
     const content = title.trim() ? `${title}\n\n${body}` : body;
     const newItem = await addManualAnalysisItem(title || 'Manual Input', body);
     if (!newItem) {
