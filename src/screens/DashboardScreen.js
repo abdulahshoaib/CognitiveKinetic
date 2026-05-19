@@ -101,6 +101,12 @@ export default function DashboardScreen() {
   const latestReport = analysisResult || analysisHistory[0] || null;
   const latestImpact = latestReport?.impact;
   const pendingAction = useMemo(() => getFirstPendingAction(analysisHistory), [analysisHistory]);
+  const unreadFeedItems = useMemo(() => {
+    return (feedItems || []).filter(item => item?.status === 'unread');
+  }, [feedItems]);
+  const latestNews = useMemo(() => {
+    return unreadFeedItems.slice(0, 3);
+  }, [unreadFeedItems]);
   const recentReports = analysisHistory.slice(0, 2);
   const userLabel = user?.displayName || user?.email || 'Profile';
 
@@ -361,14 +367,6 @@ export default function DashboardScreen() {
       </View>
     );
   };
-
-  const unreadFeedItems = useMemo(() => {
-    return (feedItems || []).filter(item => item?.status === 'unread');
-  }, [feedItems]);
-
-  const latestNews = useMemo(() => {
-    return unreadFeedItems.slice(0, 3);
-  }, [unreadFeedItems]);
 
   const handleFeedItemSelect = async (item) => {
     if (!profile) return;
