@@ -16,6 +16,7 @@ export default function AnalysisRunScreen() {
   const c = activeTheme.colors;
 
   const isCompleted = currentStage === 'completed';
+  const isError = currentStage === 'error' || currentStage === 'failed';
 
   const handleViewReport = () => {
     navigation.navigate('ActionsTab', { screen: 'ImpactReport' });
@@ -28,14 +29,39 @@ export default function AnalysisRunScreen() {
   const actionsCount = analysisResult?.recommendedActions?.length || 0;
   const threatLevel = analysisResult?.impactMatrix?.overallRisk || 'Moderate';
 
+  const getProcessingMessage = () => {
+    switch (currentStage) {
+      case 'loading_profile':
+        return 'Loading Business Profile...';
+      case 'ingesting':
+        return 'Ingesting Content Signals...';
+      case 'signals':
+        return 'Extracting Facts & Patterns...';
+      case 'relevance':
+        return 'Evaluating Business Relevance...';
+      case 'insights':
+        return 'Generating Operational Insight...';
+      case 'impact':
+        return 'Running Impact Simulation...';
+      case 'actions':
+        return 'Formulating Recommended Actions...';
+      default:
+        return 'Evaluating progress context...';
+    }
+  };
+
   return (
     <Screen scroll={true} style={{ backgroundColor: c.background }}>
       <View style={[styles.header]}>
         <Text style={[styles.title, { color: c.textPrimary }]}>
-          {isCompleted ? 'Pipeline Finalized' : 'Agent In Progress'}
+          {isCompleted ? 'Pipeline Finalized' : isError ? 'Pipeline Execution Failed' : 'Agent In Progress'}
         </Text>
         <Text style={[styles.subtitle, { color: c.textSecondary }]}>
-          {isCompleted ? 'Agent analysis successfully mapped to actions.' : 'Running real-time extraction and impact simulation...'}
+          {isCompleted 
+            ? 'Agent analysis successfully mapped to actions.' 
+            : isError 
+              ? 'The agent encountered a critical error processing this content.'
+              : 'Running real-time extraction and impact simulation...'}
         </Text>
       </View>
 
@@ -69,6 +95,26 @@ export default function AnalysisRunScreen() {
         </View>
       )}
 
+      {isError && (
+        <View style={[styles.completionCard, { 
+          backgroundColor: 'rgba(239, 68, 68, 0.04)', 
+          borderColor: c.error || '#EF4444',
+        }]}>
+          <View style={styles.completionHeader}>
+            <Feather name="alert-triangle" size={20} color={c.error || '#EF4444'} />
+            <Text style={[styles.completionTitle, { color: c.textPrimary }]}>Pipeline Halted</Text>
+          </View>
+          <Text style={[styles.completionDesc, { color: c.textSecondary }]}>
+            An unexpected error occurred during execution. Please review the trace logs below or retry.
+          </Text>
+          {analysisResult?.errorMessage && (
+            <Text style={{ color: c.error || '#EF4444', fontSize: FontSizes.xs, fontStyle: 'italic', marginTop: 4 }}>
+              Details: {analysisResult.errorMessage}
+            </Text>
+          )}
+        </View>
+      )}
+
       {preferences.agentTransparency !== 'hidden' && (
         <View style={[styles.logsSection]}>
           <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
@@ -90,10 +136,25 @@ export default function AnalysisRunScreen() {
             <Feather name="file-text" size={18} color={c.white} />
             <Text style={[styles.primaryBtnText, { color: c.white }]}>View Impact Report</Text>
           </TouchableOpacity>
+        ) : isError ? (
+          <TouchableOpacity
+            style={[styles.primaryBtn, { backgroundColor: c.error || '#EF4444' }]}
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'IngestionMain' }],
+              });
+            }}
+          >
+            <Feather name="arrow-left" size={18} color={c.white} />
+            <Text style={[styles.primaryBtnText, { color: c.white }]}>Return to Ingestion</Text>
+          </TouchableOpacity>
         ) : (
           <View style={[styles.processingBtn, { backgroundColor: c.surfaceVariant }]}>
             <ActivityIndicator size="small" color={c.textSecondary} style={{ marginRight: 8 }} />
-            <Text style={[styles.processingText, { color: c.textSecondary }]}>Evaluating Profile Context...</Text>
+            <Text style={[styles.processingText, { color: c.textSecondary }]}>
+              {getProcessingMessage()}
+            </Text>
           </View>
         )}
       </View>
