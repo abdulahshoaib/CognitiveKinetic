@@ -80,6 +80,13 @@ export const agentWorker = onTaskDispatched(
       prompt: `Extract key facts and signals from this content:\n${content}`,
     });
     const signals = [extractResponse.text];
+    
+    // Update to signals stage
+    await runRef.update({
+      currentStage: "signals",
+      signals,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     await addLog(
       db,
       uid,

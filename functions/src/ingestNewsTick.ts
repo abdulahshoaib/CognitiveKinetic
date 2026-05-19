@@ -36,16 +36,18 @@ const DEFAULT_COUNTRY = "PK";
 const IDLE_ARCHIVE_MS = 2 * 24 * 60 * 60 * 1000;
 const ARCHIVE_DELETE_MS = 31 * 24 * 60 * 60 * 1000;
 const MAX_AGENT_INPUT_ITEMS = 30; // Reduced from 80 to focus on quality
-const MIN_RELEVANCE_SCORE = 70; // Increased from 60 to filter for high-quality items
+const MIN_RELEVANCE_SCORE = 75; // Increased from 70 to be more selective
 const IMMUTABLE_NEWS_PROMPT =
   "System rule: use the saved business profile as the source of truth, " +
   "classify only enabled user-configured sources, and return operationally " +
   "relevant news for the content-to-action workflow. Prioritize high-impact, " +
-  "actionable news with clear business implications.";
+  "actionable news with clear business implications. Only select articles that " +
+  "directly affect the business's operations, costs, or strategic decisions.";
 const DEFAULT_NEWS_PROMPT =
-  "Collect operationally relevant news that could affect costs, margins, " +
+  "Collect operationally relevant news that directly impacts: costs, margins, " +
   "customer churn, market access, compliance, logistics, supply chains, " +
-  "fuel, tax policy, pricing, or regional operations.";
+  "fuel, tax policy, pricing, or regional operations. Exclude generic news " +
+  "unless directly related to business operations.";
 
 function generateHash(str: string): string {
   return crypto.createHash("sha256").update(str).digest("hex");
@@ -399,11 +401,12 @@ async function selectFeedItemsWithAgent(input: {
     }));
 
   const promptText = [
-    "You are an agentic news selection and classification assistant.",
+    "You are a strict news selection and classification assistant.",
     "Evaluate RSS articles against the user's saved business profile.",
-    "Return ONLY articles with relevanceScore >= 70 that have clear, actionable business impact.",
-    "Prioritize high-quality, summary-worthy news that directly affects operations.",
-    "Filter out generic, speculative, or tangentially related content.",
+    "CRITICAL: Only return articles with relevanceScore >= 75 that have direct, clear, actionable business impact.",
+    "If an article is generic, speculative, or only tangentially related, give it a score below 75.",
+    "Prioritize articles that could directly trigger immediate business decisions or operational changes.",
+    "Filter out: generic industry news, tangential mentions, competitor gossip, or unrelated geopolitical events.",
     "",
     "USER BUSINESS PROFILE:",
     `Business Name: ${compactProfile.businessName}`,
@@ -419,10 +422,11 @@ async function selectFeedItemsWithAgent(input: {
     "",
     "Quality Rules:",
     "- feedItemId must exactly match one input article feedItemId.",
-    "- relevanceScore must be 0..100, with 70+ indicating direct business impact.",
+    "- relevanceScore must be 0..100, with 75+ indicating direct business impact AND actionability.",
     "- selectionReason must explain specific operational relevance.",
     "- brief must be under 280 characters and highlight key action items.",
-    "- Only select articles that could directly trigger business decisions or actions.",
+    "- ONLY select articles that could directly trigger business decisions or operational actions.",
+    "- When in doubt, score lower rather than higher.",
     "",
     "INPUT ARTICLES JSON:",
     JSON.stringify(inputArticles, null, 2),
