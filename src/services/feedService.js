@@ -73,13 +73,23 @@ export const addUserFeedItems = async (uid, items) => {
   }
 };
 
-export const refreshUserFeed = async () => {
+export const refreshUserFeed = async (uid, configuredSources, systemPrompt) => {
+  // Try Cloud Function first
   try {
     const getContentFeedCallable = httpsCallable(functions, 'getContentFeed');
     const res = await getContentFeedCallable({});
     return normalizeFeedRefreshResponse(res.data);
-  } catch (error) {
-    return buildFeedRefreshError(error);
+  } catch (cfError) {
+    console.warn('Cloud Function getContentFeed unavailable, using client-side fallback:', cfError.message);
+  }
+
+  // Fallback: client-side RSS ingestion
+  try {
+    const { clientFeedIngestion } = await import('./clientFeedIngestion');
+    return await clientFeedIngestion(uid, configuredSources, systemPrompt);
+  } catch (fallbackError) {
+    console.error('Client-side feed ingestion failed:', fallbackError);
+    return buildFeedRefreshError(fallbackError);
   }
 };
 
