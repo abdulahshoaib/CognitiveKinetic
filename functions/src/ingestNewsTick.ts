@@ -20,10 +20,17 @@ import type {
   SyncLog,
 } from "./constants/types";
 
-const ai = genkit({
-  plugins: [googleAI()],
-  model: googleAI.model("gemini-2.5-flash"),
-});
+let aiInstance: ReturnType<typeof genkit> | null = null;
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+    aiInstance = genkit({
+      plugins: [googleAI(apiKey ? { apiKey } : undefined)],
+      model: googleAI.model("gemini-2.5-flash"),
+    });
+  }
+  return aiInstance;
+}
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -432,47 +439,111 @@ async function selectFeedItemsWithAgent(input: {
     JSON.stringify(inputArticles, null, 2),
   ].join("\n");
 
-  let response;
-  try {
-    response = await ai.generate({
-      prompt: promptText,
-      output: {
-        schema: z.object({
-          selectedItems: z.array(
-            z.object({
-              feedItemId: z.string().describe(
-                "Must exactly match one input article feedItemId."
-              ),
-              relevanceScore: z.number().describe(
-                "Relevance score between 0 and 100."
-              ),
-              selectionReason: z.string().describe(
-                "Brief explanation of relevance."
-              ),
-              brief: z.string().describe(
-                "Engaging summary under 280 characters."
-              ),
-            })
-          ),
-        }),
-      },
-    });
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    console.error("Genkit news selection failed:", error);
-    syncLogs.push({
-      type: "pull",
-      sourceName: "Agent Selection",
-      status: "failed",
-      errorType: "LLM Error",
-      message: error.message,
-      reason: "Agent news selection encountered an LLM or schema error.",
-    });
-    return [];
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  const hasApiKey = !!apiKey;
+
+  let rawSelected: {
+    feedItemId: string;
+    relevanceScore: number;
+    selectionReason: string;
+    brief: string;
+  }[] = [];
+
+  if (hasApiKey && apiKey) {
+    try {
+      const ai = getAI();
+      const response = await ai.generate({
+        prompt: promptText,
+        output: {
+          schema: z.object({
+            selectedItems: z.array(
+              z.object({
+                feedItemId: z.string().describe(
+                  "Must exactly match one input article feedItemId."
+                ),
+                relevanceScore: z.number().describe(
+                  "Relevance score between 0 and 100."
+                ),
+                selectionReason: z.string().describe(
+                  "Brief explanation of relevance."
+                ),
+                brief: z.string().describe(
+                  "Engaging summary under 280 characters."
+                ),
+              })
+            ),
+          }),
+        },
+      });
+      rawSelected = response.output?.selectedItems || [];
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Genkit news selection failed:", error);
+      syncLogs.push({
+        type: "pull",
+        sourceName: "Agent Selection",
+        status: "failed",
+        errorType: "LLM Error",
+        message: error.message,
+        reason: "Agent news selection encountered an LLM or schema error.",
+      });
+      return [];
+    }
+  } else {
+    console.warn("No Gemini API key found for feed selection. Using high-fidelity heuristic fallback.");
+    const concernsLower = (profile.keyConcerns || "").toString().toLowerCase();
+    const locationsLower = (compactProfile.locations || "").toLowerCase();
+
+    for (const article of inputArticles) {
+      const titleLower = article.title.toLowerCase();
+      const summaryLower = article.summary.toLowerCase();
+
+      let relevanceScore = 0;
+      let selectionReason = "";
+      let brief = "";
+
+      const isFuelRelated = titleLower.includes("fuel") || titleLower.includes("petrol") || titleLower.includes("diesel") || titleLower.includes("cng") || titleLower.includes("gasoline") || titleLower.includes("power") || titleLower.includes("electricity");
+      const isTaxOrPolicyRelated = titleLower.includes("tax") || titleLower.includes("duty") || titleLower.includes("levy") || titleLower.includes("tariff") || titleLower.includes("budget") || titleLower.includes("policy") || titleLower.includes("ban");
+      const isSmogOrLogisticsRelated = titleLower.includes("smog") || titleLower.includes("weather") || titleLower.includes("strike") || titleLower.includes("traffic") || titleLower.includes("shut") || titleLower.includes("lockdown");
+
+      const locMatch = locationsLower.split(",").some((loc: string) => {
+        const trimmed = loc.trim().toLowerCase();
+        return trimmed.length > 2 && (titleLower.includes(trimmed) || summaryLower.includes(trimmed));
+      });
+
+      if (isFuelRelated) {
+        relevanceScore = locMatch ? 90 : 80;
+        selectionReason = `Detected major energy/fuel alert${locMatch ? " with regional impact in " + compactProfile.locations : ""}. Fuel price shifts impact logistical margins directly.`;
+        brief = `Heuristic Alert: Fuel/Energy price fluctuation detected. Directly impacts transportation and operational costs.`;
+      } else if (isSmogOrLogisticsRelated) {
+        relevanceScore = locMatch ? 85 : 78;
+        selectionReason = `Transit or environmental restriction detected${locMatch ? " in " + compactProfile.locations : ""}. Directly impacts delivery routes and timing.`;
+        brief = `Heuristic Alert: Smog or transit ban/restriction alert. Expect delays or route modifications.`;
+      } else if (isTaxOrPolicyRelated) {
+        relevanceScore = locMatch ? 82 : 76;
+        selectionReason = `Regulatory or tax change detected. Compliance adjustments may affect pricing or cost structure.`;
+        brief = `Heuristic Alert: Policy/Tax update. Review financial implications and compliance requirements.`;
+      } else if (concernsLower.length > 0 && concernsLower.split(",").some((concern: string) => {
+        const c = concern.trim().toLowerCase();
+        return c.length > 3 && (titleLower.includes(c) || summaryLower.includes(c));
+      })) {
+        relevanceScore = 78;
+        selectionReason = `Article matches user-specified operational concern. Actionable review recommended.`;
+        brief = `Heuristic Alert: Article matches configured business concerns. Ingested for strategic review.`;
+      }
+
+      if (relevanceScore >= MIN_RELEVANCE_SCORE) {
+        rawSelected.push({
+          feedItemId: article.feedItemId,
+          relevanceScore,
+          selectionReason,
+          brief,
+        });
+      }
+    }
   }
 
   const selectedItems: AgentFeedSelection[] = [];
-  const rawSelected = response.output?.selectedItems || [];
 
   const originalMap = new Map<string, FeedArticleDraft>();
   for (const article of articles) {
@@ -738,7 +809,10 @@ export async function processIngestion(
   return refreshUserFeed(uid);
 }
 
-export const ingestNewsTick = onSchedule("every 12 hours", async () => {
+export const ingestNewsTick = onSchedule({
+  schedule: "every 12 hours",
+  secrets: ["GEMINI_API_KEY"],
+}, async () => {
   console.log("Starting scheduled user news ingestion...");
   const usersSnap = await db.collection("users").get();
   let selectedCount = 0;
@@ -761,7 +835,7 @@ export const ingestNewsTick = onSchedule("every 12 hours", async () => {
   );
 });
 
-export const getContentFeed = onCall(async (request) => {
+export const getContentFeed = onCall({ secrets: ["GEMINI_API_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",

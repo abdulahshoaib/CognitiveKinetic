@@ -590,6 +590,7 @@ export const agentWorker = onTaskDispatched(
       maxAttempts: 3,
       minBackoffSeconds: 60,
     },
+    secrets: ["GEMINI_API_KEY"],
   },
   async (request) => {
     const {runId, uid} = request.data as { runId: string; uid: string };
