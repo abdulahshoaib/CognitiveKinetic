@@ -289,8 +289,8 @@ export default function ImpactReportScreen() {
         {signals.length === 0 ? (
           <Text style={[styles.emptyText, { color: c.textSecondary, backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>No signals extracted.</Text>
         ) : (
-          signals.map(signal => (
-            <View key={signal.id} style={[styles.signalRow, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          signals.map((signal, index) => (
+            <View key={signal.id || `signal_${index}`} style={[styles.signalRow, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
               <View style={[styles.signalIcon, { backgroundColor: c.accentSoft }]}>
                 <Feather name="activity" size={16} color={c.accent} />
               </View>
@@ -306,8 +306,8 @@ export default function ImpactReportScreen() {
       {/* Insights */}
       <SectionHeader title="Insights" />
       <View style={styles.sectionBody}>
-        {insights.map(insight => (
-          <View key={insight.id} style={styles.cardSpacing}>
+        {insights.map((insight, index) => (
+          <View key={insight.id || `insight_${index}`} style={styles.cardSpacing}>
             <InsightCard insight={insight} />
             {preferences.insightStyle !== 'simple' && (
               <View style={[styles.insightMetaCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
@@ -352,8 +352,8 @@ export default function ImpactReportScreen() {
             </Text>
           </View>
         ) : (
-          actions.map(action => (
-            <View key={action.id} style={[styles.actionCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          actions.map((action, index) => (
+            <View key={action.id || `action_${index}`} style={[styles.actionCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
               {/* Action Header */}
               <View style={styles.actionHeader}>
                 <View style={styles.actionHeaderLeft}>
