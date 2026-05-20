@@ -31,12 +31,18 @@ const sortFeedItems = (items) => (
     .filter((item) => item.status !== 'dismissed')
     .map(normalizeTimestampFields)
     .sort((a, b) => {
+      // Primary sort: relevance score (highest first)
       const scoreDiff = (b.relevanceScore || 0) - (a.relevanceScore || 0);
       if (scoreDiff !== 0) return scoreDiff;
 
+      // Secondary sort: published date (newest first)
       const dateA = new Date(a.publishedAt || a.createdAt || 0).getTime();
       const dateB = new Date(b.publishedAt || b.createdAt || 0).getTime();
-      return dateB - dateA;
+      const dateDiff = dateB - dateA;
+      if (dateDiff !== 0) return dateDiff;
+
+      // Tertiary sort: ID for deterministic ordering when scores and dates are equal
+      return (a.id || '').localeCompare(b.id || '');
     })
 );
 

@@ -28,3 +28,4 @@ export {createAnalysisRun} from "./createAnalysisRun";
 export {simulateAction} from "./simulateAction";
 export {ingestNewsTick, getContentFeed} from "./ingestNewsTick";
 export {agentWorker} from "./agentWorker";
+export {analyzeBusinessContext} from "./analyzeBusinessContext";

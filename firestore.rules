@@ -101,6 +101,7 @@ service cloud.firestore {
         'newsSystemPrompt',
         'riskSensitivity',
         'enableAutoSim',
+        'businessContext',
         'createdAt',
         'updatedAt'
       ]) &&
@@ -137,6 +138,8 @@ service cloud.firestore {
     }
 
     function isValidManualFeedItem(data) {
+      // Manual feed items can only be created with basic fields
+      // Backend-scored fields (relevanceScore, selectionReason, etc.) are not allowed
       return data.keys().hasOnly([
         'sourceType',
         'sourceName',
@@ -146,7 +149,6 @@ service cloud.firestore {
         'sourceUrl',
         'timestamp',
         'relevanceStatus',
-        'detectedTopics',
         'createdAt'
       ]) &&
       data.sourceType == 'manual' &&
@@ -157,7 +159,6 @@ service cloud.firestore {
       optionalString(data, 'sourceUrl', 2000) &&
       optionalString(data, 'timestamp', 80) &&
       optionalString(data, 'relevanceStatus', 40) &&
-      optionalList(data, 'detectedTopics', 40) &&
       optionalTimestamp(data, 'createdAt');
     }
 

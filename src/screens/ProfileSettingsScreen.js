@@ -12,13 +12,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import BrandIcon from '../components/common/BrandIcon';
 import { useAuth } from '../context/AuthContext';
 import { useIntegrations } from '../context/IntegrationsContext';
 import { usePreferences } from '../context/PreferencesContext';
-import { getProfile, saveProfile, updateProfile } from '../services/profileService';
+import { getProfile, saveProfile, updateProfile, analyzeProfileContext } from '../services/profileService';
 import { FontSizes, FontWeights } from '../constants/typography';
 import Screen from '../components/common/Screen';
 import ProfileForm from '../components/common/ProfileForm';
@@ -106,7 +107,10 @@ export default function ProfileSettingsScreen() {
   const c = activeTheme.colors;
 
   const [profile, setProfile] = useState(null);
+  const [businessContext, setBusinessContext] = useState(null);
+  const [isAnalyzingContext, setIsAnalyzingContext] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('context');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [isSavingName, setIsSavingName] = useState(false);
@@ -154,9 +158,24 @@ export default function ProfileSettingsScreen() {
 
     setIsSaving(true);
     try {
+      // Save profile first
       await saveProfile(user.uid, profileData);
       Alert.alert('Saved', 'Business profile updated.');
-      navigation.goBack();
+      setProfile(profileData);
+      setIsEditingProfile(false);
+
+      // Analyze business context in background (non-blocking)
+      setIsAnalyzingContext(true);
+      try {
+        const analysis = await analyzeProfileContext(user.uid, profileData);
+        if (analysis) {
+          setBusinessContext(analysis);
+        }
+      } catch (analyzeError) {
+        console.warn('Background analysis failed (non-blocking):', analyzeError);
+      } finally {
+        setIsAnalyzingContext(false);
+      }
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to update profile.');
@@ -405,7 +424,7 @@ export default function ProfileSettingsScreen() {
       {actionApis.map(api => (
         <TouchableOpacity
           key={api.id}
-          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
+          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}
           onPress={() => openApiModal(api)}
         >
           <View style={styles.cardTopRow}>
@@ -436,7 +455,7 @@ export default function ProfileSettingsScreen() {
 
   const renderNewsTab = () => (
     <View style={styles.stack}>
-      <View style={[styles.promptCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.promptCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.sectionHeaderRow}>
           <View>
             <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>News Agent Prompt</Text>
@@ -475,7 +494,7 @@ export default function ProfileSettingsScreen() {
         return (
         <View
           key={source.id}
-          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorderSubtle, opacity: enabled ? 1 : 0.7, paddingHorizontal: 12, paddingVertical: 10 }]}
+          style={[styles.integrationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorderSubtle, opacity: enabled ? 1 : 0.7, paddingHorizontal: 12, paddingVertical: 10 }, styles.shadow]}
         >
           <View style={styles.cardTopRow}>
             {isEditableModal ? (
@@ -584,7 +603,7 @@ export default function ProfileSettingsScreen() {
   const renderAccountTab = () => (
     <View style={styles.accountContainer}>
       <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Identity</Text>
-      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: c.textSecondary }]}>Display name</Text>
           <TextInput
@@ -609,7 +628,7 @@ export default function ProfileSettingsScreen() {
       </View>
 
       <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Security</Text>
-      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.actionRow}>
           <View style={[styles.actionIcon, { backgroundColor: c.primarySubtle }]}>
             <Feather name="key" size={18} color={c.primary} />
@@ -636,7 +655,7 @@ export default function ProfileSettingsScreen() {
       </View>
 
       <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Session</Text>
-      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
         <View style={styles.detailRow}>
           <Text style={[styles.detailLabel, { color: c.textSecondary }]}>Account</Text>
           <Text style={[styles.detailValue, { color: c.textPrimary }]}>{isDemo ? 'Demo' : 'Registered'}</Text>
@@ -804,10 +823,116 @@ export default function ProfileSettingsScreen() {
 
   const renderActiveTab = () => {
     if (activeTab === 'context') {
-      return profile ? (
-        <ProfileForm initialData={profile} onSave={handleSaveProfile} isSaving={isSaving} />
-      ) : (
-        <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />
+      if (isEditingProfile) {
+        return (
+          <View>
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8, marginBottom: 16 }}
+              onPress={() => setIsEditingProfile(false)}
+            >
+              <Feather name="arrow-left" size={18} color={c.accent} />
+              <Text style={{ color: c.accent, marginLeft: 8, fontWeight: '600' }}>Back</Text>
+            </TouchableOpacity>
+            {profile ? (
+              <ProfileForm initialData={profile} onSave={handleSaveProfile} isSaving={isSaving} submitLabel="Save Changes" />
+            ) : (
+              <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />
+            )}
+          </View>
+        );
+      }
+      
+      // Display profile card
+      if (!profile) return <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />;
+      
+      const locations = Array.isArray(profile.locations) ? profile.locations : 
+                        (typeof profile.locations === 'string' ? profile.locations.split(',').map(l => l.trim()).filter(Boolean) : []);
+      
+      return (
+        <View style={{ marginBottom: 24 }}>
+          <View style={[{ borderRadius: 12, overflow: 'hidden', borderWidth: 1, backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }, styles.shadow]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 16 }}>
+              <View>
+                <Text style={[{ fontSize: 18, fontWeight: '700', color: c.textPrimary, marginBottom: 4 }]}>{profile.businessName || 'Business Profile'}</Text>
+                <Text style={[{ fontSize: 12, color: c.textSecondary }]}>Saved profile reused by agent</Text>
+              </View>
+              <TouchableOpacity 
+                style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: c.accent, gap: 6 }]}
+                onPress={() => setIsEditingProfile(true)}
+              >
+                <Feather name="edit-2" size={16} color={c.white} />
+                <Text style={[{ color: c.white, fontWeight: '600', fontSize: 12 }]}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[{ borderTopWidth: 1, borderTopColor: c.surfaceBorder, paddingVertical: 16, paddingHorizontal: 16 }]}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Industry</Text>
+                <Text style={[{ fontSize: 14, color: c.textPrimary }]}>{profile.industry || '—'}</Text>
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Locations</Text>
+                {locations.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {locations.map(loc => (
+                      <View key={loc} style={[{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, backgroundColor: c.accentSoft, borderColor: c.accentBorder }]}>
+                        <Text style={[{ color: c.accent, fontSize: 12 }]}>{loc}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[{ color: c.textSecondary }]}>—</Text>
+                )}
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 6 }]}>Key Concerns</Text>
+                <Text style={[{ fontSize: 14, color: c.textPrimary }]}>{profile.keyConcerns || '—'}</Text>
+              </View>
+
+              {/* AI Business Context Analysis */}
+              {(businessContext || isAnalyzingContext) && (
+                <View style={[{ borderTopWidth: 1, borderTopColor: c.surfaceBorder, paddingTop: 16, marginTop: 12 }]}>
+                  <Text style={[{ fontSize: 12, color: c.textSecondary, fontWeight: '600', marginBottom: 10, flexDirection: 'row', alignItems: 'center' }]}>
+                    <Feather name="cpu" size={12} style={{ marginRight: 4 }} /> AI Business Context
+                  </Text>
+                  {isAnalyzingContext ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator size="small" color={c.accent} />
+                      <Text style={[{ fontSize: 12, color: c.textSecondary }]}>Analyzing business context...</Text>
+                    </View>
+                  ) : businessContext ? (
+                    <LinearGradient
+                      colors={[c.accentSoft, c.surfaceContainerLowest]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={{ padding: 14, borderRadius: 10, borderWidth: 1, borderColor: c.accentBorder }}
+                    >
+                      <View style={{ gap: 12 }}>
+                        {businessContext.businessOverview && (
+                          <View>
+                            <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Overview</Text>
+                            <Text style={[{ fontSize: 13, color: c.textPrimary, lineHeight: 18 }]}>{businessContext.businessOverview}</Text>
+                          </View>
+                        )}
+                        {businessContext.operationalImpactAreas && businessContext.operationalImpactAreas.length > 0 && (
+                          <View>
+                            <Text style={[{ fontSize: 11, color: c.textSecondary, fontWeight: '600', marginBottom: 4 }]}>Operational Focus Areas</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                              {businessContext.operationalImpactAreas.slice(0, 4).map((area, idx) => (
+                                <View key={idx} style={[{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, backgroundColor: c.accentSoft, borderColor: c.accentBorder, borderWidth: 0.5 }]}>
+                                  <Text style={[{ color: c.accent, fontSize: 11 }]}>{area}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    </LinearGradient>
+                  ) : null}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
       );
     }
     if (activeTab === 'apis') return renderApisTab();
@@ -961,6 +1086,20 @@ export default function ProfileSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  shadow: Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+    },
+    android: {
+      elevation: 4,
+    },
+    web: {
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.06)',
+    }
+  }),
   keyboardView: { flex: 1 },
   header: {
     paddingHorizontal: 20,

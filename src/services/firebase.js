@@ -1,8 +1,9 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Expo automatically loads .env files. 
@@ -21,9 +22,12 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 let auth;
 try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
+  // Use appropriate persistence for each platform
+  const persistence = Platform.OS === 'web' 
+    ? browserLocalPersistence 
+    : getReactNativePersistence(AsyncStorage);
+  
+  auth = initializeAuth(app, { persistence });
 } catch (error) {
   if (error?.code !== 'auth/already-initialized') {
     throw error;

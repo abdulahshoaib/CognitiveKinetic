@@ -1,7 +1,8 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { doc, collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
+import { doc, collection, onSnapshot, query, orderBy, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../services/firebase';
+import { runPipeline } from '../services/agent/orchestrator';
 import {
   addUserFeedItems,
   createManualFeedItem,
@@ -61,8 +62,20 @@ export const AnalysisProvider = ({ children }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
   const [executionLogs, setExecutionLogs] = useState([]);
+  const activeSubscriptions = useRef([]);
 
   const [systemState, setSystemState] = useState(null);
+
+  // Cleanup active run subscriptions
+  const cleanupActiveRun = useCallback(() => {
+    activeSubscriptions.current.forEach(unsub => unsub());
+    activeSubscriptions.current = [];
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cleanupActiveRun();
+  }, [cleanupActiveRun]);
 
   // 0. Sync user-scoped feedItems in real-time with Firestore.
   useEffect(() => {
@@ -122,35 +135,59 @@ export const AnalysisProvider = ({ children }) => {
   // 3. Initiate analysis using the real backend Callable Function
   const analyzeContent = useCallback(async (content, profileContext, sourceItemId = null, sourceItem = null) => {
     if (!user) return;
+
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setSimulationResult(null);
     setExecutionLogs([]);
-    setCurrentStage('load_profile');
+    setCurrentStage('loading_profile');
+
+    const watchdogRef = { timer: null };
+
+    const clearWatchdog = () => {
+      if (watchdogRef.timer) {
+        clearTimeout(watchdogRef.timer);
+        watchdogRef.timer = null;
+      }
+    };
+
+    // Start watchdog immediately — 60 seconds max for the entire pipeline (including backend Callable and Firestore updates)
+    watchdogRef.timer = setTimeout(() => {
+      console.warn('Analysis watchdog: pipeline did not complete in 60s');
+      addLog('Pipeline timed out. Execution exceeded 60 seconds.', 'orchestrator', 'error');
+      setIsAnalyzing(false);
+      setCurrentStage('error');
+      cleanupActiveRun();
+    }, 60000);
 
     try {
-      addLog(`Initiating backend content-to-action analysis pipeline...`, 'orchestrator');
+      addLog('Initiating backend content-to-action analysis pipeline...', 'orchestrator');
 
       const createAnalysisRunCallable = httpsCallable(functions, 'createAnalysisRun');
       const res = await createAnalysisRunCallable({
         content,
-        sourceItemId: sourceItemId || null
+        sourceItemId
       });
 
       const { runId } = res.data;
+
+      // Cleanup any existing run subscriptions
+      cleanupActiveRun();
 
       // Subscribe to this specific run and its logs to show real-time progress
       const runDocRef = doc(db, 'users', user.uid, 'analysisRuns', runId);
       const logsColRef = collection(db, 'users', user.uid, 'analysisRuns', runId, 'logs');
       const logsQuery = query(logsColRef, orderBy('timestamp', 'asc'));
 
-      let unsubscribeLogs = () => {};
       let unsubscribeRun = () => {};
+      let unsubscribeLogs = () => {};
 
-      // Subscribe to log stream
       unsubscribeLogs = onSnapshot(logsQuery, (logsSnap) => {
         setExecutionLogs(normalizeLogSnapshot(logsSnap));
+      }, (err) => {
+        console.error("Error monitoring active analysis run logs:", err);
       });
+      activeSubscriptions.current.push(unsubscribeLogs);
 
       // Subscribe to run status/state changes
       unsubscribeRun = onSnapshot(runDocRef, (runSnap) => {
@@ -162,44 +199,52 @@ export const AnalysisProvider = ({ children }) => {
         }
 
         if (data.status === 'completed' || data.status === 'needs_simulation' || data.status === 'ignored' || data.status === 'failed') {
+          clearWatchdog();
           // Unsubscribe from real-time monitoring
-          unsubscribeRun();
-          unsubscribeLogs();
+          cleanupActiveRun();
 
           const enrichedResult = normalizeAnalysisRun(runSnap.id, data, {
             content,
-            sourceItem,
             sourceItemId,
+            sourceItem,
           });
 
           setAnalysisResult(enrichedResult);
           setIsAnalyzing(false);
 
+          if (data.status === 'failed') {
+            setCurrentStage('error');
+          } else {
+            setCurrentStage('completed');
+          }
+
           if (sourceItemId) {
             setFeedItems(prev => prev.map(item =>
               item.id === sourceItemId
-                ? {
-                    ...item,
-                    relevanceStatus: getRunFeedStatus(data.relevance?.score || 0)
-                  }
+                ? { ...item, relevanceStatus: getRunFeedStatus(data.relevance?.score || 0), status: 'analyzed' }
                 : item
             ));
           }
         }
       }, (err) => {
         console.error("Error monitoring active analysis run:", err);
+        clearWatchdog();
         setIsAnalyzing(false);
-        unsubscribeRun();
-        unsubscribeLogs();
+        setCurrentStage('error');
+        addLog(`Firestore listener error: ${err.message}`, 'orchestrator', 'error');
+        cleanupActiveRun();
       });
+      activeSubscriptions.current.push(unsubscribeRun);
 
     } catch (error) {
       console.error("Analysis pipeline failed:", error);
+      clearWatchdog();
       addLog(`Pipeline execution halted: ${error.message}`, 'orchestrator', 'error');
       setIsAnalyzing(false);
-      setCurrentStage('idle');
+      setCurrentStage('error');
     }
-  }, [user, addLog]);
+  }, [user, addLog, cleanupActiveRun]);
+
 
   // 4. Trigger simulation using the real backend Callable Function
   const executeSimulation = useCallback(async (action, analysisId = null) => {
@@ -249,8 +294,22 @@ export const AnalysisProvider = ({ children }) => {
 
     } catch (error) {
       console.error("Simulation failed:", error);
-      addLog(`Simulation error: ${error.message}`, 'simulation', 'error');
-      updateActionStatus('failed', [error.message]);
+      const errorMsg = error?.message || 'Unknown error';
+      const errorCode = error?.code || 'unknown';
+      const detailedError = `[${errorCode}] ${errorMsg}`;
+      
+      addLog(`Simulation error: ${detailedError}`, 'simulation', 'error');
+      
+      // Provide specific guidance based on error type
+      if (errorCode === 'permission-denied') {
+        addLog('Permission denied: Verify user authentication and Firestore rules.', 'simulation', 'error');
+      } else if (errorCode === 'not-found') {
+        addLog('Analysis run or action not found: Run may have expired.', 'simulation', 'error');
+      } else if (errorCode === 'unauthenticated') {
+        addLog('Authentication required: Please log in again.', 'simulation', 'error');
+      }
+      
+      updateActionStatus('failed', [detailedError]);
     } finally {
       setIsSimulating(false);
     }

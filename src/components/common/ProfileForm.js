@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Switch, ActivityIndicator, Alert, Modal } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Switch, ActivityIndicator, Alert, Modal, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import Colors from '../../constants/colors';
 import { FontSizes, FontWeights } from '../../constants/typography';
 import { usePreferences } from '../../context/PreferencesContext';
+
+// Only import GooglePlacesAutocomplete on native platforms
+let GooglePlacesAutocomplete;
+if (Platform.OS !== 'web') {
+  try {
+    GooglePlacesAutocomplete = require('react-native-google-places-autocomplete').GooglePlacesAutocomplete;
+  } catch (e) {
+    console.warn('GooglePlacesAutocomplete not available');
+    GooglePlacesAutocomplete = null;
+  }
+}
 
 
 export default function ProfileForm({ initialData, onSave, isSaving, submitLabel = "Save Profile" }) {
@@ -144,7 +154,6 @@ export default function ProfileForm({ initialData, onSave, isSaving, submitLabel
 
   const renderLocationsSelector = () => {
     const currentLocs = Array.isArray(formData.locations) ? formData.locations : [];
-    const placesApiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
 
     return (
       <View style={[styles.inputGroup, { marginBottom: spacing, zIndex: 100 }]}>
@@ -224,43 +233,52 @@ export default function ProfileForm({ initialData, onSave, isSaving, submitLabel
 
             <View style={{ borderBottomWidth: 1, borderBottomColor: c.surfaceBorder, marginVertical: 16 }} />
 
-            <Text style={[styles.label, { color: c.textPrimary, marginBottom: 8 }]}>Search Google Places</Text>
-            <GooglePlacesAutocomplete
-              placeholder="Search city, region, or country"
-              onPress={(data) => addLocation(data.description)}
-              query={{
-                key: placesApiKey,
-                language: 'en',
-                types: 'geocode',
-              }}
-              enablePoweredByContainer={false}
-              fetchDetails={false}
-              keyboardShouldPersistTaps="handled"
-              textInputProps={{
-                placeholderTextColor: c.placeholder,
-                returnKeyType: 'search',
-              }}
-              styles={{
-                container: styles.placesContainer,
-                textInput: [
-                  styles.autocompleteInput,
-                  {
-                    backgroundColor: c.surfaceContainerLowest,
-                    borderColor: c.surfaceBorder,
-                    color: c.textPrimary,
-                  },
-                ],
-                listView: [
-                  styles.placesList,
-                  {
-                    backgroundColor: c.surfaceContainerLowest,
-                    borderColor: c.surfaceBorder,
-                  },
-                ],
-                row: [styles.autocompleteRow, { borderBottomColor: c.surfaceBorder }],
-                description: { color: c.textPrimary, fontSize: FontSizes.sm },
-              }}
-            />
+            {GooglePlacesAutocomplete && Platform.OS !== 'web' && (
+              <>
+                <Text style={[styles.label, { color: c.textPrimary, marginBottom: 8 }]}>Search Google Places</Text>
+                <GooglePlacesAutocomplete
+                  placeholder="Search city, region, or country"
+                  onPress={(data) => addLocation(data.description)}
+                  query={{
+                    key: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
+                    language: 'en',
+                    types: 'geocode',
+                  }}
+                  enablePoweredByContainer={false}
+                  fetchDetails={false}
+                  keyboardShouldPersistTaps="handled"
+                  textInputProps={{
+                    placeholderTextColor: c.placeholder,
+                    returnKeyType: 'search',
+                  }}
+                  styles={{
+                    container: styles.placesContainer,
+                    textInput: [
+                      styles.autocompleteInput,
+                      {
+                        backgroundColor: c.surfaceContainerLowest,
+                        borderColor: c.surfaceBorder,
+                        color: c.textPrimary,
+                      },
+                    ],
+                    listView: [
+                      styles.placesList,
+                      {
+                        backgroundColor: c.surfaceContainerLowest,
+                        borderColor: c.surfaceBorder,
+                      },
+                    ],
+                    row: [styles.autocompleteRow, { borderBottomColor: c.surfaceBorder }],
+                    description: { color: c.textPrimary, fontSize: FontSizes.sm },
+                  }}
+                />
+              </>
+            )}
+            {Platform.OS === 'web' && (
+              <Text style={[styles.label, { color: c.textSecondary, fontSize: FontSizes.xs, marginTop: 8 }]}>
+                (Enter multiple locations separated by commas)
+              </Text>
+            )}
           </View>
         </Modal>
       </View>

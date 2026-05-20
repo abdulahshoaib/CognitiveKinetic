@@ -52,6 +52,11 @@ export const simulateAction = onCall(async (request) => {
     }
 
     const runData = runSnap.data() || {};
+    // Verify ownership
+    if (runData.uid && runData.uid !== uid) {
+      throw new HttpsError("permission-denied", 
+        "You do not have permission to simulate this action on another user's analysis.");
+    }
     const recommendedActions =
       (runData.recommendedActions || []) as RecommendedAction[];
 
@@ -68,8 +73,8 @@ export const simulateAction = onCall(async (request) => {
 
     const action = recommendedActions[actionIndex];
 
-    // Verify epoundsligibility
-    if (action.simulationSupported !== true) {
+    // Verify eligibility
+    if (action.simulationSupported === false) {
       throw new HttpsError(
         "failed-precondition",
         "Action does not support simulation."

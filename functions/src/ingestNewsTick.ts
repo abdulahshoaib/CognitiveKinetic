@@ -35,15 +35,19 @@ const DEFAULT_LANGUAGE = "en";
 const DEFAULT_COUNTRY = "PK";
 const IDLE_ARCHIVE_MS = 2 * 24 * 60 * 60 * 1000;
 const ARCHIVE_DELETE_MS = 31 * 24 * 60 * 60 * 1000;
-const MAX_AGENT_INPUT_ITEMS = 80;
+const MAX_AGENT_INPUT_ITEMS = 30; // Reduced from 80 to focus on quality
+const MIN_RELEVANCE_SCORE = 75; // Increased from 70 to be more selective
 const IMMUTABLE_NEWS_PROMPT =
   "System rule: use the saved business profile as the source of truth, " +
   "classify only enabled user-configured sources, and return operationally " +
-  "relevant news for the content-to-action workflow.";
+  "relevant news for the content-to-action workflow. Prioritize high-impact, " +
+  "actionable news with clear business implications. Only select articles that " +
+  "directly affect the business's operations, costs, or strategic decisions.";
 const DEFAULT_NEWS_PROMPT =
-  "Collect operationally relevant news that could affect costs, margins, " +
+  "Collect operationally relevant news that directly impacts: costs, margins, " +
   "customer churn, market access, compliance, logistics, supply chains, " +
-  "fuel, tax policy, pricing, or regional operations.";
+  "fuel, tax policy, pricing, or regional operations. Exclude generic news " +
+  "unless directly related to business operations.";
 
 function generateHash(str: string): string {
   return crypto.createHash("sha256").update(str).digest("hex");
@@ -367,7 +371,23 @@ async function selectFeedItemsWithAgent(input: {
     systemPrompt,
   };
 
-  const inputArticles = articles
+  // Pre-filter: remove duplicates and sort by recency
+  const seenTitles = new Set<string>();
+  const dedupedArticles = articles.filter((article) => {
+    const titleKey = article.title.toLowerCase().trim();
+    if (seenTitles.has(titleKey)) return false;
+    seenTitles.add(titleKey);
+    return true;
+  });
+
+  // Sort by publication date (newest first) to prioritize fresh content
+  dedupedArticles.sort((a, b) => {
+    const aTime = new Date(a.publishedAt).getTime();
+    const bTime = new Date(b.publishedAt).getTime();
+    return bTime - aTime;
+  });
+
+  const inputArticles = dedupedArticles
     .slice(0, MAX_AGENT_INPUT_ITEMS)
     .map((article) => ({
       feedItemId: getFeedItemId(article),
@@ -381,9 +401,12 @@ async function selectFeedItemsWithAgent(input: {
     }));
 
   const promptText = [
-    "You are an agentic news selection and classification assistant.",
-    "Evaluate RSS articles against the user's saved business profile.",
-    "Return only articles with relevanceScore >= 60.",
+    "You are an extremely strict, highly critical news classification agent.",
+    "Your ONLY job is to evaluate RSS articles against the user's saved business profile.",
+    "CRITICAL: Be extremely stingy with relevance scores. ONLY return articles with relevanceScore >= 75 if they have direct, immediate, and actionable business impact for this specific user profile.",
+    "If an article is generic industry news, tangentially related, speculative, competitor gossip, or broad macroeconomic news without direct actionability, score it strictly BELOW 40.",
+    "Default to low scores (0-30) unless you can explicitly identify a direct operational consequence or necessary strategic action.",
+    "You must aggressively filter out noise.",
     "",
     "USER BUSINESS PROFILE:",
     `Business Name: ${compactProfile.businessName}`,
@@ -397,11 +420,13 @@ async function selectFeedItemsWithAgent(input: {
     "SELECTION INSTRUCTION:",
     String(compactProfile.systemPrompt),
     "",
-    "Rules:",
+    "Quality Rules:",
     "- feedItemId must exactly match one input article feedItemId.",
-    "- relevanceScore must be 0..100.",
-    "- selectionReason must explain business relevance.",
-    "- brief must be under 280 characters.",
+    "- relevanceScore must be an integer between 0 and 100.",
+    "- SCORE EXTREMELY LOW unless the article explicitly demands a business decision, risk mitigation, or operational adjustment.",
+    "- selectionReason must explain the specific, immediate operational relevance. If none exists, state 'Not operationally actionable.'",
+    "- brief must be under 280 characters and clearly highlight the required business action.",
+    "- When in doubt, SCORE IT 0.",
     "",
     "INPUT ARTICLES JSON:",
     JSON.stringify(inputArticles, null, 2),
@@ -465,7 +490,7 @@ async function selectFeedItemsWithAgent(input: {
     if (Number.isNaN(score)) score = 0;
     score = Math.max(0, Math.min(100, score));
 
-    if (score < 60) continue;
+    if (score < MIN_RELEVANCE_SCORE) continue;
 
     const brief = truncate(
       item.brief || item.selectionReason || original.summary || original.title,
@@ -490,7 +515,7 @@ async function selectFeedItemsWithAgent(input: {
   }
 
   selectedItems.sort((a, b) => b.relevanceScore - a.relevanceScore);
-  const finalSelected = selectedItems.slice(0, 20);
+  const finalSelected = selectedItems.slice(0, 15);
 
   syncLogs.push({
     type: "pull",
