@@ -151,14 +151,14 @@ export const AnalysisProvider = ({ children }) => {
       }
     };
 
-    // Start watchdog immediately — 20 seconds max for the entire pipeline (including backend Callable and Firestore updates)
+    // Start watchdog immediately — 60 seconds max for the entire pipeline (including backend Callable and Firestore updates)
     watchdogRef.timer = setTimeout(() => {
-      console.warn('Analysis watchdog: pipeline did not complete in 20s');
-      addLog('Pipeline timed out. Execution exceeded 20 seconds.', 'orchestrator', 'error');
+      console.warn('Analysis watchdog: pipeline did not complete in 60s');
+      addLog('Pipeline timed out. Execution exceeded 60 seconds.', 'orchestrator', 'error');
       setIsAnalyzing(false);
       setCurrentStage('error');
       cleanupActiveRun();
-    }, 20000);
+    }, 60000);
 
     try {
       addLog('Initiating backend content-to-action analysis pipeline...', 'orchestrator');

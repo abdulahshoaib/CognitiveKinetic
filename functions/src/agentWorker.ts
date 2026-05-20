@@ -25,11 +25,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number, timeoutErrorMsg: string
   });
 }
 
-const ai = genkit({
-  plugins: [googleAI()],
-  model: googleAI.model("gemini-2.5-flash"),
-});
-
 /**
  * Records progress for the report timeline.
  */
@@ -326,10 +321,16 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
     let usedAI = false;
 
     // Check if we can run Google Gemini Genkit AI
-    const hasApiKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_AI_API_KEY);
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+    const hasApiKey = !!apiKey;
 
-    if (hasApiKey) {
+    if (hasApiKey && apiKey) {
       try {
+        const ai = genkit({
+          plugins: [googleAI({ apiKey })],
+          model: googleAI.model("gemini-2.5-flash"),
+        });
+
         // Stage 2: ingesting
         await runRef.update({
           currentStage: "ingesting",
