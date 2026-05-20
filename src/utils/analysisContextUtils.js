@@ -46,6 +46,7 @@ export const normalizeAnalysisRun = (id, data, overrides = {}) => {
   return {
     id,
     ...data,
+    isArchived: !!data.isArchived,
     createdAt,
     updatedAt,
     completedAt,

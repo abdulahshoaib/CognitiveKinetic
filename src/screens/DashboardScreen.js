@@ -98,23 +98,27 @@ export default function DashboardScreen() {
     }
   };
 
-  const latestReport = analysisResult || analysisHistory[0] || null;
+  const activeHistory = useMemo(() => {
+    return (analysisHistory || []).filter(item => item?.isArchived !== true);
+  }, [analysisHistory]);
+
+  const latestReport = analysisResult || activeHistory[0] || null;
   const latestImpact = latestReport?.impact;
-  const pendingAction = useMemo(() => getFirstPendingAction(analysisHistory), [analysisHistory]);
+  const pendingAction = useMemo(() => getFirstPendingAction(activeHistory), [activeHistory]);
   const unreadFeedItems = useMemo(() => {
     return (feedItems || []).filter(item => item?.status === 'unread');
   }, [feedItems]);
   const latestNews = useMemo(() => {
     return unreadFeedItems.slice(0, 3);
   }, [unreadFeedItems]);
-  const recentReports = analysisHistory.slice(0, 2);
+  const recentReports = activeHistory.slice(0, 2);
   const userLabel = user?.displayName || user?.email || 'Profile';
 
   const metrics = [
-    { label: 'Reports', value: analysisHistory.length, color: c.accent },
-    { label: 'High Risk', value: analysisHistory.filter(item => item.relevanceScore >= 75).length, color: c.error || '#EF4444' },
-    { label: 'Pending', value: countActions(analysisHistory, 'pending'), color: c.warning || '#F59E0B' },
-    { label: 'Simulated', value: countActions(analysisHistory, 'passed'), color: c.success || '#22C55E' },
+    { label: 'Reports', value: activeHistory.length, color: c.accent },
+    { label: 'High Risk', value: activeHistory.filter(item => item.relevanceScore >= 75).length, color: c.error || '#EF4444' },
+    { label: 'Pending', value: countActions(activeHistory, 'pending'), color: c.warning || '#F59E0B' },
+    { label: 'Simulated', value: countActions(activeHistory, 'passed'), color: c.success || '#22C55E' },
   ];
 
   const riskLevel = String(latestImpact?.riskLevel || 'nominal').toLowerCase();

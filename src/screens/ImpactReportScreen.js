@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Linking, BackHandler } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Linking, BackHandler, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -15,7 +15,7 @@ import { getReportTitle } from '../utils/reportTitles';
 
 export default function ImpactReportScreen() {
   const navigation = useNavigation();
-  const { analysisResult, executeSimulation, markActionSimulated } = useAnalysis();
+  const { analysisResult, executeSimulation, markActionSimulated, archiveAnalysis, deleteAnalysis } = useAnalysis();
   const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
 
@@ -25,7 +25,42 @@ export default function ImpactReportScreen() {
   const [logsModalAction, setLogsModalAction] = useState(null);
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
 
+  const handleArchiveToggle = async () => {
+    if (!analysisResult) return;
+    try {
+      await archiveAnalysis(analysisResult.id, !analysisResult.isArchived);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!analysisResult) return;
+    Alert.alert(
+      "Delete Report",
+      "Are you sure you want to permanently delete this report? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAnalysis(analysisResult.id);
+              navigation.navigate('ActionsTab', { screen: 'ActionsMain' });
+            } catch (error) {
+              console.error(error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   React.useLayoutEffect(() => {
+    if (!analysisResult) return;
+    const isArchived = analysisResult.isArchived;
+
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity
@@ -37,8 +72,28 @@ export default function ImpactReportScreen() {
           <Feather name="arrow-left" size={24} color={c.textPrimary} />
         </TouchableOpacity>
       ),
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <TouchableOpacity
+            onPress={handleArchiveToggle}
+            style={{ padding: 4 }}
+          >
+            <Feather 
+              name={isArchived ? "inbox" : "archive"} 
+              size={22} 
+              color={isArchived ? (c.success || '#22C55E') : c.textPrimary} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDeleteConfirm}
+            style={{ padding: 4 }}
+          >
+            <Feather name="trash-2" size={22} color={c.error || '#EF4444'} />
+          </TouchableOpacity>
+        </View>
+      ),
     });
-  }, [navigation, c]);
+  }, [navigation, c, analysisResult]);
 
   React.useEffect(() => {
     const backAction = () => {
@@ -186,6 +241,21 @@ export default function ImpactReportScreen() {
         </Text>
       </View>
 
+      {analysisResult.isArchived && (
+        <View style={[styles.archiveBanner, { backgroundColor: 'rgba(245, 158, 11, 0.08)', borderColor: '#F59E0B' }]}>
+          <Feather name="alert-triangle" size={16} color="#F59E0B" style={{ marginRight: 8 }} />
+          <Text style={[styles.archiveBannerText, { color: c.textPrimary }]}>
+            Report is archived.
+          </Text>
+          <TouchableOpacity 
+            style={[styles.restoreBtn, { backgroundColor: c.accent }]}
+            onPress={handleArchiveToggle}
+          >
+            <Text style={[styles.restoreBtnText, { color: c.white }]}>Restore</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {hasSourceDetail && (
         <TouchableOpacity
           style={[styles.sourceButton, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}
@@ -273,7 +343,7 @@ export default function ImpactReportScreen() {
 
       {/* Recommended Actions with inline simulate */}
       <SectionHeader title="Recommended Actions" />
-      <View style={[styles.sectionBody, { paddingBottom: 120 }]}>
+      <View style={[styles.sectionBody, { paddingBottom: 10 }]}>
         {actions.length === 0 ? (
           <View style={[styles.noActionsCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
             <Feather name="check-circle" size={20} color={c.success || '#22C55E'} />
@@ -325,6 +395,61 @@ export default function ImpactReportScreen() {
             </View>
           ))
         )}
+      </View>
+
+      {/* Report Management Actions */}
+      <SectionHeader title="Report Management" />
+      <View style={[styles.sectionBody, { paddingBottom: 140 }]}>
+        <View style={[styles.managementCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
+          <Text style={[styles.managementTitle, { color: c.textPrimary }]}>
+            Control Center
+          </Text>
+          <Text style={[styles.managementSubtitle, { color: c.textSecondary }]}>
+            Archive to save historically, or permanently remove this analysis.
+          </Text>
+          <View style={styles.managementButtons}>
+            <TouchableOpacity
+              style={[
+                styles.managementBtn,
+                { 
+                  backgroundColor: analysisResult.isArchived ? 'rgba(34, 197, 94, 0.08)' : c.surfaceVariant,
+                  borderColor: analysisResult.isArchived ? (c.success || '#22C55E') : c.surfaceBorder,
+                  borderWidth: 1
+                }
+              ]}
+              onPress={handleArchiveToggle}
+            >
+              <Feather 
+                name={analysisResult.isArchived ? "inbox" : "archive"} 
+                size={16} 
+                color={analysisResult.isArchived ? (c.success || '#22C55E') : c.textPrimary} 
+              />
+              <Text style={[
+                styles.managementBtnText, 
+                { color: analysisResult.isArchived ? (c.success || '#22C55E') : c.textPrimary }
+              ]}>
+                {analysisResult.isArchived ? "Restore Active" : "Archive Report"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.managementBtn,
+                { 
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  borderColor: c.error || '#EF4444',
+                  borderWidth: 1
+                }
+              ]}
+              onPress={handleDeleteConfirm}
+            >
+              <Feather name="trash-2" size={16} color={c.error || '#EF4444'} />
+              <Text style={[styles.managementBtnText, { color: c.error || '#EF4444' }]}>
+                Delete Report
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Source Detail Modal */}
@@ -745,6 +870,62 @@ const styles = StyleSheet.create({
   },
   logsModalCloseText: {
     fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+  },
+  archiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  archiveBannerText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
+  },
+  restoreBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  restoreBtnText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+  },
+  managementCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  managementTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    marginBottom: 4,
+  },
+  managementSubtitle: {
+    fontSize: FontSizes.xs,
+    lineHeight: 16,
+    marginBottom: 16,
+  },
+  managementButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  managementBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  managementBtnText: {
+    fontSize: FontSizes.xs,
     fontWeight: FontWeights.bold,
   },
 });

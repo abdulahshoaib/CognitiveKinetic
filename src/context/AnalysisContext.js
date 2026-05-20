@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
-import { doc, collection, onSnapshot, query, orderBy, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, onSnapshot, query, orderBy, getDocs, setDoc, serverTimestamp, updateDoc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../services/firebase';
 import { runPipeline } from '../services/agent/orchestrator';
@@ -49,6 +49,8 @@ const AnalysisContext = createContext({
   saveFeedItem: noop,
   dismissFeedItem: noop,
   analyzeFeedItem: noop,
+  archiveAnalysis: noop,
+  deleteAnalysis: noop,
 });
 
 export const AnalysisProvider = ({ children }) => {
@@ -432,6 +434,49 @@ export const AnalysisProvider = ({ children }) => {
     }
   }, [user, feedItems, analyzeContent, addLog]);
 
+  const archiveAnalysis = useCallback(async (analysisId, archived = true) => {
+    if (!user || !analysisId) return;
+
+    try {
+      const docRef = doc(db, 'users', user.uid, 'analysisRuns', analysisId);
+      await updateDoc(docRef, { isArchived: archived });
+      
+      // Update local selected analysis result if it matches
+      setAnalysisResult(prev => {
+        if (prev && prev.id === analysisId) {
+          return { ...prev, isArchived: archived };
+        }
+        return prev;
+      });
+
+      addLog(`Analysis report ${archived ? 'archived' : 'unarchived'}.`, 'orchestrator');
+    } catch (e) {
+      console.error("Error archiving analysis run:", e);
+      addLog(`Failed to archive analysis: ${e.message}`, 'orchestrator', 'error');
+    }
+  }, [user, addLog]);
+
+  const deleteAnalysis = useCallback(async (analysisId) => {
+    if (!user || !analysisId) return;
+
+    try {
+      const docRef = doc(db, 'users', user.uid, 'analysisRuns', analysisId);
+      await deleteDoc(docRef);
+      addLog('Analysis report deleted.', 'orchestrator');
+      
+      // If the currently selected or active report is deleted, clear it
+      setAnalysisResult(prev => {
+        if (prev && prev.id === analysisId) {
+          return null;
+        }
+        return prev;
+      });
+    } catch (e) {
+      console.error("Error deleting analysis run:", e);
+      addLog(`Failed to delete analysis: ${e.message}`, 'orchestrator', 'error');
+    }
+  }, [user, addLog]);
+
   return (
     <AnalysisContext.Provider value={{
       feedItems,
@@ -456,6 +501,8 @@ export const AnalysisProvider = ({ children }) => {
       saveFeedItem,
       dismissFeedItem,
       analyzeFeedItem,
+      archiveAnalysis,
+      deleteAnalysis,
     }}>
       {children}
     </AnalysisContext.Provider>
