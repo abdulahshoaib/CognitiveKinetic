@@ -164,7 +164,6 @@ export const buildManualFeedItem = (title, body) => ({
   sourceUrl: '',
   timestamp: 'Just now',
   relevanceStatus: 'pending',
-  detectedTopics: [],
   createdAt: new Date().toISOString(),
 });
 
