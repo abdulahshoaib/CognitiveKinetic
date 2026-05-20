@@ -147,6 +147,129 @@ export async function runPipeline(rawContent, profile) {
   // 3. SCENARIO CUSTOMIZATION
   let insights = [];
   let impact = {};
+  // Check if we have the Groq API key in the environment for client-side processing
+  const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+
+  if (groqApiKey && groqApiKey.trim().length > 0) {
+    addTrace('Groq API Key detected. Engaging AI Agent pipeline...', 'orchestrator');
+    
+    try {
+      addTrace('Querying Groq API for Phase 1: Signals, Relevance, and Insights...', 'signals');
+      const phase1Res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama3-8b-8192',
+          messages: [{
+            role: 'system',
+            content: `You are a business intelligence analyst. Analyze this content and extract signals, assess relevance, and generate insights.
+CONTENT TO ANALYZE: ${contentText}
+USER BUSINESS PROFILE: ${JSON.stringify(activeProfile)}
+TASK: Return ONLY a valid JSON object with EXACTLY these fields:
+1. "signals": Array of strings (key facts/signals).
+2. "relevanceScore": Number 0-100.
+3. "relevanceExplanation": String explaining relevance.
+4. "insight": String with actionable operational insight.`
+          }],
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (!phase1Res.ok) throw new Error(`Groq API Error: ${phase1Res.statusText}`);
+      
+      const phase1Data = await phase1Res.json();
+      const phase1Content = JSON.parse(phase1Data.choices[0].message.content);
+
+      addTrace(`Phase 1 Complete. Relevance: ${phase1Content.relevanceScore}%`, 'relevance', 'success');
+
+      let llmRelevance = phase1Content.relevanceScore || 0;
+      let isRelevant = llmRelevance >= 30;
+
+      if (!isRelevant) {
+        addTrace('Content relevance is low. Halting further AI processing.', 'relevance', 'warning');
+        return {
+          feedItemId,
+          rawContent: contentText,
+          relevanceScore: llmRelevance,
+          isRelevant: false,
+          signals: (phase1Content.signals || []).map((s, i) => ({ id: `sig_${i}`, label: s, severity: 'low' })),
+          insights: [{
+            id: 'ins_low',
+            title: 'Unrelated Content',
+            description: phase1Content.relevanceExplanation || 'Content falls outside the scope of operations.',
+            priority: 'low'
+          }],
+          impact: { riskLevel: 'none', explanation: 'No operational impact.' },
+          recommendedActions: [],
+          traceLogs
+        };
+      }
+
+      addTrace('Querying Groq API for Phase 2: Impact Analysis and Recommended Actions...', 'impact');
+      const phase2Res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama3-8b-8192',
+          messages: [{
+            role: 'system',
+            content: `You are a business strategy advisor. Analyze the impact and recommend actions.
+USER BUSINESS PROFILE: ${JSON.stringify(activeProfile)}
+OPERATIONAL INSIGHT: ${phase1Content.insight}
+TASK: Return ONLY a valid JSON object with EXACTLY these fields:
+1. "impactLevel": One of "low", "medium", or "high".
+2. "impactDetails": String describing operational impact.
+3. "recommendedActions": Array of 1-3 objects { id: "unique_id", title: "Short Action Name", description: "Detailed description", actionType: "manual_review", simulationSupported: boolean }.`
+          }],
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (!phase2Res.ok) throw new Error(`Groq API Error: ${phase2Res.statusText}`);
+      
+      const phase2Data = await phase2Res.json();
+      const phase2Content = JSON.parse(phase2Data.choices[0].message.content);
+
+      addTrace('Phase 2 Complete. Actions generated.', 'planner', 'success');
+      addTrace('Agent trace finalized.', 'orchestrator', 'success');
+
+      return {
+        feedItemId,
+        rawContent: contentText,
+        relevanceScore: llmRelevance,
+        isRelevant: true,
+        signals: (phase1Content.signals || []).map((s, i) => ({ id: `sig_${i}`, label: s, severity: 'medium' })),
+        insights: [{
+          id: 'ins_01',
+          title: 'AI Insight Generated',
+          description: phase1Content.insight || 'Insight compiled successfully.',
+          priority: phase2Content.impactLevel || 'medium'
+        }],
+        impact: {
+          shortTerm: phase2Content.impactDetails || 'See details.',
+          mediumTerm: 'Requires monitoring.',
+          riskLevel: phase2Content.impactLevel || 'medium',
+          explanation: phase1Content.relevanceExplanation
+        },
+        recommendedActions: phase2Content.recommendedActions || [],
+        traceLogs
+      };
+
+    } catch (err) {
+      addTrace(`AI execution failed: ${err.message}. Falling back to heuristic engine.`, 'orchestrator', 'error');
+      console.warn("Groq API failed on client:", err);
+      // Fall through to heuristic below
+    }
+  } else {
+    addTrace('No Groq API Key found. Using fallback heuristic engine.', 'orchestrator', 'warning');
+  }
+
   let recommendedActions = [];
 
   // Scenarios: Fuel Hike
