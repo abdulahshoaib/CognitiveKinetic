@@ -68,6 +68,27 @@ export default function NewContentScreen() {
     if (isFocused && user?.uid) loadProfile();
   }, [isFocused, user?.uid]);
 
+  // Auto-fetch feed on first load when empty and sources are configured
+  const hasAutoFetched = React.useRef(false);
+  useEffect(() => {
+    if (
+      isFocused &&
+      user?.uid &&
+      profile &&
+      !hasAutoFetched.current &&
+      feedItems.length === 0 &&
+      newsAggregators.some(s => s.enabled !== false)
+    ) {
+      hasAutoFetched.current = true;
+      setIsRefreshing(true);
+      setRefreshStatus(null);
+      refreshFeedItems(newsAggregators, newsSystemPrompt)
+        .then((result) => setRefreshStatus(result?.status === 'success' ? 'added' : 'empty'))
+        .catch(() => setRefreshStatus('empty'))
+        .finally(() => setIsRefreshing(false));
+    }
+  }, [isFocused, user?.uid, profile, feedItems.length, newsAggregators]);
+
   useEffect(() => {
     const setup = newsSourcesToAggregatorSetup(newsAggregators.filter(source => source.enabled !== false));
     setSelectedAggregators(setup.selectedAggregators);
@@ -155,7 +176,7 @@ export default function NewContentScreen() {
     setRefreshStatus(null);
 
     try {
-      const result = await refreshFeedItems();
+      const result = await refreshFeedItems(newsAggregators, newsSystemPrompt);
       setRefreshStatus(result?.status === 'success' ? 'added' : 'empty');
     } catch (err) {
       console.error(err);

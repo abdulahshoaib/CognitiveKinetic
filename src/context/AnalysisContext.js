@@ -345,11 +345,26 @@ export const AnalysisProvider = ({ children }) => {
     }
   }, [user]);
 
-  const refreshFeedItems = useCallback(async () => {
+  const refreshFeedItems = useCallback(async (configuredSources, systemPrompt) => {
     if (!user) return { status: 'empty', items: [], syncLogs: [] };
 
     try {
-      return await refreshUserFeed();
+      const result = await refreshUserFeed(user.uid, configuredSources, systemPrompt);
+
+      // Merge client-fetched items into local state (Firestore rules block
+      // client writes for agent-scored items, so we merge in-memory)
+      if (result?.items?.length > 0) {
+        setFeedItems((prev) => {
+          const existingIds = new Set(prev.map((item) => item.id || item.feedItemId));
+          const newItems = result.items.filter(
+            (item) => !existingIds.has(item.id) && !existingIds.has(item.feedItemId)
+          );
+          if (newItems.length === 0) return prev;
+          return [...newItems, ...prev];
+        });
+      }
+
+      return result;
     } catch (error) {
       console.error("Error refreshing feed items:", error);
       addLog(`Feed refresh failed: ${error.message}`, 'feed', 'error');
@@ -397,12 +412,16 @@ export const AnalysisProvider = ({ children }) => {
 
   const dismissFeedItem = useCallback(async (feedItemId) => {
     if (!user) return;
+    // Remove from local state immediately (covers client-fetched items)
+    setFeedItems((prev) => prev.filter((item) => item.id !== feedItemId && item.feedItemId !== feedItemId));
     try {
       await dismissUserFeedItem(user.uid, feedItemId);
       addLog(`Feed item dismissed and deleted.`, 'feed');
     } catch (e) {
-      console.error("Error dismissing feed item:", e);
-      addLog(`Failed to dismiss feed item: ${e.message}`, 'feed', 'error');
+      // Firestore delete may fail for client-only items — that's ok
+      if (e?.code !== 'not-found') {
+        console.error("Error dismissing feed item:", e);
+      }
     }
   }, [user, addLog]);
 
