@@ -1,9 +1,12 @@
 const { genkit, z } = require('genkit');
 const { googleAI } = require('@genkit-ai/google-genai');
 
-const apiKey = 'AIzaSyABCEp8XSRiIrNJCCW7hFZ8pLyrHx43mRM';
-
-process.env.GEMINI_API_KEY = apiKey;
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.error('❌ GEMINI_API_KEY environment variable not set.');
+  console.error('Set it via: export GEMINI_API_KEY=your_key');
+  process.exit(1);
+}
 
 // Initialize Genkit
 const ai = genkit({
