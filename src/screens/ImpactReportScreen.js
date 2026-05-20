@@ -151,6 +151,7 @@ export default function ImpactReportScreen() {
   const handleSimulateAction = async (action) => {
     if (action.simulationStatus === 'passed' || action.simulationStatus === 'running') return;
     setSimulatingActionId(action.id);
+    navigation.navigate('SimulationResult');
     await executeSimulation(action, analysisResult.id);
     setSimulatingActionId(null);
   };
@@ -206,10 +207,9 @@ export default function ImpactReportScreen() {
           </View>
           <TouchableOpacity
             style={[styles.logsBtn, { borderColor: c.surfaceBorder, backgroundColor: 'rgba(34, 197, 94, 0.08)' }]}
-            onPress={() => {
-              markActionSimulated(analysisResult.id, action.id, 'passed', [
-                { id: Date.now().toString(), timestamp: new Date().toISOString(), message: 'Action marked as manually completed.', level: 'success' }
-              ]);
+            onPress={async () => {
+              navigation.navigate('SimulationResult');
+              await markActionSimulated(analysisResult.id, action.id);
             }}
           >
             <Feather name="check" size={13} color={c.success || '#22C55E'} />
