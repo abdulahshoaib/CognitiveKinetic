@@ -77,11 +77,11 @@ async function callGroqAPI(userMessage: string, apiKey: string, label: string): 
 
         const data = await response.json() as any;
         const content = data.choices?.[0]?.message?.content || "";
-        
+
         // Clean up markdown code blocks
         const cleanedContent = cleanJSONResponse(content);
         const jsonData = JSON.parse(cleanedContent);
-        
+
         console.log(`[agentWorker] ${label}: Success with ${model}`);
         return jsonData;
 
@@ -143,10 +143,136 @@ interface RunResult {
   relevanceScore: number;
   isRelevant: boolean;
   signals: any[];
-  insights: string[];
-  impact: { level: string; details: string };
+  insights: any[];
+  impact: { level: string; shortTerm?: string; mediumTerm?: string; details: string };
   recommendedActions: any[];
   traceLogs: { message: string; stage: string; level?: string }[];
+}
+
+function normalizeRiskLevel(level: unknown): string {
+  const value = String(level || "medium").toLowerCase();
+  if (value === "critical" || value === "high") return "High";
+  if (value === "none") return "None";
+  if (value === "low") return "Low";
+  return "Medium";
+}
+
+function normalizeSignal(signal: any, index: number): any {
+  if (typeof signal === "string") {
+    return {
+      id: `sig_${index}`,
+      label: signal,
+      evidence: signal,
+      metric: "",
+      severity: "medium",
+    };
+  }
+
+  const label = String(
+    signal?.label ||
+    signal?.title ||
+    signal?.name ||
+    signal?.metric ||
+    `Signal ${index + 1}`
+  );
+
+  return {
+    id: String(signal?.id || `sig_${index}`),
+    label,
+    evidence: String(signal?.evidence || signal?.description || signal?.details || label),
+    metric: String(signal?.metric || ""),
+    severity: String(signal?.severity || "medium").toLowerCase(),
+  };
+}
+
+function normalizeInsight(insight: any, index: number): any {
+  if (typeof insight === "string") {
+    const title = insight.split(/[.!?]/).find(Boolean)?.trim() ||
+      `Insight ${index + 1}`;
+    return {
+      id: `ins_${index}`,
+      title,
+      description: insight,
+      evidence: "Generated from extracted signals and saved profile.",
+      affectedArea: "Operations",
+      priority: "medium",
+      category: "Insight",
+    };
+  }
+
+  const description = String(
+    insight?.description ||
+    insight?.details ||
+    insight?.summary ||
+    insight?.text ||
+    ""
+  );
+  const title = String(
+    insight?.title ||
+    description.split(/[.!?]/).find(Boolean)?.trim() ||
+    `Insight ${index + 1}`
+  );
+
+  return {
+    id: String(insight?.id || `ins_${index}`),
+    title,
+    description,
+    evidence: String(insight?.evidence || "Generated from extracted signals and saved profile."),
+    affectedArea: String(insight?.affectedArea || insight?.area || insight?.category || "Operations"),
+    priority: String(insight?.priority || "medium").toLowerCase(),
+    category: String(insight?.category || "Insight"),
+  };
+}
+
+function normalizeImpact(impact: any): any {
+  const riskLevel = normalizeRiskLevel(impact?.riskLevel || impact?.level);
+  const details = String(
+    impact?.details ||
+    impact?.explanation ||
+    impact?.shortTerm ||
+    "Impact analysis compiled."
+  );
+
+  return {
+    riskLevel,
+    level: String(impact?.level || riskLevel.toLowerCase()),
+    shortTerm: String(impact?.shortTerm || details),
+    mediumTerm: String(
+      impact?.mediumTerm ||
+      "Monitor affected operating metrics and adjust if conditions persist."
+    ),
+    details,
+    explanation: String(impact?.explanation || details),
+  };
+}
+
+function normalizeUrgency(value: unknown): string {
+  const urgency = String(value || "Medium").toLowerCase();
+  if (urgency === "critical" || urgency === "high") return "High";
+  if (urgency === "low") return "Low";
+  return "Medium";
+}
+
+function normalizeAction(action: any, index: number): any {
+  const title = String(action?.title || action?.name || `Recommended Action ${index + 1}`);
+  const actionType = String(action?.actionType || "manual_review");
+  const simulationSupported = action?.simulationSupported === true ||
+    actionType === "pricing_adjust" ||
+    actionType === "route_shift";
+
+  return {
+    id: String(action?.id || `act_${index}`),
+    title,
+    description: String(action?.description || action?.details || title),
+    rationale: String(action?.rationale || action?.reason || action?.description || title),
+    urgency: normalizeUrgency(action?.urgency),
+    confidence: String(action?.confidence || "moderate (75%)"),
+    actionType,
+    targetSystem: String(action?.targetSystem || "Operations Board"),
+    simulationSupported,
+    simulationStatus: String(action?.simulationStatus || "pending"),
+    simulationLogs: Array.isArray(action?.simulationLogs) ? action.simulationLogs : [],
+  };
 }
 
 /**
@@ -182,7 +308,7 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
   // 1. SIGNAL EXTRACTION
   addTrace("Signal Extractor module active (Fallback Heuristic).", "signals");
   const signals: any[] = [];
-  
+
   const pctMatches = content.match(/\d+%/g);
   if (pctMatches) {
     pctMatches.forEach((metric) => {
@@ -212,7 +338,7 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
   addTrace("Relevance Evaluator module analyzing keyword vectors.", "relevance");
   let matchCount = 0;
   const matchedConcerns: string[] = [];
-  
+
   concernsList.forEach((concern) => {
     const words = concern.split(" ");
     const hasWord = words.some((w) => w.length > 3 && contentLower.includes(w));
@@ -249,8 +375,15 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
         metric: "0% Focus",
         severity: "low",
       }],
-      insights: [`This article falls outside the scope of '${activeProfile.businessName}'. Operating variables remain unchanged.`],
+      insights: [{
+        id: "ins_low",
+        title: "No Operational Impact",
+        description: `This article falls outside the scope of '${activeProfile.businessName}'. Operating variables remain unchanged.`,
+        category: "General"
+      }],
       impact: {
+        shortTerm: "No immediate impact.",
+        mediumTerm: "No strategic changes required.",
         details: "No operational impact expected. The ingested news represents unrelated external events.",
         level: "low",
       },
@@ -259,13 +392,16 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
     };
   }
 
-  const insights: string[] = [];
-  let impact = { level: "medium", details: "" };
+  const insights: any[] = [];
+  let impact: { level: string; shortTerm?: string; mediumTerm?: string; details: string } = {
+    level: "medium",
+    details: "",
+  };
   let recommendedActions: any[] = [];
 
   if (contentLower.includes("fuel") || contentLower.includes("price") || contentLower.includes("12%")) {
     addTrace("Detected Logistics Margin Threat Vector (Fuel Cost Hike).", "insights");
-    
+
     signals.push({
       id: "sig_fuel_hike",
       label: "12% Fuel Surcharge Detected",
@@ -274,12 +410,19 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
       severity: "high",
     });
 
-    insights.push(`Severe Margin Compression Alert: Immediate margin compression of Rs. 18-22 per delivery on dispatch routes covering ${locationsText || "active operating locations"}. Fuel costs represent 35% of base logistics overhead.`);
-    
+    insights.push({
+      id: "ins_fuel",
+      title: "Severe Margin Compression Alert",
+      description: `Immediate margin compression of Rs. 18-22 per delivery on dispatch routes covering ${locationsText || "active operating locations"}. Fuel costs represent 35% of base logistics overhead.`,
+      category: "Financial"
+    });
+
     addTrace("Modeling short/medium-term pricing elasticity risks.", "impact");
-    
+
     impact = {
       level: activeProfile.riskSensitivity === "aggressive" ? "high" : "medium",
+      shortTerm: "Immediate 15% reduction in delivery margins if pricing is static.",
+      mediumTerm: "Potential driver churn if fuel costs are passed to fleet operators.",
       details: `With a ${activeProfile.riskSensitivity} risk tolerance, ground delivery costs on intermediate and long-distance corridors require defensive pricing adjustments immediately. Operating delivery margins will compress by an estimated 15% immediately if surcharge pricing remains static.`,
     };
 
@@ -289,6 +432,9 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
         title: "Implement Long-Distance Surcharge (+Rs. 20)",
         description: "Introduce a dynamic surcharge on routes exceeding 15 km to fully offset the 12% fuel price increase.",
         actionType: "pricing_adjust",
+        targetSystem: "Billing API",
+        urgency: "High",
+        confidence: 0.92,
         simulationSupported: true,
       },
       {
@@ -296,6 +442,9 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
         title: "Volume Fuel Partnership Program",
         description: "Establish high-volume accounts with regional fuel providers (Shell/PSO) to secure commercial fuel discounts of 3-5%.",
         actionType: "manual_review",
+        targetSystem: "Procurement",
+        urgency: "Medium",
+        confidence: 0.75,
         simulationSupported: false,
       },
     ];
@@ -310,12 +459,19 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
       severity: "high",
     });
 
-    insights.push("Daytime Dispatch Gridlock: Restricted transit in central Lahore hub blocks standard freight routes during peak client delivery hours.");
+    insights.push({
+      id: "ins_gridlock",
+      title: "Daytime Dispatch Gridlock",
+      description: "Restricted transit in central Lahore hub blocks standard freight routes during peak client delivery hours.",
+      category: "Operations"
+    });
 
     addTrace("Simulating logistics routing graphs under restricted conditions.", "impact");
 
     impact = {
       level: "high",
+      shortTerm: "Average transit delays of 6 to 9 hours inside central zone.",
+      mediumTerm: "Shift to nighttime fulfillment required for major accounts.",
       details: "Lahore is a primary fulfillment hub; locking out commercial daytime dispatches disrupts regional supply chains. Daytime deliveries inside central Lahore zone will face average transit delays of 6 to 9 hours.",
     };
 
@@ -325,6 +481,9 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
         title: "Canal Road Rerouting & Peak Surcharge (+Rs. 30)",
         description: "Re-route daytime commercial traffic around central Lahore via Canal Road and apply an emergency Rs. 30 peak dispatch surcharge.",
         actionType: "route_shift",
+        targetSystem: "Routing Engine",
+        urgency: "High",
+        confidence: 0.88,
         simulationSupported: true,
       },
       {
@@ -332,12 +491,15 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
         title: "Deploy Micro-Mobility Fleet (Bicycles & Walking)",
         description: "Partner with local cycle networks to complete inner-zone deliveries from perimeter drop-points.",
         actionType: "manual_review",
+        targetSystem: "Fleet Management",
+        urgency: "Normal",
+        confidence: 0.65,
         simulationSupported: false,
       },
     ];
   } else {
     addTrace("Dynamic heuristic analyzer processing general operational text.", "insights");
-    
+
     signals.push({
       id: "sig_custom_signal",
       label: "Pasted Context Incident",
@@ -346,10 +508,17 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
       severity: "medium",
     });
 
-    insights.push(`Context-Aware Analysis: Analysis completed for '${activeProfile.businessName}'. Content references structural operations potentially impacting core concerns: ${concernsText || "configured operating priorities"}.`);
+    insights.push({
+      id: "ins_context",
+      title: "Context-Aware Analysis",
+      description: `Analysis completed for '${activeProfile.businessName}'. Content references structural operations potentially impacting core concerns: ${concernsText || "configured operating priorities"}.`,
+      category: "General"
+    });
 
     impact = {
       level: "medium",
+      shortTerm: "Monitor operational parameters closely.",
+      mediumTerm: "Evaluate margin trends over the next quarter.",
       details: "Text contains operational factors affecting regional business objectives. Requires close tracking of margin parameters over the next business quarter.",
     };
 
@@ -359,6 +528,9 @@ function runHeuristicPipeline(content: string, profile: any): RunResult {
         title: "Review System Configuration",
         description: "Manually inspect operational billing systems and baseline costs against this document.",
         actionType: "manual_review",
+        targetSystem: "Internal Audit",
+        urgency: "Normal",
+        confidence: 0.5,
         simulationSupported: false,
       },
     ];
@@ -411,8 +583,13 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
     let signals: any[] = [];
     let relevanceScore = 0;
     let relevanceExplanation = "";
-    let insights: string[] = [];
-    let impact: { level: string; details: string } = { level: "medium", details: "" };
+    let insights: any[] = [];
+    let impact: { level: string; shortTerm?: string; mediumTerm?: string; details: string } = {
+      level: "medium",
+      shortTerm: "",
+      mediumTerm: "",
+      details: "",
+    };
     let recommendedActions: any[] = [];
     let usedAI = false;
 
@@ -420,13 +597,13 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
     const apiKey = process.env.GROQ_API_KEY;
     const hasApiKey = !!apiKey && apiKey.length > 0;
 
-    console.log(`[agentWorker] Groq API Key Check: ${hasApiKey ? 'PRESENT' : 'MISSING'}`);
+    console.log(`[agentWorker] Groq API Key Check: ${hasApiKey ? "PRESENT" : "MISSING"}`);
     console.log(`[agentWorker] API Key length: ${apiKey?.length || 0}`);
 
     if (hasApiKey && apiKey) {
       try {
-        console.log('[agentWorker] Initializing Groq API with API key...');
-        console.log('[agentWorker] Groq initialized successfully');
+        console.log("[agentWorker] Initializing Groq API with API key...");
+        console.log("[agentWorker] Groq initialized successfully");
 
         // Stage 2: ingesting
         await runRef.update({
@@ -437,13 +614,13 @@ export async function runAgentPipeline(runId: string, uid: string): Promise<void
         await new Promise((r) => setTimeout(r, 300));
 
         // CONSOLIDATED REQUEST 1: Signals + Relevance + Insights
-        console.log('[agentWorker] Starting Phase 1: Signals + Relevance + Insights...');
-        
+        console.log("[agentWorker] Starting Phase 1: Signals + Relevance + Insights...");
+
         await runRef.update({
           currentStage: "signals",
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        
+
         const phase1Response = await withTimeout(
           callGroqAPI(
             `You are a business intelligence analyst. Analyze this content and extract signals, assess relevance, and generate insights.
@@ -455,10 +632,10 @@ USER BUSINESS PROFILE:
 ${JSON.stringify(profile, null, 2)}
 
 TASK: Return ONLY a valid JSON object with exactly these fields:
-1. "signals": Array of key facts/signals from the content (strings)
+1. "signals": Array of objects, each with { "id": string, "label": string, "evidence": string, "metric": string, "severity": "low"|"medium"|"high" }
 2. "relevanceScore": Number 0-100 (75+ is highly relevant)
 3. "relevanceExplanation": String explaining why it is/isn't relevant
-4. "insight": String with actionable operational insight
+4. "insights": Array of objects, each with { "id": string, "title": string, "description": string, "evidence": string, "affectedArea": string, "priority": "low"|"medium"|"high", "category": string }
 
 Focus on practical implications for ${profile.industry || "their industry"} in ${profile.locations || "their locations"}.
 
@@ -470,16 +647,24 @@ Return ONLY the JSON, nothing else.`,
           "Phase 1 (signals+relevance+insights) timed out"
         );
 
-        console.log('[agentWorker] Phase 1 completed successfully');
-        signals = phase1Response.signals || [content.substring(0, 200)];
+        console.log("[agentWorker] Phase 1 completed successfully");
+        signals = (phase1Response.signals || [content.substring(0, 200)])
+          .map(normalizeSignal);
         relevanceScore = Math.max(0, Math.min(100, phase1Response.relevanceScore ?? 0));
         relevanceExplanation = phase1Response.relevanceExplanation || "";
-        insights = [phase1Response.insight || "Operational impact analyzed."];
+        insights = (phase1Response.insights || [
+          {
+            id: "insight_1",
+            title: "Operational Insight",
+            description: phase1Response.insight || "Operational impact analyzed.",
+            category: "operational"
+          }
+        ]).map(normalizeInsight);
 
         await addLog(db, uid, runId, "signals", "Signals extracted from content.");
         await addLog(db, uid, runId, "relevance", `Relevance: ${relevanceScore}%`);
         await addLog(db, uid, runId, "insights", "Operational insight generated.");
-        
+
         await runRef.update({
           currentStage: "relevance",
           signals,
@@ -492,8 +677,8 @@ Return ONLY the JSON, nothing else.`,
         await new Promise((r) => setTimeout(r, 1500));
 
         // CONSOLIDATED REQUEST 2: Impact + Actions
-        console.log('[agentWorker] Starting Phase 2: Impact + Actions...');
-        
+        console.log("[agentWorker] Starting Phase 2: Impact + Actions...");
+
         await runRef.update({
           currentStage: "impact",
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -507,12 +692,11 @@ USER BUSINESS PROFILE:
 ${JSON.stringify(profile, null, 2)}
 
 OPERATIONAL INSIGHTS:
-${insights.join("\n")}
+${JSON.stringify(insights)}
 
 TASK: Return ONLY a valid JSON object with exactly these fields:
-1. "impactLevel": One of "low", "medium", or "high"
-2. "impactDetails": String describing operational/financial impact
-3. "recommendedActions": Array of 1-2 actions with structure: { id: string, title: string, description: string, actionType: string, simulationSupported: boolean }
+1. "impact": Object with fields: { "level": "low"|"medium"|"high", "shortTerm": string, "mediumTerm": string, "details": string }
+2. "recommendedActions": Array of 1-2 actions with structure: { "id": string, "title": string, "description": string, "actionType": string, "targetSystem": string, "urgency": "Low"|"Medium"|"High", "confidence": string, "simulationSupported": boolean }
 
 Be specific to ${profile.industry || "their industry"} in ${profile.locations || "their locations"}.
 
@@ -524,20 +708,26 @@ Return ONLY the JSON, nothing else.`,
           "Phase 2 (impact+actions) timed out"
         );
 
-        console.log('[agentWorker] Phase 2 completed successfully');
+        console.log("[agentWorker] Phase 2 completed successfully");
+        const responseImpact = phase2Response.impact || {};
         impact = {
-          level: phase2Response.impactLevel || "medium",
-          details: phase2Response.impactDetails || "Impact analysis compiled.",
+          level: responseImpact.level || phase2Response.impactLevel || "medium",
+          shortTerm: responseImpact.shortTerm || "Monitoring situation.",
+          mediumTerm: responseImpact.mediumTerm || "Adjusting strategy.",
+          details: responseImpact.details || phase2Response.impactDetails || "Impact analysis compiled.",
         };
-        recommendedActions = phase2Response.recommendedActions || [
+        recommendedActions = (phase2Response.recommendedActions || [
           {
             id: "pricing_adjust_001",
             title: "Adjust long-distance delivery fee",
             description: "Increase long-distance surcharge by Rs. 20.",
             actionType: "pricing_adjust",
+            targetSystem: "Internal Policy",
+            urgency: "Medium",
+            confidence: "92%",
             simulationSupported: true,
           },
-        ];
+        ]).map(normalizeAction);
 
         await addLog(db, uid, runId, "impact", "Impact analysis completed.");
         await addLog(db, uid, runId, "actions", "Recommended actions created.");
@@ -548,18 +738,18 @@ Return ONLY the JSON, nothing else.`,
         await addLog(db, uid, runId, "orchestrator", `AI error: ${aiErr.message || aiErr}. Falling back to robust heuristic engine...`);
       }
     } else {
-      console.log('[agentWorker] No Gemini API Key found in environment. Using fallback heuristic.');
+      console.log("[agentWorker] No Gemini API Key found in environment. Using fallback heuristic.");
       await addLog(db, uid, runId, "orchestrator", "No Gemini API Key configured. Using fallback heuristic engine. To enable AI: Set GEMINI_API_KEY environment variable.");
     }
 
     // Fallback if AI was not used or failed
     if (!usedAI) {
       const heuristic = runHeuristicPipeline(content, profile);
-      signals = heuristic.signals;
+      signals = heuristic.signals.map(normalizeSignal);
       relevanceScore = heuristic.relevanceScore;
-      insights = heuristic.insights;
-      impact = heuristic.impact;
-      recommendedActions = heuristic.recommendedActions;
+      insights = heuristic.insights.map(normalizeInsight);
+      impact = normalizeImpact(heuristic.impact);
+      recommendedActions = heuristic.recommendedActions.map(normalizeAction);
 
       // Simulate sequential progress updates with short delays so the UI shows beautiful step transitions!
       const stages = ["ingesting", "signals", "relevance", "insights", "impact", "actions"];
@@ -588,6 +778,16 @@ Return ONLY the JSON, nothing else.`,
 
     // Save final results
     const isRelevant = relevanceScore >= 30;
+    signals = signals.map(normalizeSignal);
+    insights = insights.map(normalizeInsight);
+    const normalizedImpact = normalizeImpact(impact);
+    recommendedActions = recommendedActions.map(normalizeAction);
+    const matchedConcerns = relevanceScore >= 30 ?
+      signals
+        .filter((s) => s.label?.includes("Jurisdiction") || s.label?.includes("Surcharge"))
+        .map((s) => s.label) :
+      [];
+
     await runRef.update({
       status: isRelevant ? "needs_simulation" : "ignored",
       currentStage: "completed",
@@ -595,15 +795,13 @@ Return ONLY the JSON, nothing else.`,
       relevance: {
         score: relevanceScore,
         isRelevant,
-        matchedConcerns: relevanceScore >= 30 ? (signals.filter(s => s.label?.includes("Jurisdiction") || s.label?.includes("Surcharge")).map(s => s.label) || []) : [],
+        explanation: relevanceExplanation || "Relevance checked against saved profile.",
+        matchedConcerns,
       },
       insights,
-      impact: {
-        riskLevel: impact.level === "high" ? "High" : impact.level === "medium" ? "Moderate" : "Low",
-        ...impact,
-      },
+      impact: normalizedImpact,
       impactMatrix: {
-        overallRisk: impact.level === "high" ? "High" : impact.level === "medium" ? "Moderate" : "Low",
+        overallRisk: normalizedImpact.riskLevel,
       },
       recommendedActions,
       completedAt: admin.firestore.FieldValue.serverTimestamp(),

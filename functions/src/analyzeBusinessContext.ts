@@ -30,6 +30,34 @@ interface BusinessProfile {
   riskSensitivity?: string;
 }
 
+interface BusinessContextAnalysis {
+  businessOverview: string;
+  keyVulnerabilities: string[];
+  operationalImpactAreas: string[];
+  recommendedSignals: string;
+  decisionVelocity: "high" | "medium" | "low";
+}
+
+function normalizeBusinessContextAnalysis(
+  value: Partial<BusinessContextAnalysis> | undefined,
+  fallback: BusinessContextAnalysis
+): BusinessContextAnalysis {
+  const velocity = String(value?.decisionVelocity || fallback.decisionVelocity)
+    .toLowerCase();
+
+  return {
+    businessOverview: String(value?.businessOverview || fallback.businessOverview),
+    keyVulnerabilities: Array.isArray(value?.keyVulnerabilities) && value.keyVulnerabilities.length > 0 ?
+      value.keyVulnerabilities.map(String) :
+      fallback.keyVulnerabilities,
+    operationalImpactAreas: Array.isArray(value?.operationalImpactAreas) && value.operationalImpactAreas.length > 0 ?
+      value.operationalImpactAreas.map(String) :
+      fallback.operationalImpactAreas,
+    recommendedSignals: String(value?.recommendedSignals || fallback.recommendedSignals),
+    decisionVelocity: velocity === "high" || velocity === "low" ? velocity : "medium",
+  };
+}
+
 /**
  * Cloud Function: analyzeBusinessContext
  * Generates an LLM-powered summary of a business profile.
@@ -95,7 +123,24 @@ export const analyzeBusinessContext = onCall({ secrets: ["GEMINI_API_KEY"] }, as
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_AI_API_KEY;
   const hasApiKey = !!apiKey;
 
-  let analysis;
+  const defaultAnalysis: BusinessContextAnalysis = {
+    businessOverview: `${businessName} operates in ${industry} across ${locations}.`,
+    keyVulnerabilities: [
+      "Input cost changes that affect operating margins.",
+      "Regional policy or compliance changes.",
+      "Customer demand shifts and competitive pressure.",
+    ],
+    operationalImpactAreas: [
+      "Cost Management",
+      "Pricing Strategy",
+      "Operations Planning",
+      "Customer Retention",
+    ],
+    recommendedSignals: "Monitor market, policy, pricing, supply, and regional operations updates.",
+    decisionVelocity: "medium",
+  };
+
+  let analysis: BusinessContextAnalysis = defaultAnalysis;
 
   try {
     if (hasApiKey && apiKey) {
@@ -123,7 +168,7 @@ export const analyzeBusinessContext = onCall({ secrets: ["GEMINI_API_KEY"] }, as
         },
       });
 
-      analysis = response.output;
+      analysis = normalizeBusinessContextAnalysis(response.output || undefined, defaultAnalysis);
     } else {
       console.warn("No Gemini API key found for business context analysis. Using high-fidelity heuristic fallback.");
       const isDeliveryOrLogistics =
@@ -133,7 +178,7 @@ export const analyzeBusinessContext = onCall({ secrets: ["GEMINI_API_KEY"] }, as
         industry.toLowerCase().includes("supply chain");
 
       if (isDeliveryOrLogistics) {
-        analysis = {
+        analysis = normalizeBusinessContextAnalysis({
           businessOverview: `${businessName} is a logistical operations business specialized in delivery and transportation services across ${locations}.`,
           keyVulnerabilities: [
             "Volatility in fuel prices impacting transportation overheads.",
@@ -148,9 +193,9 @@ export const analyzeBusinessContext = onCall({ secrets: ["GEMINI_API_KEY"] }, as
           ],
           recommendedSignals: "Monitors fuel prices, local transit regulations, smog or weather bans, and regional traffic updates.",
           decisionVelocity: "high" as const,
-        };
+        }, defaultAnalysis);
       } else {
-        analysis = {
+        analysis = normalizeBusinessContextAnalysis({
           businessOverview: `${businessName} is a customer-focused enterprise operating in the ${industry} sector within ${locations}.`,
           keyVulnerabilities: [
             "Input cost inflation and rising operational overheads.",
@@ -165,7 +210,7 @@ export const analyzeBusinessContext = onCall({ secrets: ["GEMINI_API_KEY"] }, as
           ],
           recommendedSignals: "Monitors industry policy changes, inflation indexes, competitor moves, and regional consumer sentiment.",
           decisionVelocity: "medium" as const,
-        };
+        }, defaultAnalysis);
       }
     }
 
