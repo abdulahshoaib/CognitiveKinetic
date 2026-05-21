@@ -295,15 +295,88 @@ function getFeedItemId(raw: FeedArticleDraft | AgentFeedSelection): string {
   );
 }
 
+const FETCH_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_FETCH_RETRIES = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  url: string,
+  retries = MAX_FETCH_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        FETCH_TIMEOUT_MS
+      );
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": FETCH_USER_AGENT,
+          "Accept": "application/rss+xml, application/xml, text/xml, */*",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: controller.signal,
+        redirect: "follow",
+      });
+
+      clearTimeout(timeoutId);
+
+      // Retry on 503 (Service Unavailable) and 429 (Rate Limited)
+      if (
+        (response.status === 503 || response.status === 429) &&
+        attempt < retries - 1
+      ) {
+        const backoffMs = Math.min(1000 * 2 ** attempt, 8000) +
+          Math.floor(Math.random() * 500);
+        console.warn(
+          `HTTP ${response.status} from ${url}, retrying in ${backoffMs}ms ` +
+            `(attempt ${attempt + 1}/${retries})...`
+        );
+        await sleep(backoffMs);
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (lastError.name === "AbortError") {
+        lastError = new Error(`Request timed out after ${FETCH_TIMEOUT_MS}ms`);
+      }
+
+      if (attempt < retries - 1) {
+        const backoffMs = Math.min(1000 * 2 ** attempt, 8000) +
+          Math.floor(Math.random() * 500);
+        console.warn(
+          `Fetch error for ${url}: ${lastError.message}. ` +
+            `Retrying in ${backoffMs}ms (attempt ${attempt + 1}/${retries})...`
+        );
+        await sleep(backoffMs);
+      }
+    }
+  }
+
+  throw lastError || new Error(`Failed to fetch ${url} after ${retries} attempts`);
+}
+
 async function fetchSource(source: FeedSource): Promise<{
   articles: FeedArticleDraft[];
   syncLog: SyncLog;
 }> {
-  const response = await fetch(source.url || "");
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
+  const response = await fetchWithRetry(source.url || "");
   const text = await response.text();
   const articles = parseRSS(text, source);
 
@@ -475,7 +548,14 @@ async function selectFeedItemsWithAgent(input: {
           }),
         },
       });
-      rawSelected = response.output?.selectedItems || [];
+      rawSelected = (response.output?.selectedItems || [])
+        .filter((item) => !!item.feedItemId)
+        .map((item) => ({
+          feedItemId: String(item.feedItemId),
+          relevanceScore: Number(item.relevanceScore || 0),
+          selectionReason: String(item.selectionReason || ""),
+          brief: String(item.brief || ""),
+        }));
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       console.error("Genkit news selection failed:", error);
@@ -514,22 +594,22 @@ async function selectFeedItemsWithAgent(input: {
       if (isFuelRelated) {
         relevanceScore = locMatch ? 90 : 80;
         selectionReason = `Detected major energy/fuel alert${locMatch ? " with regional impact in " + compactProfile.locations : ""}. Fuel price shifts impact logistical margins directly.`;
-        brief = `Heuristic Alert: Fuel/Energy price fluctuation detected. Directly impacts transportation and operational costs.`;
+        brief = "Heuristic Alert: Fuel/Energy price fluctuation detected. Directly impacts transportation and operational costs.";
       } else if (isSmogOrLogisticsRelated) {
         relevanceScore = locMatch ? 85 : 78;
         selectionReason = `Transit or environmental restriction detected${locMatch ? " in " + compactProfile.locations : ""}. Directly impacts delivery routes and timing.`;
-        brief = `Heuristic Alert: Smog or transit ban/restriction alert. Expect delays or route modifications.`;
+        brief = "Heuristic Alert: Smog or transit ban/restriction alert. Expect delays or route modifications.";
       } else if (isTaxOrPolicyRelated) {
         relevanceScore = locMatch ? 82 : 76;
-        selectionReason = `Regulatory or tax change detected. Compliance adjustments may affect pricing or cost structure.`;
-        brief = `Heuristic Alert: Policy/Tax update. Review financial implications and compliance requirements.`;
+        selectionReason = "Regulatory or tax change detected. Compliance adjustments may affect pricing or cost structure.";
+        brief = "Heuristic Alert: Policy/Tax update. Review financial implications and compliance requirements.";
       } else if (concernsLower.length > 0 && concernsLower.split(",").some((concern: string) => {
         const c = concern.trim().toLowerCase();
         return c.length > 3 && (titleLower.includes(c) || summaryLower.includes(c));
       })) {
         relevanceScore = 78;
-        selectionReason = `Article matches user-specified operational concern. Actionable review recommended.`;
-        brief = `Heuristic Alert: Article matches configured business concerns. Ingested for strategic review.`;
+        selectionReason = "Article matches user-specified operational concern. Actionable review recommended.";
+        brief = "Heuristic Alert: Article matches configured business concerns. Ingested for strategic review.";
       }
 
       if (relevanceScore >= MIN_RELEVANCE_SCORE) {
@@ -567,21 +647,36 @@ async function selectFeedItemsWithAgent(input: {
       item.brief || item.selectionReason || original.summary || original.title,
       280
     );
+    const fetchedAt = new Date().toISOString();
+    const relevanceStatus = score >= 80 ? "high-impact" : "relevant";
 
     selectedItems.push({
+      id: item.feedItemId,
       feedItemId: item.feedItemId,
       title: original.title,
       summary: original.summary,
-      sourceName: original.sourceName,
-      sourceUrl: original.url,
-      url: original.url,
-      canonicalUrl: original.canonicalUrl,
-      publishedAt: original.publishedAt,
-      relevanceScore: score,
-      selectionReason: item.selectionReason || "Relevant to profile concerns.",
       brief,
+      body: original.summary,
+      sourceName: original.sourceName,
       sourceId: original.sourceId,
       sourceType: original.sourceType,
+      url: original.url,
+      sourceUrl: original.url,
+      canonicalUrl: original.canonicalUrl,
+      publishedAt: original.publishedAt,
+      timestamp: original.publishedAt,
+      relevanceScore: score,
+      selectionReason: item.selectionReason || "Relevant to profile concerns.",
+      relevanceExplanation: item.selectionReason || "Relevant to profile concerns.",
+      relevanceStatus,
+      reason: item.selectionReason || "Relevant to profile concerns.",
+      status: "unread",
+      saved: false,
+      type: "agent_signal",
+      isAgentSignal: true,
+      detectedTopics: [],
+      createdAt: fetchedAt,
+      fetchedAt,
     });
   }
 
@@ -673,6 +768,7 @@ async function upsertSelectedFeedItem(
     title: item.title,
     summary: item.summary,
     brief: item.brief,
+    body: item.body || item.summary,
     url: item.url || item.sourceUrl,
     canonicalUrl: item.canonicalUrl,
     sourceName: item.sourceName,
@@ -680,14 +776,17 @@ async function upsertSelectedFeedItem(
     sourceId: item.sourceId,
     sourceType: item.sourceType,
     publishedAt: item.publishedAt,
+    timestamp: item.timestamp || item.publishedAt,
     relevanceScore: item.relevanceScore,
     selectionReason: item.selectionReason,
     relevanceExplanation: item.selectionReason,
     reason: item.selectionReason,
+    relevanceStatus: item.relevanceStatus || (item.relevanceScore >= 80 ? "high-impact" : "relevant"),
     status: existing?.status || "unread",
     saved: existing?.saved === true,
     type: "agent_signal",
     isAgentSignal: true,
+    detectedTopics: Array.isArray(item.detectedTopics) ? item.detectedTopics : [],
     fetchedAt: new Date().toISOString(),
     contentHash: generateHash(`${item.title}_${item.summary}`),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -785,17 +884,7 @@ async function refreshUserFeed(uid: string): Promise<IngestionResult> {
 
   return {
     status: selectedItems.length > 0 ? "success" : "empty",
-    items: selectedItems.map((item) => ({
-      feedItemId: item.feedItemId,
-      title: item.title,
-      summary: item.summary,
-      sourceName: item.sourceName,
-      sourceUrl: item.sourceUrl,
-      publishedAt: item.publishedAt,
-      relevanceScore: item.relevanceScore,
-      selectionReason: item.selectionReason,
-      brief: item.brief,
-    })),
+    items: selectedItems,
     syncLogs,
   };
 }
