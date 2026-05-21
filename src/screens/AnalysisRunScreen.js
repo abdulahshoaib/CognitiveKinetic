@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
 import { usePreferences } from '../context/PreferencesContext';
@@ -11,12 +11,30 @@ import AgentLogList from '../components/common/AgentLogList';
 
 export default function AnalysisRunScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { currentStage, executionLogs, analysisResult } = useAnalysis();
   const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
 
-  const isCompleted = currentStage === 'completed';
-  const isError = currentStage === 'error' || currentStage === 'failed';
+  const expectedSourceItemId = route.params?.sourceItemId;
+  const expectedStartedAt = route.params?.startedAt;
+  const resultSourceItemId = analysisResult?.sourceItemId
+    || analysisResult?.sourceItem?.id;
+  const resultTime = new Date(
+    analysisResult?.analyzedAt
+      || analysisResult?.completedAt
+      || analysisResult?.updatedAt
+      || 0,
+  ).getTime();
+  const resultMatchesSource = !expectedSourceItemId
+    || String(resultSourceItemId) === String(expectedSourceItemId);
+  const resultMatchesRunTime = !expectedStartedAt
+    || (Number.isFinite(resultTime) && resultTime >= expectedStartedAt - 5000);
+  const resultMatchesRoute = resultMatchesSource && resultMatchesRunTime;
+  const activeResult = resultMatchesRoute ? analysisResult : null;
+  const displayStage = resultMatchesRoute ? currentStage : 'loading_profile';
+  const isCompleted = displayStage === 'completed' && !!activeResult;
+  const isError = displayStage === 'error' || displayStage === 'failed';
 
   const handleViewReport = () => {
     navigation.navigate('ActionsTab', { screen: 'ImpactReport' });
@@ -26,11 +44,11 @@ export default function AnalysisRunScreen() {
     });
   };
 
-  const actionsCount = analysisResult?.recommendedActions?.length || 0;
-  const threatLevel = analysisResult?.impactMatrix?.overallRisk || 'Moderate';
+  const actionsCount = activeResult?.recommendedActions?.length || 0;
+  const threatLevel = activeResult?.impactMatrix?.overallRisk || 'Moderate';
 
   const getProcessingMessage = () => {
-    switch (currentStage) {
+    switch (displayStage) {
       case 'loading_profile':
         return 'Loading Business Profile...';
       case 'ingesting':
@@ -66,7 +84,7 @@ export default function AnalysisRunScreen() {
       </View>
 
       <View style={[styles.progressCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
-        <StepProgress currentStage={currentStage} />
+        <StepProgress currentStage={displayStage} />
       </View>
 
       {isCompleted && (
@@ -107,9 +125,9 @@ export default function AnalysisRunScreen() {
           <Text style={[styles.completionDesc, { color: c.textSecondary }]}>
             An unexpected error occurred during execution. Please review the trace logs below or retry.
           </Text>
-          {analysisResult?.errorMessage && (
+          {activeResult?.errorMessage && (
             <Text style={{ color: c.error || '#EF4444', fontSize: FontSizes.xs, fontStyle: 'italic', marginTop: 4 }}>
-              Details: {analysisResult.errorMessage}
+              Details: {activeResult.errorMessage}
             </Text>
           )}
         </View>

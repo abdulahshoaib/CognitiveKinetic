@@ -40,9 +40,10 @@ export default function NewContentScreen() {
     dismissFeedItem,
     analyzeFeedItem,
     analyzeContent,
-    addManualAnalysisItem
+    addManualAnalysisItem,
+    clearAnalysis,
   } = useAnalysis();
-  const { newsAggregators, newsSystemPrompt, setNewsAggregators, updateNewsSystemPrompt } = useIntegrations();
+  const { newsAggregators, newsSystemPrompt, setNewsAggregators, updateNewsSystemPrompt, addSyncLog } = useIntegrations();
   const [profile, setProfile] = useState(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -83,11 +84,14 @@ export default function NewContentScreen() {
       setIsRefreshing(true);
       setRefreshStatus(null);
       refreshFeedItems(newsAggregators, newsSystemPrompt)
-        .then((result) => setRefreshStatus(result?.status === 'success' ? 'added' : 'empty'))
+        .then((result) => {
+          (result?.syncLogs || []).forEach(addSyncLog);
+          setRefreshStatus(result?.status === 'success' ? 'added' : 'empty');
+        })
         .catch(() => setRefreshStatus('empty'))
         .finally(() => setIsRefreshing(false));
     }
-  }, [isFocused, user?.uid, profile, feedItems.length, newsAggregators]);
+  }, [isFocused, user?.uid, profile, feedItems.length, newsAggregators, addSyncLog]);
 
   useEffect(() => {
     const setup = newsSourcesToAggregatorSetup(newsAggregators.filter(source => source.enabled !== false));
@@ -119,8 +123,12 @@ export default function NewContentScreen() {
     const content = title.trim() ? `${title}\n\n${body}` : body;
     const newItem = await addManualAnalysisItem(title || 'Manual Input', body);
     if (!newItem) return;
+    clearAnalysis();
+    navigation.navigate('AnalysisRun', {
+      sourceItemId: newItem.id,
+      startedAt: Date.now(),
+    });
     analyzeContent(content, profile, newItem.id, newItem);
-    navigation.navigate('AnalysisRun');
     setTitle('');
     setBody('');
   };
@@ -132,9 +140,14 @@ export default function NewContentScreen() {
 
   const handleFeedItemSelect = async (item) => {
     if (!profile || isNewsAnalyzed(item)) return;
+    const feedItemId = item.id || item.feedItemId;
     setDetailItem(null);
-    navigation.navigate('AnalysisRun');
-    await analyzeFeedItem(item.id);
+    clearAnalysis();
+    navigation.navigate('AnalysisRun', {
+      sourceItemId: feedItemId,
+      startedAt: Date.now(),
+    });
+    await analyzeFeedItem(feedItemId);
   };
 
   const handleDismiss = async (item) => {
@@ -177,6 +190,7 @@ export default function NewContentScreen() {
 
     try {
       const result = await refreshFeedItems(newsAggregators, newsSystemPrompt);
+      (result?.syncLogs || []).forEach(addSyncLog);
       setRefreshStatus(result?.status === 'success' ? 'added' : 'empty');
     } catch (err) {
       console.error(err);
