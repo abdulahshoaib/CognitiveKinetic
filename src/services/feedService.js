@@ -149,5 +149,5 @@ export const saveActionApiSettings = async (uid, { apis }) => {
   await setDoc(settingsRef, {
     apis,
     updatedAt: serverTimestamp(),
-  }, { merge: true });
+  });
 };
