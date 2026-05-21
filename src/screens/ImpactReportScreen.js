@@ -187,6 +187,13 @@ export default function ImpactReportScreen() {
             <Text style={[styles.simBtnText, { color: c.error || '#EF4444' }]}>Failed</Text>
           </View>
           <TouchableOpacity
+            style={[styles.logsBtn, { borderColor: c.accent, backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}
+            onPress={() => handleSimulateAction(action)}
+          >
+            <Feather name="refresh-cw" size={13} color={c.accent} />
+            <Text style={[styles.logsBtnText, { color: c.accent }]}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.logsBtn, { borderColor: c.surfaceBorder }]}
             onPress={() => setLogsModalAction(action)}
           >
@@ -308,7 +315,7 @@ export default function ImpactReportScreen() {
       <View style={styles.sectionBody}>
         {insights.map((insight, index) => (
           <View key={insight.id || `insight_${index}`} style={styles.cardSpacing}>
-            <InsightCard insight={insight} />
+            <InsightCard insight={typeof insight === 'string' ? { title: 'Operational Insight', description: insight } : insight} />
             {preferences.insightStyle !== 'simple' && (
               <View style={[styles.insightMetaCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
                 <Text style={[styles.explanationLabel, { color: c.textSecondary }]}>Insight Details</Text>
@@ -333,12 +340,7 @@ export default function ImpactReportScreen() {
       <SectionHeader title="Impact Analysis" />
       <View style={styles.sectionBody}>
         <ImpactSummaryCard impact={analysisResult.impact} />
-        {analysisResult.impact?.explanation && (
-          <View style={[styles.explanationCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder }]}>
-            <Text style={[styles.explanationLabel, { color: c.textSecondary }]}>Reasoning</Text>
-            <Text style={[styles.explanationText, { color: c.textPrimary }]}>{analysisResult.impact.explanation}</Text>
-          </View>
-        )}
+
       </View>
 
       {/* Recommended Actions with inline simulate */}
@@ -365,9 +367,9 @@ export default function ImpactReportScreen() {
                 </View>
               </View>
 
-              {/* Rationale */}
-              {action.rationale && (
-                <Text style={[styles.actionRationale, { color: c.textSecondary }]}>{action.rationale}</Text>
+              {/* Description */}
+              {action.description && (
+                <Text style={[styles.actionRationale, { color: c.textSecondary }]}>{action.description}</Text>
               )}
 
               {/* Meta */}

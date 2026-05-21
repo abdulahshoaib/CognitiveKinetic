@@ -69,6 +69,7 @@ export default function DashboardScreen() {
     dismissFeedItem,
     analysisResult,
     analysisHistory,
+    clearAnalysis,
     currentStage,
     executionLogs,
     executeSimulation,
@@ -374,9 +375,17 @@ export default function DashboardScreen() {
 
   const handleFeedItemSelect = async (item) => {
     if (!profile) return;
+    const feedItemId = item.id || item.feedItemId;
     setDetailItem(null);
-    navigation.navigate('IngestionTab', { screen: 'AnalysisRun' });
-    await analyzeFeedItem(item.id);
+    clearAnalysis();
+    navigation.navigate('IngestionTab', {
+      screen: 'AnalysisRun',
+      params: {
+        sourceItemId: feedItemId,
+        startedAt: Date.now(),
+      },
+    });
+    await analyzeFeedItem(feedItemId);
   };
 
   const handleDismiss = async (item) => {
