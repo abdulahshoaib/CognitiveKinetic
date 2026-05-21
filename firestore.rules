@@ -16,6 +16,9 @@ service cloud.firestore {
     // users/{uid}/settings/newsFeed
     //   User-controlled feed prompt and source setup.
     //
+    // users/{uid}/settings/actionApis
+    //   User-controlled action API connectors used by simulations.
+    //
     // users/{uid}/feedItems/{itemId}
     //   Active user feed cache. Client may create manual feed items,
     //   update saved/status, and delete for dismiss. Agent-selected feed
@@ -102,6 +105,7 @@ service cloud.firestore {
         'riskSensitivity',
         'enableAutoSim',
         'businessContext',
+        'businessContextAnalysis',
         'createdAt',
         'updatedAt'
       ]) &&
@@ -120,6 +124,7 @@ service cloud.firestore {
       optionalString(data, 'newsSystemPrompt', 2000) &&
       optionalString(data, 'riskSensitivity', 40) &&
       optionalBool(data, 'enableAutoSim') &&
+      optionalString(data, 'businessContextAnalysis', 5000) &&
       optionalTimestamp(data, 'createdAt') &&
       optionalTimestamp(data, 'updatedAt');
     }
@@ -136,6 +141,12 @@ service cloud.firestore {
       optionalTimestamp(data, 'lastRefreshAt') &&
       optionalTimestamp(data, 'updatedAt');
     }
+
+function isValidActionApiSettings(data) {
+  return data.keys().hasAll(['apis']) &&
+  optionalList(data, 'apis', 50) &&
+  optionalTimestamp(data, 'updatedAt');
+}
 
     function isValidManualFeedItem(data) {
       // Manual feed items can only be created with basic fields
@@ -198,6 +209,13 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      match /settings/actionApis {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          isValidActionApiSettings(request.resource.data);
+        allow delete: if false;
+      }
+
       match /feedItems/{itemId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) &&
@@ -214,10 +232,15 @@ service cloud.firestore {
 
       match /analysisRuns/{runId} {
         allow read: if isOwner(userId);
-        allow write: if false;
+        allow delete: if isOwner(userId);
+        allow update: if isOwner(userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isArchived']) &&
+          optionalBool(request.resource.data, 'isArchived');
+        allow create: if false;
 
         match /logs/{logId} {
           allow read: if isOwner(userId);
+          allow delete: if isOwner(userId);
           allow write: if false;
         }
       }

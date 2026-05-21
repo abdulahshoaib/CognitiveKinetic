@@ -21,17 +21,11 @@ export default function ImpactSummaryCard({ impact, style }) {
         />
       </View>
       
-      <View style={styles.grid}>
-        <View style={styles.cell}>
-          <Text style={[styles.label, { color: c.textSecondary }]}>Short-term</Text>
-          <Text style={[styles.value, { color: c.textPrimary }]}>{impact.shortTerm || 'No data'}</Text>
+      {impact.details && (
+        <View style={styles.content}>
+          <Text style={[styles.value, { color: c.textPrimary }]} numberOfLines={3}>{impact.details}</Text>
         </View>
-        <View style={[styles.divider, { backgroundColor: c.surfaceBorder }]} />
-        <View style={styles.cell}>
-          <Text style={[styles.label, { color: c.textSecondary }]}>Medium-term</Text>
-          <Text style={[styles.value, { color: c.textPrimary }]}>{impact.mediumTerm || 'No data'}</Text>
-        </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -55,22 +49,8 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
   },
-  grid: {
-    flexDirection: 'row',
-  },
-  cell: {
-    flex: 1,
-  },
-  divider: {
-    width: 1,
-    backgroundColor: Colors.surfaceBorder,
-    marginHorizontal: 16,
-  },
-  label: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.xs,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+  content: {
+    marginTop: 4,
   },
   value: {
     color: Colors.textPrimary,

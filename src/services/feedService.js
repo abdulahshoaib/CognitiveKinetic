@@ -18,6 +18,7 @@ import {
 } from '../utils/analysisContextUtils';
 
 const NEWS_FEED_SETTINGS_PATH = 'newsFeed';
+const ACTION_API_SETTINGS_PATH = 'actionApis';
 
 const normalizeTimestampFields = (item) => ({
   ...item,
@@ -73,13 +74,23 @@ export const addUserFeedItems = async (uid, items) => {
   }
 };
 
-export const refreshUserFeed = async () => {
+export const refreshUserFeed = async (uid, configuredSources, systemPrompt) => {
+  // Try Cloud Function first
   try {
     const getContentFeedCallable = httpsCallable(functions, 'getContentFeed');
     const res = await getContentFeedCallable({});
     return normalizeFeedRefreshResponse(res.data);
-  } catch (error) {
-    return buildFeedRefreshError(error);
+  } catch (cfError) {
+    console.warn('Cloud Function getContentFeed unavailable, using client-side fallback:', cfError.message);
+  }
+
+  // Fallback: client-side RSS ingestion
+  try {
+    const { clientFeedIngestion } = await import('./clientFeedIngestion');
+    return await clientFeedIngestion(uid, configuredSources, systemPrompt);
+  } catch (fallbackError) {
+    console.error('Client-side feed ingestion failed:', fallbackError);
+    return buildFeedRefreshError(fallbackError);
   }
 };
 
@@ -124,4 +135,19 @@ export const saveNewsFeedSettings = async (uid, { systemPrompt, sources }) => {
     sources,
     updatedAt: serverTimestamp(),
   }, { merge: true });
+};
+
+export const listenActionApiSettings = (uid, onSettings, onError) => {
+  const settingsRef = doc(db, 'users', uid, 'settings', ACTION_API_SETTINGS_PATH);
+  return onSnapshot(settingsRef, (snap) => {
+    onSettings(snap.exists() ? snap.data() : null);
+  }, onError);
+};
+
+export const saveActionApiSettings = async (uid, { apis }) => {
+  const settingsRef = doc(db, 'users', uid, 'settings', ACTION_API_SETTINGS_PATH);
+  await setDoc(settingsRef, {
+    apis,
+    updatedAt: serverTimestamp(),
+  });
 };

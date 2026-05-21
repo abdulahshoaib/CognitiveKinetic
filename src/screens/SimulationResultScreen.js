@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -63,12 +63,24 @@ const getChangeDelta = (before, after) => {
 
 export default function SimulationResultScreen() {
   const navigation = useNavigation();
-  const { simulationResult, isSimulating, executionLogs } = useAnalysis();
+  const { simulationResult, isSimulating, executionLogs, executeSimulation, analysisResult } = useAnalysis();
   const { activeTheme, preferences } = usePreferences();
   const c = activeTheme.colors;
 
   const density = preferences.density || 'cozy';
   const ds = getDensityStyle(density);
+
+  const handleRetrySimulation = async () => {
+    if (!simulationResult || !analysisResult) return;
+    // Find matching action in current analysis
+    const actions = analysisResult.recommendedActions || [];
+    const matchingAction = actions.find(a =>
+      a.title === simulationResult.actionTitle || a.id === simulationResult.actionId
+    );
+    if (matchingAction) {
+      await executeSimulation(matchingAction, analysisResult.id);
+    }
+  };
 
   if (isSimulating) {
     return (
@@ -119,7 +131,18 @@ export default function SimulationResultScreen() {
     );
   }
 
-  const { actionTitle, beforeState, afterState, logs } = simulationResult;
+  const {
+    actionTitle,
+    beforeState,
+    afterState,
+    logs,
+    apiName,
+    endpoint,
+    method,
+    passed,
+    requestPayload,
+    responseStatus,
+  } = simulationResult;
   const changedKeys = Object.keys(afterState).filter(
     key => afterState[key] !== beforeState[key]
   );
@@ -127,11 +150,43 @@ export default function SimulationResultScreen() {
   return (
     <Screen scroll={true} style={{ backgroundColor: c.background }}>
       <View style={[styles.header, { backgroundColor: c.surfaceContainerLowest, borderBottomColor: c.surfaceBorder, paddingTop: ds.headerPaddingTop }]}>
-        <View style={[styles.iconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)' }]}>
-          <Feather name="check-circle" size={30} color={c.success || '#22C55E'} />
+        <View style={[styles.iconCircle, {
+          backgroundColor: passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          borderColor: passed ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+        }]}>
+          <Feather
+            name={passed ? 'check-circle' : 'alert-triangle'}
+            size={30}
+            color={passed ? c.success || '#22C55E' : c.error || '#EF4444'}
+          />
         </View>
-        <Text style={[styles.title, { color: c.textPrimary, fontSize: ds.fontSizeTitle }]}>Simulation Complete</Text>
+        <Text style={[styles.title, { color: c.textPrimary, fontSize: ds.fontSizeTitle }]}>
+          {passed ? 'Simulation Complete' : 'Simulation Failed'}
+        </Text>
         <Text style={[styles.subtitle, { color: c.textSecondary, fontSize: ds.fontSizeBody }]}>{actionTitle}</Text>
+      </View>
+
+      <SectionHeader title="API Call" style={{ paddingHorizontal: ds.padding, marginTop: ds.gap }} />
+      <View style={[styles.stateCard, { backgroundColor: c.surfaceContainerLow, borderColor: c.surfaceBorder, marginHorizontal: ds.padding, padding: ds.cardPadding }]}>
+        <View style={styles.apiRow}>
+          <Text style={[styles.apiLabel, { color: c.textSecondary }]}>Selected API</Text>
+          <Text style={[styles.apiValue, { color: c.textPrimary }]}>{apiName || 'None'}</Text>
+        </View>
+        <View style={styles.apiRow}>
+          <Text style={[styles.apiLabel, { color: c.textSecondary }]}>Endpoint</Text>
+          <Text style={[styles.apiValue, { color: c.textPrimary }]}>{endpoint || 'No endpoint configured'}</Text>
+        </View>
+        <View style={styles.apiRow}>
+          <Text style={[styles.apiLabel, { color: c.textSecondary }]}>Request</Text>
+          <Text style={[styles.apiValue, { color: c.textPrimary }]}>
+            {method || 'POST'} / HTTP {responseStatus || 0}
+          </Text>
+        </View>
+        {!!requestPayload && (
+          <Text style={[styles.payloadText, { color: c.textSecondary, borderColor: c.surfaceBorder }]}>
+            {JSON.stringify(requestPayload, null, 2)}
+          </Text>
+        )}
       </View>
 
       <SectionHeader title="System State Changes" style={{ paddingHorizontal: ds.padding, marginTop: ds.gap }} />
@@ -191,6 +246,15 @@ export default function SimulationResultScreen() {
       </View>
 
       <View style={[styles.footer, { paddingHorizontal: ds.padding, marginTop: ds.gap, paddingBottom: 120 }]}>
+        {!passed && (
+          <TouchableOpacity 
+            style={[styles.btn, { backgroundColor: c.error || '#EF4444', marginBottom: 12 }]} 
+            onPress={handleRetrySimulation}
+          >
+            <Feather name="refresh-cw" size={16} color={c.white} />
+            <Text style={[styles.btnText, { color: c.white }]}>Retry Simulation</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity 
           style={[styles.btn, { backgroundColor: c.accent }]} 
           onPress={() => {
@@ -200,8 +264,8 @@ export default function SimulationResultScreen() {
             navigation.navigate('Home', { screen: 'Dashboard' });
           }}
         >
-          <Text style={[styles.btnText, { color: c.white }]}>Commit and Return to Dashboard</Text>
-          <Feather name="check" size={16} color={c.white} />
+          <Text style={[styles.btnText, { color: c.white }]}>{passed ? 'Commit and Return to Dashboard' : 'Return to Dashboard'}</Text>
+          <Feather name={passed ? "check" : "arrow-right"} size={16} color={c.white} />
         </TouchableOpacity>
       </View>
     </Screen>
@@ -290,6 +354,27 @@ const styles = StyleSheet.create({
   },
   logsWrapper: {
     flex: 1,
+  },
+  apiRow: {
+    gap: 4,
+    marginBottom: 10,
+  },
+  apiLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  apiValue: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+  },
+  payloadText: {
+    borderTopWidth: 1,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontSize: FontSizes.xs,
+    lineHeight: 16,
+    marginTop: 4,
+    paddingTop: 10,
   },
   footer: {
     marginTop: 20,

@@ -1,21 +1,28 @@
 /**
  * AsyncStorage helpers for persistence
  */
-import { Platform } from 'react-native';
-
-// Stub — will use @react-native-async-storage/async-storage when installed
-const memoryStore = {};
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export async function getItem(key) {
-  return memoryStore[key] || null;
+  return AsyncStorage.getItem(key);
 }
 
 export async function setItem(key, value) {
-  memoryStore[key] = value;
+  return AsyncStorage.setItem(key, value);
 }
 
 export async function removeItem(key) {
-  delete memoryStore[key];
+  return AsyncStorage.removeItem(key);
 }
 
-export default { getItem, setItem, removeItem };
+export async function getJSON(key, fallback = null) {
+  const stored = await getItem(key);
+  if (!stored) return fallback;
+  return JSON.parse(stored);
+}
+
+export async function setJSON(key, value) {
+  return setItem(key, JSON.stringify(value));
+}
+
+export default { getItem, setItem, removeItem, getJSON, setJSON };

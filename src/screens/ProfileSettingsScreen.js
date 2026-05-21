@@ -148,6 +148,7 @@ export default function ProfileSettingsScreen() {
     try {
       const activeProfile = await getProfile(user.uid);
       setProfile(activeProfile || {});
+      setBusinessContext(activeProfile?.businessContextAnalysis || activeProfile?.businessContext || null);
     } catch (error) {
       console.error(error);
     }
@@ -170,6 +171,9 @@ export default function ProfileSettingsScreen() {
         const analysis = await analyzeProfileContext(user.uid, profileData);
         if (analysis) {
           setBusinessContext(analysis);
+          await updateProfile(user.uid, {
+            businessContextAnalysis: analysis,
+          });
         }
       } catch (analyzeError) {
         console.warn('Background analysis failed (non-blocking):', analyzeError);
@@ -976,7 +980,7 @@ export default function ProfileSettingsScreen() {
             {apiForm.authType !== 'none' && (
               <>
                 {renderTextInput('Header name', apiForm.headerName, value => setApiForm(prev => ({ ...prev, headerName: value })), 'Authorization')}
-                {renderTextInput('Token / key', apiForm.token, value => setApiForm(prev => ({ ...prev, token: value })), 'Stored locally for demo')}
+                {renderTextInput('Token / key', apiForm.token, value => setApiForm(prev => ({ ...prev, token: value })), 'Stored in Firestore for backend calls')}
               </>
             )}
             {renderTextInput('Action types', apiForm.actionTypesText, value => setApiForm(prev => ({ ...prev, actionTypesText: value })), API_TYPES.join(', '))}

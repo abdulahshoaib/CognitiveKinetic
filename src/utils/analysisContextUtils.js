@@ -1,5 +1,98 @@
 import { buildReportTitle } from './reportTitles';
 
+const titleCase = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+};
+
+const normalizeSignal = (signal, index) => {
+  if (typeof signal === 'string') {
+    return {
+      id: `sig_${index}`,
+      label: signal,
+      evidence: signal,
+      metric: '',
+      severity: 'medium',
+    };
+  }
+
+  const label = signal?.label || signal?.title || signal?.name || signal?.metric || `Signal ${index + 1}`;
+  return {
+    id: signal?.id || `sig_${index}`,
+    ...signal,
+    label,
+    evidence: signal?.evidence || signal?.description || signal?.details || label,
+    severity: signal?.severity || 'medium',
+  };
+};
+
+const normalizeInsight = (insight, index) => {
+  if (typeof insight === 'string') {
+    const firstSentence = insight.split(/[.!?]/).find(Boolean)?.trim();
+    return {
+      id: `ins_${index}`,
+      title: firstSentence || `Insight ${index + 1}`,
+      description: insight,
+      evidence: 'Generated from extracted signals and saved profile.',
+      affectedArea: 'Operations',
+      priority: 'medium',
+    };
+  }
+
+  const description = insight?.description || insight?.details || insight?.summary || insight?.text || '';
+  return {
+    id: insight?.id || `ins_${index}`,
+    ...insight,
+    title: insight?.title || description.split(/[.!?]/).find(Boolean)?.trim() || `Insight ${index + 1}`,
+    description,
+    evidence: insight?.evidence || 'Generated from extracted signals and saved profile.',
+    affectedArea: insight?.affectedArea || insight?.area || 'Operations',
+    priority: insight?.priority || 'medium',
+  };
+};
+
+export const normalizeImpact = (impact = {}) => {
+  if (!impact) return null;
+
+  const rawRisk = impact.riskLevel || impact.level || impact.severity || 'medium';
+  const normalizedRisk = String(rawRisk).toLowerCase();
+  const riskLevel = ['none', 'low', 'medium', 'moderate', 'high', 'critical'].includes(normalizedRisk)
+    ? titleCase(normalizedRisk === 'moderate' ? 'medium' : normalizedRisk)
+    : String(rawRisk);
+  const details = impact.details || impact.explanation || impact.shortTerm || '';
+
+  return {
+    ...impact,
+    riskLevel,
+    details,
+    shortTerm: impact.shortTerm || details || 'Operational impact requires review.',
+    mediumTerm: impact.mediumTerm || impact.longTerm || 'Monitor the affected operating metrics and adjust if conditions persist.',
+    explanation: impact.explanation || details || 'Impact generated from extracted signals and saved profile.',
+  };
+};
+
+const normalizeAction = (action, index) => {
+  const base = typeof action === 'string'
+    ? { title: action, description: action }
+    : (action || {});
+
+  const title = base.title || base.name || `Recommended Action ${index + 1}`;
+  return {
+    id: base.id || `act_${index}`,
+    ...base,
+    title,
+    description: base.description || base.details || title,
+    rationale: base.rationale || base.reason || base.description || 'Recommended from the current impact analysis.',
+    urgency: base.urgency || 'medium',
+    confidence: base.confidence || 'moderate (75%)',
+    actionType: base.actionType || 'manual_review',
+    targetSystem: base.targetSystem || 'Operations Board',
+    simulationSupported: base.simulationSupported === true,
+    simulationStatus: base.simulationStatus || 'pending',
+  };
+};
+
 export const timestampToIso = (value) => {
   if (!value) return null;
   if (typeof value === 'string') return value;
@@ -14,6 +107,12 @@ export const normalizeAnalysisRun = (id, data, overrides = {}) => {
   const updatedAt = timestampToIso(data.updatedAt) || createdAt;
   const completedAt = timestampToIso(data.completedAt);
   const reportTitle = buildReportTitle(sourceContent, data);
+  const signals = Array.isArray(data.signals) ? data.signals.map(normalizeSignal) : [];
+  const insights = Array.isArray(data.insights) ? data.insights.map(normalizeInsight) : [];
+  const impact = normalizeImpact(data.impact);
+  const recommendedActions = Array.isArray(data.recommendedActions)
+    ? data.recommendedActions.map(normalizeAction)
+    : [];
   const snapshotItem = data.articleSnapshot
     ? {
         id: data.sourceItemId || null,
@@ -46,6 +145,11 @@ export const normalizeAnalysisRun = (id, data, overrides = {}) => {
   return {
     id,
     ...data,
+    signals,
+    insights,
+    impact,
+    recommendedActions,
+    isArchived: !!data.isArchived,
     createdAt,
     updatedAt,
     completedAt,
@@ -63,7 +167,7 @@ export const normalizeAnalysisRun = (id, data, overrides = {}) => {
     sourceTimestamp: sourceItem?.timestamp || null,
     sourceTopics: sourceItem?.detectedTopics || [],
     impactMatrix: data.impactMatrix || {
-      overallRisk: data.impact?.riskLevel || 'Moderate',
+      overallRisk: impact?.riskLevel || 'Moderate',
     },
   };
 };
@@ -163,7 +267,6 @@ export const buildManualFeedItem = (title, body) => ({
   sourceUrl: '',
   timestamp: 'Just now',
   relevanceStatus: 'pending',
-  detectedTopics: [],
   createdAt: new Date().toISOString(),
 });
 

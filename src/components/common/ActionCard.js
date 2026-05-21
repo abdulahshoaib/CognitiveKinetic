@@ -34,14 +34,14 @@ export default function ActionCard({ action, onSimulate, style }) {
       </View>
       
       {/* Rationale / Explanation paragraph */}
-      {action.rationale && (
+      {action.description && (
         <Text style={[
           styles.rationale, 
           { 
             color: c.textSecondary, 
           }
         ]}>
-          {action.rationale}
+          {action.description}
         </Text>
       )}
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Modal, ScrollView, RefreshControl, ActivityIndicator
+  KeyboardAvoidingView, Platform, Modal, ScrollView, RefreshControl, ActivityIndicator,
+  Alert
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import BrandIcon from '../components/common/BrandIcon';
@@ -39,9 +40,10 @@ export default function NewContentScreen() {
     dismissFeedItem,
     analyzeFeedItem,
     analyzeContent,
-    addManualAnalysisItem
+    addManualAnalysisItem,
+    clearAnalysis,
   } = useAnalysis();
-  const { newsAggregators, newsSystemPrompt, setNewsAggregators, updateNewsSystemPrompt } = useIntegrations();
+  const { newsAggregators, newsSystemPrompt, setNewsAggregators, updateNewsSystemPrompt, addSyncLog } = useIntegrations();
   const [profile, setProfile] = useState(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -66,6 +68,30 @@ export default function NewContentScreen() {
   useEffect(() => {
     if (isFocused && user?.uid) loadProfile();
   }, [isFocused, user?.uid]);
+
+  // Auto-fetch feed on first load when empty and sources are configured
+  const hasAutoFetched = React.useRef(false);
+  useEffect(() => {
+    if (
+      isFocused &&
+      user?.uid &&
+      profile &&
+      !hasAutoFetched.current &&
+      feedItems.length === 0 &&
+      newsAggregators.some(s => s.enabled !== false)
+    ) {
+      hasAutoFetched.current = true;
+      setIsRefreshing(true);
+      setRefreshStatus(null);
+      refreshFeedItems(newsAggregators, newsSystemPrompt)
+        .then((result) => {
+          (result?.syncLogs || []).forEach(addSyncLog);
+          setRefreshStatus(result?.status === 'success' ? 'added' : 'empty');
+        })
+        .catch(() => setRefreshStatus('empty'))
+        .finally(() => setIsRefreshing(false));
+    }
+  }, [isFocused, user?.uid, profile, feedItems.length, newsAggregators, addSyncLog]);
 
   useEffect(() => {
     const setup = newsSourcesToAggregatorSetup(newsAggregators.filter(source => source.enabled !== false));
@@ -97,8 +123,12 @@ export default function NewContentScreen() {
     const content = title.trim() ? `${title}\n\n${body}` : body;
     const newItem = await addManualAnalysisItem(title || 'Manual Input', body);
     if (!newItem) return;
+    clearAnalysis();
+    navigation.navigate('AnalysisRun', {
+      sourceItemId: newItem.id,
+      startedAt: Date.now(),
+    });
     analyzeContent(content, profile, newItem.id, newItem);
-    navigation.navigate('AnalysisRun');
     setTitle('');
     setBody('');
   };
@@ -110,9 +140,14 @@ export default function NewContentScreen() {
 
   const handleFeedItemSelect = async (item) => {
     if (!profile || isNewsAnalyzed(item)) return;
+    const feedItemId = item.id || item.feedItemId;
     setDetailItem(null);
-    navigation.navigate('AnalysisRun');
-    await analyzeFeedItem(item.id);
+    clearAnalysis();
+    navigation.navigate('AnalysisRun', {
+      sourceItemId: feedItemId,
+      startedAt: Date.now(),
+    });
+    await analyzeFeedItem(feedItemId);
   };
 
   const handleDismiss = async (item) => {
@@ -154,7 +189,8 @@ export default function NewContentScreen() {
     setRefreshStatus(null);
 
     try {
-      const result = await refreshFeedItems();
+      const result = await refreshFeedItems(newsAggregators, newsSystemPrompt);
+      (result?.syncLogs || []).forEach(addSyncLog);
       setRefreshStatus(result?.status === 'success' ? 'added' : 'empty');
     } catch (err) {
       console.error(err);
@@ -176,6 +212,25 @@ export default function NewContentScreen() {
     } finally {
       setIsArchiveLoading(false);
     }
+  };
+
+  const handleClearAllNews = () => {
+    if (visibleAgentNews.length === 0) return;
+    Alert.alert(
+      'Clear All News',
+      `Are you sure you want to dismiss all ${visibleAgentNews.length} news items?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear All', 
+          style: 'destructive',
+          onPress: async () => {
+            const promises = visibleAgentNews.map(item => dismissFeedItem(item.id));
+            await Promise.all(promises);
+          }
+        }
+      ]
+    );
   };
 
   if (!profile) return <Screen style={{ backgroundColor: c.background }} />;
@@ -360,10 +415,21 @@ export default function NewContentScreen() {
           title="Agent-Selected Feed"
           subtitle={selectedAggregators.length === 0 ? 'No selected news aggregator' : `Filtered from ${selectedAggregators.map(a => a.name).join(', ')}`}
           rightElement={
-            <TouchableOpacity style={[styles.secBtn, { backgroundColor: c.accentSubtle }]} onPress={openControlNewsSources}>
-              <Feather name="cpu" size={14} color={c.accent} />
-              <Text style={[styles.secBtnText, { color: c.accent }]}>Sources</Text>
-            </TouchableOpacity>
+            <View style={styles.headerButtonsRow}>
+              {visibleAgentNews.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.secBtn, { backgroundColor: c.errorSoft || '#FEE2E2', marginRight: 4 }]}
+                  onPress={handleClearAllNews}
+                >
+                  <Feather name="trash-2" size={14} color={c.error || '#EF4444'} />
+                  <Text style={[styles.secBtnText, { color: c.error || '#EF4444' }]}>Clear All</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[styles.secBtn, { backgroundColor: c.accentSubtle }]} onPress={openControlNewsSources}>
+                <Feather name="cpu" size={14} color={c.accent} />
+                <Text style={[styles.secBtnText, { color: c.accent }]}>Sources</Text>
+              </TouchableOpacity>
+            </View>
           }
           style={{ paddingHorizontal: 20, marginTop: 20 }}
         />
@@ -547,6 +613,7 @@ const styles = StyleSheet.create({
   analyzeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8, flexShrink: 1 },
   analyzeBtnText: { fontWeight: FontWeights.bold, fontSize: FontSizes.sm, flexShrink: 1 },
 
+  headerButtonsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   secBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   secBtnText: { fontSize: FontSizes.xs, fontWeight: FontWeights.bold },
   feed: { paddingHorizontal: 20, gap: 12 },
