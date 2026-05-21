@@ -58,15 +58,32 @@ export interface SyncLog {
 }
 
 export interface ProcessedFeedItem {
+  id: string;
   feedItemId: string;
   title: string;
   summary: string;
+  brief: string;
+  body: string;
   sourceName: string;
+  sourceId?: string;
+  sourceType?: string;
+  url: string;
   sourceUrl: string;
+  canonicalUrl: string;
   publishedAt: string;
+  timestamp: string;
   relevanceScore: number;
   selectionReason: string;
-  brief: string;
+  relevanceExplanation: string;
+  relevanceStatus: "high-impact" | "relevant";
+  reason: string;
+  status: "unread" | "analyzing" | "analyzed" | "archived";
+  saved: boolean;
+  type: "agent_signal";
+  isAgentSignal: boolean;
+  detectedTopics: string[];
+  createdAt: string;
+  fetchedAt: string;
 }
 
 export interface AgentFeedSelection extends ProcessedFeedItem {
