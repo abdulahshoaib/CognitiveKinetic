@@ -1,8 +1,9 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
-import { doc, collection, onSnapshot, query, orderBy, getDocs, getDoc, setDoc, serverTimestamp, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, collection, onSnapshot, query, orderBy, getDocs, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../services/firebase';
 import { runPipeline } from '../services/agent/orchestrator';
+import { getProfile } from '../services/profileService';
 import {
   addUserFeedItems,
   createManualFeedItem,
@@ -13,18 +14,62 @@ import {
   updateFeedItemStatus,
 } from '../services/feedService';
 import { useAuth } from './AuthContext';
+import { useIntegrations } from './IntegrationsContext';
 import {
   buildFeedItemContent,
+  buildManualFeedItem,
   buildLocalLogEntry,
   getRunFeedStatus,
   normalizeAnalysisRun,
   normalizeAnalysisRunSnapshot,
   normalizeLogSnapshot,
-  normalizeSimulationResult,
   updateActionStatusInResult,
 } from '../utils/analysisContextUtils';
+import { getJSON, setJSON } from '../utils/storage';
 
 const noop = () => {};
+const LOCAL_ANALYSIS_PREFIX = '@relay_analysis_';
+const LOCAL_REPORT_PREFIX = 'local_run_';
+const DEFAULT_SYSTEM_STATE = {
+  baseDeliveryFee: 100,
+  longDistanceSurcharge: 0,
+  peakHourSurcharge: 15,
+  lastUpdate: 'System Synced',
+};
+
+const localKey = (uid, scope) => `${LOCAL_ANALYSIS_PREFIX}${uid}_${scope}`;
+
+const sortAnalysisHistory = (history = []) => (
+  [...history].sort((a, b) => {
+    const aTime = new Date(a.analyzedAt || a.updatedAt || a.createdAt || 0).getTime();
+    const bTime = new Date(b.analyzedAt || b.updatedAt || b.createdAt || 0).getTime();
+    return bTime - aTime;
+  })
+);
+
+const mergeById = (primary = [], secondary = []) => {
+  const merged = new Map();
+  [...secondary, ...primary].forEach((item) => {
+    const id = item?.id || item?.feedItemId;
+    if (!id) return;
+    merged.set(id, { ...(merged.get(id) || {}), ...item, id: item.id || id });
+  });
+  return Array.from(merged.values());
+};
+
+const persistAnalysisHistory = async (uid, history) => {
+  if (!uid) return;
+  await setJSON(localKey(uid, 'history'), sortAnalysisHistory(history));
+};
+
+const upsertHistoryItem = (history, nextItem) => {
+  if (!nextItem?.id) return sortAnalysisHistory(history || []);
+  return sortAnalysisHistory(mergeById([nextItem], history || []));
+};
+
+const removeHistoryItem = (history, analysisId) => (
+  (history || []).filter((item) => item?.id !== analysisId)
+);
 
 const AnalysisContext = createContext({
   feedItems: [],
@@ -55,6 +100,8 @@ const AnalysisContext = createContext({
 
 export const AnalysisProvider = ({ children }) => {
   const { user } = useAuth();
+  const { actionApis } = useIntegrations();
+  const analysisRunsListenerRef = useRef(null);
   const [feedItems, setFeedItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -64,6 +111,7 @@ export const AnalysisProvider = ({ children }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
   const [executionLogs, setExecutionLogs] = useState([]);
+  const [localCacheLoaded, setLocalCacheLoaded] = useState(false);
   const activeSubscriptions = useRef([]);
 
   const [systemState, setSystemState] = useState(null);
@@ -79,6 +127,115 @@ export const AnalysisProvider = ({ children }) => {
     return () => cleanupActiveRun();
   }, [cleanupActiveRun]);
 
+  // Hydrate all visible analysis state from local storage before live sync completes.
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLocalState = async () => {
+      if (!user?.uid) {
+        setFeedItems([]);
+        setSelectedItem(null);
+        setAnalysisResult(null);
+        setAnalysisHistory([]);
+        setSimulationResult(null);
+        setExecutionLogs([]);
+        setSystemState(null);
+        setCurrentStage('idle');
+        setLocalCacheLoaded(false);
+        return;
+      }
+
+      setLocalCacheLoaded(false);
+      try {
+        const [
+          cachedFeedItems,
+          cachedHistory,
+          cachedActiveReport,
+          cachedSimulation,
+          cachedLogs,
+          cachedSystemState,
+          cachedStage,
+        ] = await Promise.all([
+          getJSON(localKey(user.uid, 'feedItems'), []),
+          getJSON(localKey(user.uid, 'history'), []),
+          getJSON(localKey(user.uid, 'activeReport'), null),
+          getJSON(localKey(user.uid, 'simulationResult'), null),
+          getJSON(localKey(user.uid, 'executionLogs'), []),
+          getJSON(localKey(user.uid, 'systemState'), null),
+          getJSON(localKey(user.uid, 'currentStage'), 'idle'),
+        ]);
+
+        if (!mounted) return;
+        setFeedItems(Array.isArray(cachedFeedItems) ? cachedFeedItems : []);
+        setAnalysisHistory(Array.isArray(cachedHistory) ? sortAnalysisHistory(cachedHistory) : []);
+        setAnalysisResult(cachedActiveReport);
+        setSimulationResult(cachedSimulation);
+        setExecutionLogs(Array.isArray(cachedLogs) ? cachedLogs : []);
+        setSystemState(cachedSystemState);
+        setCurrentStage(cachedStage || 'idle');
+      } catch (error) {
+        console.warn('Unable to hydrate persisted analysis state:', error);
+      } finally {
+        if (mounted) setLocalCacheLoaded(true);
+      }
+    };
+
+    loadLocalState();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    setJSON(localKey(user.uid, 'feedItems'), feedItems).catch((error) => {
+      console.warn('Unable to persist feed items:', error);
+    });
+  }, [user?.uid, localCacheLoaded, feedItems]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    persistAnalysisHistory(user.uid, analysisHistory).catch((error) => {
+      console.warn('Unable to persist analysis history:', error);
+    });
+  }, [user?.uid, localCacheLoaded, analysisHistory]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    setJSON(localKey(user.uid, 'activeReport'), analysisResult).catch((error) => {
+      console.warn('Unable to persist active report:', error);
+    });
+  }, [user?.uid, localCacheLoaded, analysisResult]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    setJSON(localKey(user.uid, 'simulationResult'), simulationResult).catch((error) => {
+      console.warn('Unable to persist simulation result:', error);
+    });
+  }, [user?.uid, localCacheLoaded, simulationResult]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    setJSON(localKey(user.uid, 'executionLogs'), executionLogs).catch((error) => {
+      console.warn('Unable to persist execution logs:', error);
+    });
+  }, [user?.uid, localCacheLoaded, executionLogs]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    setJSON(localKey(user.uid, 'systemState'), systemState).catch((error) => {
+      console.warn('Unable to persist system state:', error);
+    });
+  }, [user?.uid, localCacheLoaded, systemState]);
+
+  useEffect(() => {
+    if (!user?.uid || !localCacheLoaded) return;
+    setJSON(localKey(user.uid, 'currentStage'), currentStage).catch((error) => {
+      console.warn('Unable to persist analysis stage:', error);
+    });
+  }, [user?.uid, localCacheLoaded, currentStage]);
+
   // 0. Sync user-scoped feedItems in real-time with Firestore.
   useEffect(() => {
     if (!user) {
@@ -86,7 +243,9 @@ export const AnalysisProvider = ({ children }) => {
       return;
     }
 
-    return listenUserFeedItems(user.uid, setFeedItems, (err) => {
+    return listenUserFeedItems(user.uid, (remoteItems) => {
+      setFeedItems((prev) => mergeById(remoteItems, prev).filter((item) => item.status !== 'dismissed'));
+    }, (err) => {
       console.error("Error listening to user feed items:", err);
     });
   }, [user]);
@@ -103,12 +262,7 @@ export const AnalysisProvider = ({ children }) => {
       if (snap.exists()) {
         setSystemState(snap.data());
       } else {
-        setSystemState({
-          baseDeliveryFee: 100,
-          longDistanceSurcharge: 0,
-          peakHourSurcharge: 15,
-          lastUpdate: "System Synced"
-        });
+        setSystemState(DEFAULT_SYSTEM_STATE);
       }
     }, (err) => {
       console.error("Error listening to mock state:", err);
@@ -127,7 +281,11 @@ export const AnalysisProvider = ({ children }) => {
     const runsColRef = collection(db, 'users', user.uid, 'analysisRuns');
     const q = query(runsColRef, orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snap) => {
-      setAnalysisHistory(normalizeAnalysisRunSnapshot(snap));
+      const remoteHistory = normalizeAnalysisRunSnapshot(snap);
+      setAnalysisHistory((prev) => {
+        const localOnly = (prev || []).filter((item) => String(item?.id || '').startsWith(LOCAL_REPORT_PREFIX));
+        return sortAnalysisHistory(mergeById(remoteHistory, localOnly));
+      });
     }, (err) => {
       console.error("Error listening to analysis runs:", err);
     });
@@ -169,6 +327,7 @@ export const AnalysisProvider = ({ children }) => {
 
     try {
       addLog('Initiating backend content-to-action analysis pipeline...', 'orchestrator');
+      const savedProfileContext = profileContext || await getProfile(user.uid) || {};
 
       // Check for local LLM key to bypass undeployed backend functions
       const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
@@ -187,7 +346,7 @@ export const AnalysisProvider = ({ children }) => {
         await new Promise(r => setTimeout(r, 500));
         
         setCurrentStage('relevance');
-        const localResult = await runPipeline(content, profileContext || {});
+        const localResult = await runPipeline(content, savedProfileContext);
         addLog(`Relevance checked: ${localResult.relevanceScore}%`, 'relevance');
         await new Promise(r => setTimeout(r, 500));
 
@@ -221,6 +380,7 @@ export const AnalysisProvider = ({ children }) => {
         });
 
         setAnalysisResult(enrichedResult);
+        setAnalysisHistory(prev => upsertHistoryItem(prev, enrichedResult));
         setIsAnalyzing(false);
         setCurrentStage('completed');
 
@@ -283,6 +443,7 @@ export const AnalysisProvider = ({ children }) => {
           });
 
           setAnalysisResult(enrichedResult);
+          setAnalysisHistory(prev => upsertHistoryItem(prev, enrichedResult));
           setIsAnalyzing(false);
 
           if (data.status === 'failed') {
@@ -319,7 +480,7 @@ export const AnalysisProvider = ({ children }) => {
   }, [user, addLog, cleanupActiveRun]);
 
 
-  // 4. Trigger simulation using the local client pipeline with real-time log output
+  // 4. Trigger simulation through the backend API runner.
   const executeSimulation = useCallback(async (action, analysisId = null) => {
     if (!action || !user) return;
     const runId = analysisId || analysisResult?.id;
@@ -336,140 +497,51 @@ export const AnalysisProvider = ({ children }) => {
       setAnalysisResult(prev =>
         prev?.id === runId ? updateActionStatusInResult(prev, action.id, status, logs) : prev
       );
+      setAnalysisHistory(prev => (prev || []).map(item =>
+        item?.id === runId ? updateActionStatusInResult(item, action.id, status, logs) : item
+      ));
     };
 
     updateActionStatus('running');
 
     try {
-      addLog(`Initiating simulation run for action: ${action.title}`, 'simulation');
+      addLog(`Preparing API simulation for: ${action.title}`, 'simulation');
+      addLog('Reading Action API setup from Firestore.', 'simulation');
 
-      // 1. Establish the current mock system state (Before State)
-      const currentBefore = systemState || {
-        baseDeliveryFee: 100,
-        longDistanceSurcharge: 0,
-        peakHourSurcharge: 15,
-        lastUpdate: "System Synced"
-      };
-
-      // 2. Define sequence of detailed execution logs to show real-time progress
-      let stepLogs = [];
-      let finalAfterState = { ...currentBefore };
-      let passed = true;
-
-      if (action.actionType === 'pricing_adjust') {
-        finalAfterState.longDistanceSurcharge = 20;
-        finalAfterState.lastUpdate = "Surcharge Active (+Rs. 20)";
-        stepLogs = [
-          { message: "Configuring local pricing service adapter...", stage: "simulation", level: "info" },
-          { message: "Payload built: { rule: 'long_distance_surcharge', value: 20, active: true }", stage: "tool", level: "info" },
-          { message: "Executing local pricing policy atomic write to Mock DB...", stage: "tool", level: "info" },
-          { message: "Success: baseDeliveryFee stays 100, longDistanceSurcharge updated to 20.", stage: "tool", level: "success" },
-          { message: "Broadcasting system event: PRICING_UPDATED_BROADCAST", stage: "simulation", level: "info" },
-        ];
-      } else if (action.actionType === 'route_shift') {
-        finalAfterState.peakHourSurcharge = 30;
-        finalAfterState.lastUpdate = "Peak Adjustment Active (+Rs. 30)";
-        stepLogs = [
-          { message: "Configuring local routing service adapter...", stage: "simulation", level: "info" },
-          { message: "Payload built: { avoidZone: 'Mall Road Lahore', shiftWindows: ['08:00', '20:00'] }", stage: "tool", level: "info" },
-          { message: "AI Dispatch Engine: Reconstructing routing graph...", stage: "tool", level: "info" },
-          { message: "Success: peakHourSurcharge updated to 30. Re-routing completed for 14 active vehicles.", stage: "tool", level: "success" },
-          { message: "Broadcasting system event: ROUTING_OPTIMIZED_BROADCAST", stage: "simulation", level: "info" },
-        ];
-      } else if (action.actionType === 'manual_review' || action.simulationSupported === false) {
-        finalAfterState.lastUpdate = "Policy Updated (Manual)";
-        stepLogs = [
-          { message: "Initiating manual completion flow...", stage: "simulation", level: "info" },
-          { message: "Dispatching confirmation log notification to operations dashboard...", stage: "tool", level: "info" },
-          { message: "Action marked as manually resolved by operator.", stage: "tool", level: "success" },
-          { message: "Creating compliance trace document: manual_policy_amend.pdf", stage: "tool", level: "info" },
-          { message: "System state transition: Surcharges stable, Policy updated.", stage: "simulation", level: "success" },
-        ];
-      } else {
-        finalAfterState.lastUpdate = "Policy Updated (Client Simulation)";
-        stepLogs = [
-          { message: "Configuring local fallback adapter...", stage: "simulation", level: "info" },
-          { message: "Creating documentation trace in local workspace...", stage: "tool", level: "info" },
-          { message: "Executing mock system notification broadcast...", stage: "tool", level: "info" },
-          { message: "Success: Action completed successfully.", stage: "simulation", level: "success" },
-        ];
-      }
-
-      // 3. Play logs step-by-step in real-time with visual delays!
-      for (let i = 0; i < stepLogs.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 600)); // 600ms delay per log line
-        addLog(stepLogs[i].message, stepLogs[i].stage, stepLogs[i].level);
-      }
-
-      // Add a slight final delay
-      await new Promise(resolve => setTimeout(resolve, 400));
-
-      const rawLogs = stepLogs.map(sl => sl.message);
-      const simResult = {
+      // Pass user's action API configs as fallback in case Firestore hasn't synced yet
+      const enabledApis = (actionApis || []).filter(api => api.enabled !== false);
+      const simulateActionCallable = httpsCallable(functions, 'simulateAction');
+      const response = await simulateActionCallable({
+        runId,
         actionId: action.id,
-        actionTitle: action.title,
-        beforeState: currentBefore,
-        afterState: finalAfterState,
-        logs: rawLogs,
-        passed: passed,
-        status: passed ? 'succeeded' : 'failed',
-        simId: `local_sim_${Date.now()}`
-      };
+        action,
+        clientApis: enabledApis,
+      });
+      const simResult = response.data || {};
+      const rawLogs = Array.isArray(simResult.logs) ? simResult.logs : [];
+
+      for (const message of rawLogs) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        const isFailure = String(message).toLowerCase().includes('failed') ||
+          String(message).toLowerCase().includes('unchanged');
+        addLog(
+          message,
+          message.startsWith('cURL') ? 'tool' : 'simulation',
+          isFailure ? 'error' : 'info'
+        );
+      }
 
       setSimulationResult(simResult);
-      setSystemState(finalAfterState);
-      updateActionStatus(passed ? 'passed' : 'failed', rawLogs);
+      if (simResult.afterState) setSystemState(simResult.afterState);
+      updateActionStatus(simResult.passed ? 'passed' : 'failed', rawLogs);
 
       addLog(
-        passed
-          ? `Simulation finalized. State transition completed successfully.`
-          : `Simulation failed. Manual intervention required.`,
+        simResult.passed
+          ? 'Simulation complete. Backend API accepted request.'
+          : 'Simulation failed. Check API endpoint, auth, and payload.',
         'simulation',
-        passed ? 'success' : 'error'
+        simResult.passed ? 'success' : 'error'
       );
-
-      // Attempt to save state & simulation record to Firestore (if rules allow, swallow error silently if not)
-      try {
-        const mockStateRef = doc(db, 'users', user.uid, 'mockState', 'main');
-        await setDoc(mockStateRef, finalAfterState, { merge: true });
-        
-        const simRef = doc(collection(db, 'users', user.uid, 'simulations'));
-        await setDoc(simRef, {
-          actionId: action.id,
-          status: passed ? "succeeded" : "failed",
-          beforeState: currentBefore,
-          afterState: finalAfterState,
-          logs: rawLogs,
-          createdAt: new Date().toISOString()
-        });
-
-        // Also update Firestore analysis run if not starting with local_run_
-        if (!runId.startsWith('local_run_')) {
-          const runRef = doc(db, 'users', user.uid, 'analysisRuns', runId);
-          // Fetch current actions and update
-          const runSnap = await getDoc(runRef);
-          if (runSnap.exists()) {
-            const rData = runSnap.data();
-            const currentActions = rData.recommendedActions || [];
-            const actionIndex = currentActions.findIndex(a => a.id === action.id);
-            if (actionIndex !== -1) {
-              const updatedActions = [...currentActions];
-              updatedActions[actionIndex] = {
-                ...updatedActions[actionIndex],
-                simulationStatus: passed ? "passed" : "failed",
-                simulationLogs: rawLogs,
-              };
-              await updateDoc(runRef, {
-                recommendedActions: updatedActions,
-                status: "simulated",
-                updatedAt: new Date().toISOString()
-              });
-            }
-          }
-        }
-      } catch (firestoreError) {
-        // Expected if Firestore rules restrict writes to functions
-      }
 
     } catch (error) {
       console.error("Simulation failed:", error);
@@ -479,7 +551,7 @@ export const AnalysisProvider = ({ children }) => {
     } finally {
       setIsSimulating(false);
     }
-  }, [user, analysisResult, systemState, addLog]);
+  }, [user, analysisResult, addLog]);
 
   const clearAnalysis = useCallback(() => {
     setAnalysisResult(null);
@@ -496,9 +568,16 @@ export const AnalysisProvider = ({ children }) => {
       return await createManualFeedItem(user.uid, title, body);
     } catch (e) {
       console.error("Error adding manual analysis item:", e);
-      return null;
+      const localItem = {
+        id: `local_feed_${Date.now()}`,
+        ...buildManualFeedItem(title, body),
+        localOnly: true,
+      };
+      setFeedItems(prev => mergeById([localItem], prev));
+      addLog('Manual content saved locally for analysis.', 'feed', 'warning');
+      return localItem;
     }
-  }, [user]);
+  }, [user, addLog]);
 
   const addFeedItems = useCallback(async (items) => {
     if (!user) return;
@@ -506,8 +585,17 @@ export const AnalysisProvider = ({ children }) => {
       await addUserFeedItems(user.uid, items);
     } catch (e) {
       console.error("Error adding feed items:", e);
+      setFeedItems(prev => mergeById(
+        (items || []).map(item => ({
+          ...item,
+          id: item.id || item.feedItemId || `local_feed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          localOnly: true,
+        })),
+        prev,
+      ));
+      addLog('Feed items saved locally after remote write failed.', 'feed', 'warning');
     }
-  }, [user]);
+  }, [user, addLog]);
 
   const refreshFeedItems = useCallback(async (configuredSources, systemPrompt) => {
     if (!user) return { status: 'empty', items: [], syncLogs: [] };
@@ -555,37 +643,75 @@ export const AnalysisProvider = ({ children }) => {
     if (!user || !analysisId || !actionId) return;
 
     try {
-      // Find the action from the current analysisResult or analysisHistory
-      let actionToSimulate = null;
-      if (analysisResult?.id === analysisId) {
-        actionToSimulate = (analysisResult.recommendedActions || []).find(a => a.id === actionId);
-      } else {
-        const historicalRun = (analysisHistory || []).find(run => run.id === analysisId);
-        if (historicalRun) {
-          actionToSimulate = (historicalRun.recommendedActions || []).find(a => a.id === actionId);
+      // Find action title for logging
+      let actionTitle = 'Manual Operational Adjustment';
+      const findAction = (run) => (run?.recommendedActions || []).find(a => a.id === actionId);
+      const found = findAction(analysisResult?.id === analysisId ? analysisResult : null)
+        || findAction((analysisHistory || []).find(run => run.id === analysisId));
+      if (found) actionTitle = found.title || actionTitle;
+
+      const completionLogs = [
+        'Manual action marked as completed by operator.',
+        `Action: ${actionTitle}`,
+        'No automated simulation required — manual execution confirmed.',
+      ];
+
+      // Directly mark as passed without calling backend
+      const updateStatus = (status, logs) => {
+        setAnalysisResult(prev =>
+          prev?.id === analysisId ? updateActionStatusInResult(prev, actionId, status, logs) : prev
+        );
+        setAnalysisHistory(prev => (prev || []).map(item =>
+          item?.id === analysisId ? updateActionStatusInResult(item, actionId, status, logs) : item
+        ));
+      };
+
+      updateStatus('passed', completionLogs);
+
+      // Set simulation result so SimulationResultScreen shows completion
+      setSimulationResult({
+        actionTitle,
+        passed: true,
+        beforeState: {},
+        afterState: {},
+        logs: completionLogs,
+        apiName: 'Manual Completion',
+        endpoint: 'N/A — operator confirmed',
+        method: 'MANUAL',
+        responseStatus: 200,
+        requestPayload: null,
+      });
+
+      addLog(`Manual action "${actionTitle}" marked as completed.`, 'simulation', 'success');
+
+      // Persist to Firestore if not a local-only run
+      if (!String(analysisId).startsWith(LOCAL_REPORT_PREFIX)) {
+        try {
+          const actionDocRef = doc(db, 'users', user.uid, 'analysisRuns', analysisId);
+          const snap = await getDoc(actionDocRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            const updatedActions = (data.recommendedActions || []).map(a =>
+              a.id === actionId ? { ...a, simulationStatus: 'passed', simulationLogs: completionLogs } : a
+            );
+            await updateDoc(actionDocRef, { recommendedActions: updatedActions });
+          }
+        } catch (persistErr) {
+          console.warn('Unable to persist manual completion to Firestore:', persistErr);
         }
       }
-
-      if (!actionToSimulate) {
-        // Build a mock manual action if not found in list
-        actionToSimulate = {
-          id: actionId,
-          title: "Manual Operational Adjustment",
-          actionType: "manual_review",
-          simulationSupported: false,
-          targetSystem: "Manual Operations"
-        };
-      }
-
-      // Execute simulation using the local client pipeline
-      await executeSimulation(actionToSimulate, analysisId);
     } catch (error) {
-      console.error("Manual action simulation failed:", error);
+      console.error("Manual action completion failed:", error);
     }
-  }, [user, analysisResult, analysisHistory, executeSimulation]);
+  }, [user, analysisResult, analysisHistory, addLog]);
 
   const saveFeedItem = useCallback(async (feedItemId, saved = true) => {
     if (!user) return;
+    setFeedItems(prev => prev.map(item =>
+      (item.id === feedItemId || item.feedItemId === feedItemId)
+        ? { ...item, saved, updatedAt: new Date().toISOString() }
+        : item
+    ));
     try {
       await updateFeedItemSaved(user.uid, feedItemId, saved);
       addLog(`Feed item marked as ${saved ? 'saved' : 'unsaved'}.`, 'feed');
@@ -619,11 +745,29 @@ export const AnalysisProvider = ({ children }) => {
       }
       const content = buildFeedItemContent(item);
 
-      await updateFeedItemStatus(user.uid, feedItemId, 'analyzing');
+      setFeedItems(prev => prev.map(feedItem =>
+        (feedItem.id === feedItemId || feedItem.feedItemId === feedItemId)
+          ? { ...feedItem, status: 'analyzing', updatedAt: new Date().toISOString() }
+          : feedItem
+      ));
+      try {
+        await updateFeedItemStatus(user.uid, feedItemId, 'analyzing');
+      } catch (statusError) {
+        console.warn('Unable to sync feed analyzing status remotely:', statusError);
+      }
 
       await analyzeContent(content, null, feedItemId, item);
 
-      await updateFeedItemStatus(user.uid, feedItemId, 'analyzed');
+      setFeedItems(prev => prev.map(feedItem =>
+        (feedItem.id === feedItemId || feedItem.feedItemId === feedItemId)
+          ? { ...feedItem, status: 'analyzed', updatedAt: new Date().toISOString() }
+          : feedItem
+      ));
+      try {
+        await updateFeedItemStatus(user.uid, feedItemId, 'analyzed');
+      } catch (statusError) {
+        console.warn('Unable to sync feed analyzed status remotely:', statusError);
+      }
 
       addLog(`Feed item analysis complete.`, 'feed');
     } catch (e) {
@@ -631,6 +775,11 @@ export const AnalysisProvider = ({ children }) => {
       addLog(`Failed to analyze feed item: ${e.message}`, 'feed', 'error');
 
       try {
+        setFeedItems(prev => prev.map(feedItem =>
+          (feedItem.id === feedItemId || feedItem.feedItemId === feedItemId)
+            ? { ...feedItem, status: 'unread', updatedAt: new Date().toISOString() }
+            : feedItem
+        ));
         await updateFeedItemStatus(user.uid, feedItemId, 'unread');
       } catch (innerErr) {
         console.error("Error resetting feed item status:", innerErr);
@@ -641,43 +790,45 @@ export const AnalysisProvider = ({ children }) => {
   const archiveAnalysis = useCallback(async (analysisId, archived = true) => {
     if (!user || !analysisId) return;
 
+    setAnalysisResult(prev => {
+      if (prev && prev.id === analysisId) {
+        return { ...prev, isArchived: archived };
+      }
+      return prev;
+    });
+    setAnalysisHistory(prev => (prev || []).map(item =>
+      item?.id === analysisId ? { ...item, isArchived: archived } : item
+    ));
+
     try {
       const docRef = doc(db, 'users', user.uid, 'analysisRuns', analysisId);
       await updateDoc(docRef, { isArchived: archived });
-      
-      // Update local selected analysis result if it matches
-      setAnalysisResult(prev => {
-        if (prev && prev.id === analysisId) {
-          return { ...prev, isArchived: archived };
-        }
-        return prev;
-      });
 
       addLog(`Analysis report ${archived ? 'archived' : 'unarchived'}.`, 'orchestrator');
     } catch (e) {
       console.error("Error archiving analysis run:", e);
-      addLog(`Failed to archive analysis: ${e.message}`, 'orchestrator', 'error');
+      addLog(`Remote archive sync failed; local report state was preserved. ${e.message}`, 'orchestrator', 'warning');
     }
   }, [user, addLog]);
 
   const deleteAnalysis = useCallback(async (analysisId) => {
     if (!user || !analysisId) return;
 
+    setAnalysisHistory(prev => removeHistoryItem(prev, analysisId));
+    setAnalysisResult(prev => {
+      if (prev && prev.id === analysisId) {
+        return null;
+      }
+      return prev;
+    });
+
     try {
       const docRef = doc(db, 'users', user.uid, 'analysisRuns', analysisId);
       await deleteDoc(docRef);
       addLog('Analysis report deleted.', 'orchestrator');
-      
-      // If the currently selected or active report is deleted, clear it
-      setAnalysisResult(prev => {
-        if (prev && prev.id === analysisId) {
-          return null;
-        }
-        return prev;
-      });
     } catch (e) {
       console.error("Error deleting analysis run:", e);
-      addLog(`Failed to delete analysis: ${e.message}`, 'orchestrator', 'error');
+      addLog(`Remote delete sync failed; local report was removed. ${e.message}`, 'orchestrator', 'warning');
     }
   }, [user, addLog]);
 

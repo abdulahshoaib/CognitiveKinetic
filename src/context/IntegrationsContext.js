@@ -1,9 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
-import { listenNewsFeedSettings, saveNewsFeedSettings } from '../services/feedService';
+import {
+  listenActionApiSettings,
+  listenNewsFeedSettings,
+  saveActionApiSettings,
+  saveNewsFeedSettings,
+} from '../services/feedService';
 
 const STORAGE_KEY = '@relay_integrations_';
+const LOGS_STORAGE_KEY = '@relay_integration_logs_';
 
 export const DEFAULT_NEWS_PROMPT =
   'You are a news collection agent. Gather news relevant to fuel prices, transport and logistics regulation, trade disruptions, supply chain delays, and tax policy changes affecting commercial operations. Prioritize breaking alerts and policy changes over general market commentary.';
@@ -106,10 +112,12 @@ export function IntegrationsProvider({ children }) {
   useEffect(() => {
     let mounted = true;
     let unsubscribeSettings = null;
+    let unsubscribeApiSettings = null;
 
     const load = async () => {
       if (!user?.uid) {
         setState(defaultIntegrations);
+        setSyncLogs(defaultSyncLogs);
         return;
       }
 
@@ -126,9 +134,14 @@ export function IntegrationsProvider({ children }) {
             newsSystemPrompt: parsed.newsSystemPrompt || DEFAULT_NEWS_PROMPT,
           });
         }
+
+        const storedLogs = await AsyncStorage.getItem(`${LOGS_STORAGE_KEY}${user.uid}`);
+        if (!mounted) return;
+        setSyncLogs(storedLogs ? JSON.parse(storedLogs) : defaultSyncLogs);
       } catch (error) {
         console.warn('Unable to load integration settings:', error);
         setState(defaultIntegrations);
+        setSyncLogs(defaultSyncLogs);
       }
 
       unsubscribeSettings = listenNewsFeedSettings(user.uid, async (settings) => {
@@ -147,6 +160,22 @@ export function IntegrationsProvider({ children }) {
       }, (error) => {
         console.warn('Unable to listen for news feed settings:', error);
       });
+
+      unsubscribeApiSettings = listenActionApiSettings(user.uid, async (settings) => {
+        if (!mounted || !settings) return;
+        setState(prev => {
+          const nextState = {
+            ...prev,
+            actionApis: Array.isArray(settings.apis) ? settings.apis : prev.actionApis,
+          };
+          AsyncStorage.setItem(`${STORAGE_KEY}${user.uid}`, JSON.stringify(nextState)).catch((error) => {
+            console.warn('Unable to mirror action API settings locally:', error);
+          });
+          return nextState;
+        });
+      }, (error) => {
+        console.warn('Unable to listen for action API settings:', error);
+      });
     };
 
     load();
@@ -154,6 +183,7 @@ export function IntegrationsProvider({ children }) {
     return () => {
       mounted = false;
       if (unsubscribeSettings) unsubscribeSettings();
+      if (unsubscribeApiSettings) unsubscribeApiSettings();
     };
   }, [user?.uid]);
 
@@ -163,16 +193,36 @@ export function IntegrationsProvider({ children }) {
     try {
       await AsyncStorage.setItem(`${STORAGE_KEY}${user.uid}`, JSON.stringify(nextState));
     } catch (error) {
-      console.warn('Unable to save integration settings:', error);
+      console.warn('Unable to save integration settings locally:', error);
     }
 
+    // Save news feed settings to Firestore
     try {
       await saveNewsFeedSettings(user.uid, {
         systemPrompt: nextState.newsSystemPrompt,
         sources: nextState.newsAggregators,
       });
     } catch (error) {
-      console.warn('Unable to save news feed settings:', error);
+      console.error('[IntegrationsContext] Firestore news feed write FAILED:', error);
+    }
+
+    // Save action API settings to Firestore
+    try {
+      await saveActionApiSettings(user.uid, {
+        apis: nextState.actionApis,
+      });
+      console.log(`[IntegrationsContext] Saved ${nextState.actionApis.length} action API(s) to Firestore.`);
+    } catch (error) {
+      console.error('[IntegrationsContext] Firestore action API write FAILED:', error);
+    }
+  }, [user?.uid]);
+
+  const saveSyncLogs = useCallback(async (nextLogs) => {
+    if (!user?.uid) return;
+    try {
+      await AsyncStorage.setItem(`${LOGS_STORAGE_KEY}${user.uid}`, JSON.stringify(nextLogs));
+    } catch (error) {
+      console.warn('Unable to save integration logs:', error);
     }
   }, [user?.uid]);
 
@@ -233,12 +283,17 @@ export function IntegrationsProvider({ children }) {
   }, [persist, state]);
 
   const addSyncLog = useCallback((log) => {
-    setSyncLogs(prev => [{ ...log, id: createId('log'), timestamp: 'Just now' }, ...prev]);
-  }, []);
+    setSyncLogs(prev => {
+      const nextLogs = [{ ...log, id: createId('log'), timestamp: 'Just now' }, ...prev];
+      saveSyncLogs(nextLogs);
+      return nextLogs;
+    });
+  }, [saveSyncLogs]);
 
   const clearSyncLogs = useCallback(() => {
     setSyncLogs([]);
-  }, []);
+    saveSyncLogs([]);
+  }, [saveSyncLogs]);
 
   const value = useMemo(() => ({
     actionApis: state.actionApis,
