@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Relay",
-    "slug": "relay",
+    "slug": "CognitiveKinetic",
     "scheme": "relay",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,6 +31,6 @@
         "projectId": "9b73eda8-c8d1-4e51-bb3f-10106bed3cfd"
       }
     },
-    "owner": "abdulahshoaib"
+      "owner": "coginitive-labs"
   }
 }
