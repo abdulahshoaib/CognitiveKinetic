@@ -551,7 +551,7 @@ export const AnalysisProvider = ({ children }) => {
     } finally {
       setIsSimulating(false);
     }
-  }, [user, analysisResult, addLog]);
+  }, [user, analysisResult, addLog, actionApis]);
 
   const clearAnalysis = useCallback(() => {
     setAnalysisResult(null);

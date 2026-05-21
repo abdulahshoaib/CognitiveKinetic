@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
 import {
   listenActionApiSettings,
@@ -214,6 +215,7 @@ export function IntegrationsProvider({ children }) {
       console.log(`[IntegrationsContext] Saved ${nextState.actionApis.length} action API(s) to Firestore.`);
     } catch (error) {
       console.error('[IntegrationsContext] Firestore action API write FAILED:', error);
+      Alert.alert('Save Failed', 'Could not save API settings to server. Check connection and try again.');
     }
   }, [user?.uid]);
 
